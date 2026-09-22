@@ -49,9 +49,9 @@ cp /path/to/Realy_release.keystore ./release.keystore
 ```python
 # execute_code
 with open('gradle.properties', 'a') as f:
-    f.write('YUNIAN_STORE_PASSWORD=34987...\n')
+    f.write('YUNIAN_STORE_PASSWORD=<REDACTED>\n')
     f.write('YUNIAN_KEY_ALIAS=your_alias\n')
-    f.write('YUNIAN_KEY_PASSWORD=34987...\n')
+    f.write('YUNIAN_KEY_PASSWORD=<REDACTED>\n')
 ```
 
 ### 2.4 环境变量（可选，推荐 gradle.properties）

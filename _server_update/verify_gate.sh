@@ -41,7 +41,7 @@ printf '5. 签名已过期        -> %s  %s\n' "$(code -H "X-LianYu-Key: $KEY" "
 printf '6. 网关通过/无设备签名 -> %s  %s\n' "$(code -H "X-LianYu-Key: $KEY" "$API?md5=$M&expires=$E")" "$(head -c 80 /tmp/_b)"
 printf '7. 其他 /api/update 路径 -> %s  %s\n' "$(code -H "X-LianYu-Key: $KEY" 'https://lianyu.chat/api/update/manifest.json')" "$(head -c 80 /tmp/_b)"
 
-DLP=/dl/app-v1.10.8.apk
+DLP=/dl/app-v2.0.0.apk
 DE=$((NOW + 600))
 DM=$(mkdl "$DE" "$DLP" "$DS")
 printf '8. 未签名 APK 下载    -> %s  %s\n' "$(code "https://lianyu.chat$DLP")" "$(head -c 80 /tmp/_b)"

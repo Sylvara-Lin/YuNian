@@ -218,13 +218,20 @@ class MainActivity : ComponentActivity() {
                     .setPeriodic(15 * 60 * 1000L)
                     .setRequiredNetworkType(android.app.job.JobInfo.NETWORK_TYPE_ANY)
                     .setPersisted(true)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    builder.setPriority(android.app.job.JobInfo.PRIORITY_HIGH)
-                }
-                jobScheduler.schedule(builder.build())
-                android.util.Log.i("MainActivity", "IQOO keep-alive JobScheduler scheduled")
+                // ⚠️ 禁止对周期作业设置高优先级：JobInfo.Builder.build() 自 API 26 起对
+                // (isPeriodic && priority >= PRIORITY_HIGH) 直接抛 IllegalArgumentException
+                // "Periodic jobs cannot be high priority"。此处历史上调用过 setPriority(PRIORITY_HIGH)，
+                // 使本层 JobScheduler 兜底保活在所有设备上从未注册成功（且 release 包中 Log.w 被 R8
+                // 的 -assumenosideeffects 剥离 → 完全静默）。故此处不再设置 priority。
+                val result = jobScheduler.schedule(builder.build())
+                android.util.Log.i("MainActivity", "IQOO keep-alive JobScheduler scheduled, result=$result")
             } catch (e: Exception) {
-                android.util.Log.w("MainActivity", "Failed to schedule IQOO keep-alive job: ${e.message}")
+                // 注意：app/proguard-rules.pro 的 -assumenosideeffects 会剥离 android.util.Log 的
+                // v/d/w/e 级别，失败信息必须用 i 级打印，否则在 release 包中完全不可见。
+                android.util.Log.i(
+                    "MainActivity",
+                    "Failed to schedule IQOO keep-alive job: ${e.javaClass.name}: ${e.message}",
+                )
             }
         }
     }

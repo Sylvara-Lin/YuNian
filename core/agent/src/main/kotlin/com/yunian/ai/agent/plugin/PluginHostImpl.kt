@@ -29,8 +29,14 @@ class PluginHostImpl(
     private val registry = ConcurrentHashMap<String, LianYuPlugin>()
     private val loaded = ConcurrentHashMap<String, PluginContextImpl>()
     private val loadedIds = ConcurrentSkipListSet<String>()
-    /** 已装载插件的当前配置（load 成功记录 / unload 清除；蓝图据此判断是否需要重载）。 */
-    private val loadedConfig = ConcurrentHashMap<String, String?>()
+    /**
+     * 已装载插件的当前配置（load 成功记录 / unload 清除；蓝图据此判断是否需要重载）。
+     *
+     * ⚠️ 值类型必须是**非空** String：`ConcurrentHashMap` 是 Java 实现，运行时对 null 键/值
+     * 直接抛 `NullPointerException`（`putVal` 处），Kotlin 写成 `String?` 只是类型系统假象。
+     * 因此 `configJson == null` 时不写入条目（缺条目读出来就是 null，比较语义不变）。
+     */
+    private val loadedConfig = ConcurrentHashMap<String, String>()
 
     override fun register(plugin: LianYuPlugin) {
         registry[plugin.id] = plugin
@@ -71,14 +77,18 @@ class PluginHostImpl(
             plugin.setup(ctx)
             loaded[id] = ctx
             loadedIds.add(id)
-            loadedConfig[id] = configJson
+            // 见 loadedConfig 字段注释：null 值不得写入 ConcurrentHashMap，改为不写条目。
+            if (configJson != null) loadedConfig[id] = configJson
             android.util.Log.i("PluginHostImpl", "loaded: ${plugin.id}")
             PluginLoadResult.Loaded
         } catch (t: Throwable) {
             // 装配失败：回滚全部副作用（Cordis「卸载不留鸡毛」）
             ctx.disposeAll()
-            android.util.Log.w("PluginHostImpl", "load failed: ${plugin.id}: ${t.message}")
-            PluginLoadResult.Failed("插件 ${plugin.id} 装配失败: ${t.message}")
+            // 带堆栈打印：仅记 message 会让 NullPointerException（Kotlin `!!` 无消息）失去定位信息。
+            android.util.Log.w("PluginHostImpl", "load failed: ${plugin.id}", t)
+            PluginLoadResult.Failed(
+                "插件 ${plugin.id} 装配失败: ${t.javaClass.simpleName}: ${t.message}"
+            )
         }
     }
 

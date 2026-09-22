@@ -94,9 +94,9 @@ class AppUpdateManager(private val context: Context) {
     fun getCurrentVersionName(): String {
         return try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            packageInfo.versionName ?: "1.5.1"
+            packageInfo.versionName ?: "2.0.0"
         } catch (e: Exception) {
-            "1.5.1"
+            "2.0.0"
         }
     }
 

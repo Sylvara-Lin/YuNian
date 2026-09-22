@@ -1565,6 +1565,114 @@ extern "C" {
   #define OP_HALT      VMP_OP_HALT
 #else
   // Fallback: default opcodes
+  /* Opcodes — per-build randomized via VMP_OP_* defines in g_vmp_config.h */
+#ifdef VMP_OP_NOP
+  // Randomized opcodes from g_vmp_config.h
+  #define OP_NOP       VMP_OP_NOP
+  #define OP_LOAD_IMM  VMP_OP_LOAD_IMM
+  #define OP_LOAD_REG  VMP_OP_LOAD_REG
+  #define OP_STORE_REG VMP_OP_STORE_REG
+  #define OP_LOAD_MEM  VMP_OP_LOAD_MEM
+  #define OP_STORE_MEM VMP_OP_STORE_MEM
+  #define OP_ADD       VMP_OP_ADD
+  #define OP_SUB       VMP_OP_SUB
+  #define OP_XOR       VMP_OP_XOR
+  #define OP_AND       VMP_OP_AND
+  #define OP_OR        VMP_OP_OR
+  #define OP_SHL       VMP_OP_SHL
+  #define OP_SHR       VMP_OP_SHR
+  #define OP_ADD_IMM   VMP_OP_ADD_IMM
+  #define OP_SBOX      VMP_OP_SBOX
+  #define OP_GFMUL     VMP_OP_GFMUL
+  #define OP_XTIME     VMP_OP_XTIME
+  #define OP_MUL       VMP_OP_MUL
+  #define OP_MUL_IMM   VMP_OP_MUL_IMM
+  #define OP_CMP       VMP_OP_CMP
+  #define OP_JMP       VMP_OP_JMP
+  #define OP_JE        VMP_OP_JE
+  #define OP_JNE       VMP_OP_JNE
+  #define OP_JG        VMP_OP_JG
+  #define OP_JL        VMP_OP_JL
+  #define OP_CMP_IMM   VMP_OP_CMP_IMM
+  #define OP_JGE       VMP_OP_JGE
+  #define OP_CALL      VMP_OP_CALL
+  #define OP_RET       VMP_OP_RET
+  #define OP_HYPERCALL VMP_OP_HYPERCALL
+  #define OP_HALT      VMP_OP_HALT
+#else
+  // Fallback: default opcodes
+  /* Opcodes — per-build randomized via VMP_OP_* defines in g_vmp_config.h */
+#ifdef VMP_OP_NOP
+  // Randomized opcodes from g_vmp_config.h
+  #define OP_NOP       VMP_OP_NOP
+  #define OP_LOAD_IMM  VMP_OP_LOAD_IMM
+  #define OP_LOAD_REG  VMP_OP_LOAD_REG
+  #define OP_STORE_REG VMP_OP_STORE_REG
+  #define OP_LOAD_MEM  VMP_OP_LOAD_MEM
+  #define OP_STORE_MEM VMP_OP_STORE_MEM
+  #define OP_ADD       VMP_OP_ADD
+  #define OP_SUB       VMP_OP_SUB
+  #define OP_XOR       VMP_OP_XOR
+  #define OP_AND       VMP_OP_AND
+  #define OP_OR        VMP_OP_OR
+  #define OP_SHL       VMP_OP_SHL
+  #define OP_SHR       VMP_OP_SHR
+  #define OP_ADD_IMM   VMP_OP_ADD_IMM
+  #define OP_SBOX      VMP_OP_SBOX
+  #define OP_GFMUL     VMP_OP_GFMUL
+  #define OP_XTIME     VMP_OP_XTIME
+  #define OP_MUL       VMP_OP_MUL
+  #define OP_MUL_IMM   VMP_OP_MUL_IMM
+  #define OP_CMP       VMP_OP_CMP
+  #define OP_JMP       VMP_OP_JMP
+  #define OP_JE        VMP_OP_JE
+  #define OP_JNE       VMP_OP_JNE
+  #define OP_JG        VMP_OP_JG
+  #define OP_JL        VMP_OP_JL
+  #define OP_CMP_IMM   VMP_OP_CMP_IMM
+  #define OP_JGE       VMP_OP_JGE
+  #define OP_CALL      VMP_OP_CALL
+  #define OP_RET       VMP_OP_RET
+  #define OP_HYPERCALL VMP_OP_HYPERCALL
+  #define OP_HALT      VMP_OP_HALT
+#else
+  // Fallback: default opcodes
+  /* Opcodes — per-build randomized via VMP_OP_* defines in g_vmp_config.h */
+#ifdef VMP_OP_NOP
+  // Randomized opcodes from g_vmp_config.h
+  #define OP_NOP       VMP_OP_NOP
+  #define OP_LOAD_IMM  VMP_OP_LOAD_IMM
+  #define OP_LOAD_REG  VMP_OP_LOAD_REG
+  #define OP_STORE_REG VMP_OP_STORE_REG
+  #define OP_LOAD_MEM  VMP_OP_LOAD_MEM
+  #define OP_STORE_MEM VMP_OP_STORE_MEM
+  #define OP_ADD       VMP_OP_ADD
+  #define OP_SUB       VMP_OP_SUB
+  #define OP_XOR       VMP_OP_XOR
+  #define OP_AND       VMP_OP_AND
+  #define OP_OR        VMP_OP_OR
+  #define OP_SHL       VMP_OP_SHL
+  #define OP_SHR       VMP_OP_SHR
+  #define OP_ADD_IMM   VMP_OP_ADD_IMM
+  #define OP_SBOX      VMP_OP_SBOX
+  #define OP_GFMUL     VMP_OP_GFMUL
+  #define OP_XTIME     VMP_OP_XTIME
+  #define OP_MUL       VMP_OP_MUL
+  #define OP_MUL_IMM   VMP_OP_MUL_IMM
+  #define OP_CMP       VMP_OP_CMP
+  #define OP_JMP       VMP_OP_JMP
+  #define OP_JE        VMP_OP_JE
+  #define OP_JNE       VMP_OP_JNE
+  #define OP_JG        VMP_OP_JG
+  #define OP_JL        VMP_OP_JL
+  #define OP_CMP_IMM   VMP_OP_CMP_IMM
+  #define OP_JGE       VMP_OP_JGE
+  #define OP_CALL      VMP_OP_CALL
+  #define OP_RET       VMP_OP_RET
+  #define OP_HYPERCALL VMP_OP_HYPERCALL
+  #define OP_HALT      VMP_OP_HALT
+#else
+  // Fallback: default opcodes
   enum VMOpcode : uint8_t {    OP_ADD = 0x10,
     OP_ADD_IMM = 0x17,
     OP_AND = 0x13,
@@ -1597,6 +1705,9 @@ extern "C" {
     OP_XOR = 0x12,
     OP_XTIME = 0x1A,
   };
+#endif
+#endif
+#endif
 #endif
 #endif
 #endif

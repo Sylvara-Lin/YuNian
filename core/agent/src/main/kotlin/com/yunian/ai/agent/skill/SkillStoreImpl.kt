@@ -35,7 +35,13 @@ class SkillStoreImpl(context: Context) : SkillStore {
      * 短 TTL；save/delete 后整体失效保证一致性（技能变更低频，整体失效足够）。
      */
     private class CacheEntry(val at: Long, val value: String?)
-    private val listCache = ConcurrentHashMap<Long?, CacheEntry>()
+
+    /**
+     * ⚠️ 键类型必须是**非空** Long：`ConcurrentHashMap` 是 Java 实现，运行时对 null 键
+     * 直接抛 `NullPointerException`（`get`/`putVal` 处），Kotlin 写成 `Long?` 只是类型系统假象。
+     * `listSkills(null)`（全量查询）用 [CACHE_KEY_ALL] 这个不可能出现的 companionId 作哨兵键。
+     */
+    private val listCache = ConcurrentHashMap<Long, CacheEntry>()
     private val contentCache = ConcurrentHashMap<String, CacheEntry>()
     private val CACHE_TTL_MS = 30_000L
 
@@ -59,11 +65,12 @@ class SkillStoreImpl(context: Context) : SkillStore {
     /** 索引 JSON 数组（含禁用项，由 Rust 侧过滤） */
     override fun listSkills(companionId: Long?): String = runBlockingOnIo {
         val now = System.currentTimeMillis()
-        listCache[companionId]?.let { cached ->
+        val cacheKey = companionId ?: CACHE_KEY_ALL // null 不能作 ConcurrentHashMap 键
+        listCache[cacheKey]?.let { cached ->
             if (now - cached.at < CACHE_TTL_MS) return@runBlockingOnIo cached.value.orEmpty()
         }
         val json = metaJsonArray(dao.listSkillsAll(companionId))
-        listCache[companionId] = CacheEntry(now, json)
+        listCache[cacheKey] = CacheEntry(now, json)
         Log.i(TAG, "[debug] listSkills($companionId) -> ${json.take(300)}")
         json
     }
@@ -211,5 +218,8 @@ class SkillStoreImpl(context: Context) : SkillStore {
 
     private companion object {
         const val TAG = "SkillStoreImpl"
+
+        /** listCache 哨兵键：代表 `companionId == null`（全量查询）。用 Long.MIN_VALUE 确保与真实 id 不冲突。 */
+        const val CACHE_KEY_ALL = Long.MIN_VALUE
     }
 }

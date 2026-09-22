@@ -34,6 +34,17 @@ DEX_OUT = PROJECT / "app/build/tmp/ultimate_shell/dex_final"
 SHELL_DECODED = PROJECT / "app/build/tmp/shell_decoded"
 ASSETS_SHELL = SHELL_DECODED / "assets" / "shell"
 SO_DIR = PROJECT / "core/security/build/intermediates/cxx/Release"
+
+# ⚠️ AGP 内嵌的 baseline profile 按 dex 文件记录 checksum；本脚本会把 root classes.dex
+# （业务 DEX）换成壳 DEX，checksum 必然失配 ⇒ 安装时 dexopt 报
+# "The profile does not match the APK"，vivo/OPPO 等 ROM 视为致命 ⇒ 整包安装失败。
+# 业务 DEX 已进 assets/shell/ 且加密，profile 无意义，直接丢弃。
+# 同一口径见 tools/build.py 与 tools/package_thin_shell.py。
+STRIPPED_PROFILE_ENTRIES = (
+    "assets/dexopt/baseline.prof",
+    "assets/dexopt/baseline.profm",
+)
+
 RELEASE_APK = PROJECT / "app/build/outputs/apk/release/app-release.apk"
 DEBUG_APK = PROJECT / "app/build/outputs/apk/debug/app-debug.apk"
 
@@ -257,9 +268,13 @@ def phase5_assemble():
 
     tmp = str(RELEASE_APK) + '.tmp'
     replaced = 0
+    stripped_profile = 0
     with zipfile.ZipFile(repacked, 'r') as zin:
         with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
+                if item.filename in STRIPPED_PROFILE_ENTRIES:
+                    stripped_profile += 1
+                    continue
                 data = zin.read(item.filename)
                 if item.filename == 'classes.dex':
                     data = shell_data
@@ -284,6 +299,16 @@ def phase5_assemble():
 
     shutil.move(tmp, str(RELEASE_APK))
     print(f"  Replaced {replaced} files")
+    print(f"  stripped stale baseline profile entries: {stripped_profile}")
+    with zipfile.ZipFile(str(RELEASE_APK), 'r') as zf:
+        leaked = [n for n in zf.namelist() if n in STRIPPED_PROFILE_ENTRIES]
+    if leaked:
+        sys.exit(
+            "FAIL: stale baseline profile still embedded "
+            f"{leaked} — its dex checksums no longer match the shell DEX; "
+            "installation will fail on ROMs that treat the dexopt warning as fatal."
+        )
+    print("  [OK] no stale baseline profile embedded (install-safe)")
 
     # Sign
     signed = str(RELEASE_APK).replace('.apk', '-signed.apk')
@@ -313,8 +338,11 @@ def phase6_patch_crc32():
     with zipfile.ZipFile(RELEASE_APK, 'r') as zin:
         with zipfile.ZipFile(tmp_unsigned, 'w', zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
-                if not item.filename.startswith('META-INF/'):
-                    zout.writestr(item, zin.read(item.filename))
+                if item.filename.startswith('META-INF/'):
+                    continue
+                if item.filename in STRIPPED_PROFILE_ENTRIES:
+                    continue
+                zout.writestr(item, zin.read(item.filename))
     shutil.move(str(tmp_unsigned), str(RELEASE_APK))
     run([sys.executable, str(patch_py), "--apk", str(RELEASE_APK),
          "--config-dir", str(PROJECT / "core/security/src/main/cpp")], "patch_crc32")

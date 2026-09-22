@@ -109,6 +109,25 @@ SHELL_SO_LIST = ["lib/arm64-v8a/liblianyu_shell.so",
 PACK_SO_LIST = ["liblianyu_shell.so", "liblianyu_security.so"]
 PACKED_SO_DIR = os.path.join(PROJECT, "app/build/tmp/ultimate_shell/packed_so")
 
+# AGP 内嵌的 baseline profile（供 ART 安装时 dexopt 使用）。profile 内部按 dex 文件记录
+# checksum（ProfileCompilationInfo，每个 dex 一个 dex_checksum）。
+#
+# ⚠️ 本脚本把 root classes.dex（约 16 MB 业务 DEX）替换为壳 DEX（约 13 KB），
+# 二者 checksum 必然不同 ⇒ 安装时 dexopt 加载 profile 失败：
+#     Warning: Error occurred during dexopt when processing external profiles:
+#       Failed to load profile '.../base.apk.prof': The profile does not match the APK
+#       (The checksums in the profile do not match the checksums of the .dex files in the APK)
+# vivo/OPPO 等 ROM 会把该 dexopt 警告当作**安装失败**（pm 返回非 0，adb install 报
+# `Completed with warning(s)` 后退出码 1）——即整包无法安装。
+#
+# 业务 DEX 已被加密为 assets/shell/*.dat、不可能被 AOT 编译，profile 已完全无意义，
+# 因此直接在装配时丢弃，并在签名后断言其不存在（防回归）。
+# 与 tools/package_thin_shell.py 的同名常量保持同一口径。
+STRIPPED_PROFILE_ENTRIES = (
+    "assets/dexopt/baseline.prof",
+    "assets/dexopt/baseline.profm",
+)
+
 def run(cmd, timeout=120):
     printable = ' '.join(cmd) if isinstance(cmd, list) else cmd
     # 不回显签名口令：apksigner 等调用把 --ks-pass/--key-pass 的明文口令拼在命令行里，
@@ -432,9 +451,15 @@ def assemble(shell_dex, dex_dir, extra_dex_dir, repacked, variant, keystore, ks_
     if extra_dex_entries:
         print(f"  Adding {len(extra_dex_entries)} unencrypted DEX: {list(extra_dex_entries.keys())}")
 
+    stripped_profile = 0
     with zipfile.ZipFile(repacked, "r") as zin:
         with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
             for item in zin.infolist():
+                # 见 STRIPPED_PROFILE_ENTRIES：内嵌 baseline profile 绑定的是**原始业务
+                # DEX** 的 checksum，root classes.dex 换壳后必然失配，会导致整包安装失败。
+                if item.filename in STRIPPED_PROFILE_ENTRIES:
+                    stripped_profile += 1
+                    continue
                 data = zin.read(item.filename)
                 if item.filename == "classes.dex": data = shell
                 elif item.filename.startswith("META-INF/"): continue
@@ -451,6 +476,7 @@ def assemble(shell_dex, dex_dir, extra_dex_dir, repacked, variant, keystore, ks_
             for name, data in dex_files.items(): zout.writestr(name, data)
             for name, data in extra_dex_entries.items(): zout.writestr(name, data)
 
+    print(f"  stripped stale baseline profile entries: {stripped_profile}")
     shutil.move(tmp, out)
     apksigner = os.path.join(BT, "apksigner.bat") if os.name=="nt" else os.path.join(BT,"apksigner")
     signed = out.replace(".apk", "-signed.apk")
@@ -459,6 +485,20 @@ def assemble(shell_dex, dex_dir, extra_dex_dir, repacked, variant, keystore, ks_
     run(["cmd","/c",apksigner,"sign","--ks",keystore,"--ks-pass",f"pass:{ks_pass}",
          "--ks-key-alias",key_alias,"--key-pass",f"pass:{key_pass}","--out",signed,out])
     shutil.move(signed, out)
+
+    # 门禁：内嵌 baseline profile 的 dex checksum 绑定业务 DEX，root classes.dex 已被换成
+    # 壳 DEX ⇒ 安装时 dexopt 校验失败，vivo/OPPO 等 ROM 直接判安装失败（不是可忽略的警告）。
+    # 详见 STRIPPED_PROFILE_ENTRIES。
+    with zipfile.ZipFile(out, "r") as zf:
+        leaked_profiles = [n for n in zf.namelist() if n in STRIPPED_PROFILE_ENTRIES]
+    if leaked_profiles:
+        sys.exit(
+            "FAIL: stale baseline profile still embedded "
+            f"{leaked_profiles} — its dex checksums no longer match the shell DEX; "
+            "installation will fail on ROMs that treat the dexopt warning as fatal."
+        )
+    print("  [OK] no stale baseline profile embedded (install-safe)")
+
     shutil.rmtree(dex_dir, ignore_errors=True)
     if os.path.isdir(extra_dex_dir): shutil.rmtree(extra_dex_dir, ignore_errors=True)
     print(f"  {os.path.getsize(out)//1048576}MB → {out}")

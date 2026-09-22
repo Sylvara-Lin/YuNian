@@ -27,8 +27,8 @@ chmod 600 "$DIR/signable_uri.txt"
 if [ ! -f "$DIR/manifest.json" ]; then
   cat > "$DIR/manifest.json" <<'JSON'
 {
-  "versionCode": 23,
-  "versionName": "1.10.8",
+  "versionCode": 24,
+  "versionName": "2.0.0",
   "minVersionCode": 20,
   "forceUpdate": false,
   "updateLog": "1. 新增检查更新功能\n2. 支持后台静默下载\n3. 弱网环境自动断点续传",

@@ -14,7 +14,7 @@
   <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white" /></a>
   <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?style=flat-square&logo=kotlin&logoColor=white" /></a>
   <a href="https://developer.android.com/jetpack/compose"><img src="https://img.shields.io/badge/Compose-Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/Version-1.10.8-FF6B9D?style=flat-square" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/Version-2.0.0-FF6B9D?style=flat-square" /></a>
   <a href="#"><img src="https://img.shields.io/badge/Modules-25-7C3AED?style=flat-square" /></a>
   <a href="#"><img src="https://img.shields.io/badge/License-Educational%20Use-6366F1?style=flat-square" /></a>
 </p>
