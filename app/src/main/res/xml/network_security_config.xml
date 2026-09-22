@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- All traffic uses HTTPS by default — cleartext only for local dev SuFlowAPI -->
+
+    <!-- 本地开发: 真机通过 WLAN 访问开发机 SuFlowAPI (HTTP 明文, IP 非域名) -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Debug overrides: allow system certificates for development -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

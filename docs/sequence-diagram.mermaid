@@ -1,0 +1,47 @@
+%% 背景加载新流程（key 感知 + single-flight + 状态机）
+sequenceDiagram
+    participant UI as PageBackgroundContent / ChatScreen
+    participant RB as rememberBackgroundBitmapState(key)
+    participant Cache as ChatBackgroundCache
+    participant IO as Dispatchers.IO
+
+    UI->>RB: 组合（key 变化触发重置）
+    RB->>RB: remember(key){ mutableStateOf(Idle) }
+    RB->>Cache: getCachedBitmap(key)
+    alt 命中缓存
+        Cache-->>RB: Bitmap
+        RB-->>UI: Ready(bitmap) → 立即绘制
+    else 未命中
+        RB-->>UI: Loading（回退色/占位）
+        RB->>Cache: suspend load(ctx, key)
+        Cache->>Cache: inFlight.computeIfAbsent(key){ async { decode } }
+        Cache->>IO: decodeFile (single-flight，全应用仅一次)
+        IO-->>Cache: Bitmap? （成功/失败）
+        Cache-->>RB: Bitmap? （完成后移除 inFlight）
+        alt 成功
+            RB-->>UI: Ready(bitmap)
+        else 失败
+            RB-->>UI: Failed(reason)（不写缓存 / 短TTL，可重试）
+        end
+    end
+
+%% 列表项订阅新流程（结构稳定 + 行内正文读取）
+sequenceDiagram
+    participant VM as ChatViewModel
+    participant CS as ChatScreen
+    participant LC as LazyColumn
+    participant Row as ChatRowRenderer
+
+    VM-->>CS: messageMetadata 变化（新消息/删除/加载更早/showReasoning）
+    CS->>CS: chatRows = remember(metadata, showReasoning){ buildChatRows(...) }
+    CS->>CS: visibleRows = remember(chatRows, live){ (chatRows+live).asReversed() }
+    CS->>LC: items(visibleRows, key=stableId, contentType=row.contentType)
+    LC->>Row: 组合可见行（仅可见项）
+    Row->>VM: 读 messageBodies[row.metadata.id]（State 读，仅订阅可见行）
+    Row->>Row: resolveItem(row, body) → ChatListItem（O(1)）
+    Row->>LC: ChatListItemRenderer(item) → 气泡/文本/图片...
+
+    Note over VM,CS: 正文变化（流式 delta）：messageBodies 替换 Map
+    VM-->>CS: messageBodies 新 Map
+    CS->>LC: （chatRows 不变，不重建列表/不反转/不扫图）
+    LC->>Row: 仅可见行 content lambda 重跑；body.equals 时内层气泡被 skip

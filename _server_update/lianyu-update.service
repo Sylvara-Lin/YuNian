@@ -1,0 +1,26 @@
+[Unit]
+Description=LianYu Update Server (client-only API)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/lianyu-update
+EnvironmentFile=/root/lianyu-update/secrets.env
+Environment=UPDATE_DIR=/root/lianyu-update
+Environment=UPDATE_PORT=3010
+Environment=UPDATE_HOST=127.0.0.1
+ExecStart=/root/.bun/bin/bun /root/lianyu-update/server.mjs
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/lianyu-update.log
+StandardError=append:/var/log/lianyu-update.log
+
+# 最小权限（root 仅为读取 /root/lianyu-update 下的 700 目录）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+ReadWritePaths=/root/lianyu-update
+
+[Install]
+WantedBy=multi-user.target

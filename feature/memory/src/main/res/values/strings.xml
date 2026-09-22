@@ -1,0 +1,45 @@
+<resources>
+    <string name="memory_management">记忆管理</string>
+    <string name="core_memory">核心记忆</string>
+    <string name="temp_memory">临时记忆</string>
+    <string name="select_companion_hint">选择一个虚拟恋人查看记忆</string>
+    <string name="all">全部</string>
+    <string name="no_core_memory">暂无核心记忆\n多和TA聊天，记忆会自动积累</string>
+    <string name="no_temp_memory">暂无临时记忆\n开始聊天后会自动记录</string>
+    <string name="importance">重要度 %1$d%%</string>
+    <string name="context">上下文: %1$s</string>
+    <string name="you">你: %1$s</string>
+    <string name="no_companions">还没有虚拟恋人</string>
+    <string name="create_first">先去创建或添加一个吧</string>
+    <string name="fact">事实</string>
+    <string name="emotion">情感</string>
+    <string name="preference">偏好</string>
+    <string name="event">事件</string>
+    <string name="habit">习惯</string>
+    <string name="relationship">关系</string>
+    <string name="diary">日记</string>
+    <string name="no_diary">还没有情感日记
+完成一次聊天后，AI 会根据会话总结自动生成</string>
+    <string name="add_diary">写日记</string>
+    <string name="edit_diary">编辑日记</string>
+    <string name="diary_title">标题</string>
+    <string name="diary_title_hint">给这篇日记起个名字</string>
+    <string name="diary_content">正文</string>
+    <string name="diary_content_hint">今天和TA发生了什么有趣的事？</string>
+    <string name="diary_weather">天气（可选）</string>
+    <string name="diary_tags">标签（逗号分隔）</string>
+    <string name="diary_mood">心情</string>
+    <string name="mood_happy">开心</string>
+    <string name="mood_calm">平静</string>
+    <string name="mood_sad">难过</string>
+    <string name="mood_angry">生气</string>
+    <string name="mood_touched">感动</string>
+    <string name="mood_miss">思念</string>
+    <string name="ai_generate_diary">AI 生成日记</string>
+    <string name="ai_generating">正在生成…</string>
+    <string name="diary_auto_tip">聊完后每天自动沉淀 1 篇，也可手动生成</string>
+    <string name="diary_generating">生成中…</string>
+    <string name="diary_generate_failed">日记生成失败，请检查网络后重试</string>
+    <string name="diary_generated_title">AI 生成的日记</string>
+    <string name="memory_local_only">记忆只存储在本地设备，不会上传到任何服务器</string>
+</resources>

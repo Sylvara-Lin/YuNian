@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="memory_management">記憶管理</string>
+    <string name="core_memory">コア記憶</string>
+    <string name="temp_memory">一時記憶</string>
+    <string name="select_companion_hint">彼女を選択して記憶を見る</string>
+    <string name="all">すべて</string>
+    <string name="no_core_memory">コア記憶はまだありません\nもっとチャットして記憶を貯めよう</string>
+    <string name="no_temp_memory">一時記憶はまだありません\nチャット後に自動記録されます</string>
+    <string name="importance">重要度 %1$d%%</string>
+    <string name="context">コンテキスト: %1$s</string>
+    <string name="you">あなた: %1$s</string>
+    <string name="no_companions">まだ彼女がいません</string>
+    <string name="create_first">先に作成してね</string>
+    <string name="fact">事実</string>
+    <string name="emotion">感情</string>
+    <string name="preference">好み</string>
+    <string name="event">イベント</string>
+    <string name="habit">習慣</string>
+    <string name="relationship">関係</string>
+    <string name="diary">日記</string>
+    <string name="no_diary">まだ日記がありません
+ボタンをタップして書き始めよう</string>
+    <string name="add_diary">日記を書く</string>
+    <string name="edit_diary">日記を編集</string>
+    <string name="diary_title">タイトル</string>
+    <string name="diary_title_hint">この日記にタイトルをつけよう</string>
+    <string name="diary_content">本文</string>
+    <string name="diary_content_hint">今日はTAと何がありましたか？</string>
+    <string name="diary_weather">天気（任意）</string>
+    <string name="diary_tags">タグ（カンマ区切り）</string>
+    <string name="diary_mood">気分</string>
+    <string name="mood_happy">嬉しい</string>
+    <string name="mood_calm">穏やか</string>
+    <string name="mood_sad">悲しい</string>
+    <string name="mood_angry">怒り</string>
+    <string name="mood_touched">感動</string>
+    <string name="mood_miss">恋しい</string>
+    <string name="ai_generate_diary">AI 日記生成</string>
+    <string name="ai_generating">生成中…</string>
+    <string name="diary_auto_tip">チャット後は毎日 1 件自動保存、手動生成も可能</string>
+    <string name="diary_generating">生成中…</string>
+    <string name="diary_generate_failed">日記の生成に失敗しました。ネットワークを確認して再試行してください</string>
+    <string name="diary_generated_title">AI 生成の日記</string>
+    <string name="memory_local_only">記憶はこの端末内にのみ保存され、サーバーへアップロードされません</string>
+</resources>

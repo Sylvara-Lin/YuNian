@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="yunian_accessibility_description">允许予念助手代你读取屏幕内容并执行点击、滑动等操作，用于 AI 主动操控手机。可在系统设置中随时关闭。</string>
+</resources>

@@ -1,0 +1,11 @@
+<resources>
+    <string name="backup_title">Data Backup</string>
+    <string name="backup_back">Back</string>
+    <string name="backup_export_title">Export Backup</string>
+    <string name="backup_export_desc">Select the data you want to export, save it locally or transfer to another device</string>
+    <string name="backup_export_btn">Export</string>
+    <string name="backup_import_title">Import Backup</string>
+    <string name="backup_import_desc">Import data from a backup file, merged by contact name without overwriting existing data</string>
+    <string name="backup_import_btn">Import</string>
+    <string name="backup_notice">💡 Notes:\n• Backup files are password-protected — keep your password safe\n• You can select contacts when exporting\n• Backups include all chat fields (text, images, voice)\n• Imports are merged by contact name and never overwrite existing data\n• Export regularly to prevent data loss</string>
+</resources>

@@ -1,0 +1,8 @@
+# YuNian Dex2C Class-Merge Whitelist
+# @class = merge ALL methods in class into one switch-dispatch native function
+# @class Foo:methodA,methodB = merge only specific methods
+# Legacy single-method format still supported (auto-grouped)
+@class com.yunian.ai.security.KmsProvider
+@class com.yunian.ai.security.Sm4Cipher
+@class com.yunian.ai.security.SecurityOrchestrator
+@class com.yunian.ai.security.CompositeVmpRuntime

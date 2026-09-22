@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="memory_management">기억 관리</string>
+    <string name="core_memory">핵심 기억</string>
+    <string name="temp_memory">임시 기억</string>
+    <string name="select_companion_hint">여자친구를 선택하여 기억 보기</string>
+    <string name="all">전체</string>
+    <string name="no_core_memory">핵심 기억이 없습니다\n더 많이 채팅하세요</string>
+    <string name="no_temp_memory">임시 기억이 없습니다\n채팅 후 자동 기록됩니다</string>
+    <string name="importance">중요도 %1$d%%</string>
+    <string name="context">컨텍스트: %1$s</string>
+    <string name="you">당신: %1$s</string>
+    <string name="no_companions">아직 여자친구가 없습니다</string>
+    <string name="create_first">먼저 만들어 주세요</string>
+    <string name="fact">사실</string>
+    <string name="emotion">감정</string>
+    <string name="preference">선호</string>
+    <string name="event">이벤트</string>
+    <string name="habit">습관</string>
+    <string name="relationship">관계</string>
+    <string name="diary">일기</string>
+    <string name="no_diary">아직 일기가 없습니다
+버튼을 눌러 시작하세요</string>
+    <string name="add_diary">일기 쓰기</string>
+    <string name="edit_diary">일기 편집</string>
+    <string name="diary_title">제목</string>
+    <string name="diary_title_hint">이 일기에 제목을 지어주세요</string>
+    <string name="diary_content">내용</string>
+    <string name="diary_content_hint">오늘 TA와 무슨 일이 있었나요?</string>
+    <string name="diary_weather">날씨 (선택)</string>
+    <string name="diary_tags">태그 (쉼표로 구분)</string>
+    <string name="diary_mood">기분</string>
+    <string name="mood_happy">행복</string>
+    <string name="mood_calm">평온</string>
+    <string name="mood_sad">슬픔</string>
+    <string name="mood_angry">화남</string>
+    <string name="mood_touched">감동</string>
+    <string name="mood_miss">그리움</string>
+    <string name="ai_generate_diary">AI 일기 생성</string>
+    <string name="ai_generating">생성 중…</string>
+    <string name="diary_auto_tip">채팅 후 매일 1개 자동 저장, 수동 생성도 가능</string>
+    <string name="diary_generating">생성 중…</string>
+    <string name="diary_generate_failed">일기 생성에 실패했습니다. 네트워크를 확인하고 다시 시도하세요</string>
+    <string name="diary_generated_title">AI 생성 일기</string>
+    <string name="memory_local_only">기억은 이 기기에만 저장되며 어떤 서버에도 업로드되지 않습니다</string>
+</resources>

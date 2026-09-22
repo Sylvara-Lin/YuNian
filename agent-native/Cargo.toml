@@ -1,0 +1,49 @@
+[package]
+name = "lianyu-agent"
+version = "0.1.0"
+edition = "2021"
+description = "LianYu Agent core — Rust 实现的 Agent 中间层与工具层（UniFFI 桥接 Android）"
+license = "MIT"
+
+[lib]
+name = "lianyu_agent"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# uniffi-bindgen CLI（仅宿主生成 Kotlin 绑定用，默认不编译）
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi_bindgen.rs"
+required-features = ["cli-bin"]
+
+[features]
+cli-bin = ["uniffi/cli"]
+
+[dependencies]
+uniffi = "0.29"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 原生 HTTP 网关（流式输出完全下沉 rs）：ureq 轻量阻塞 HTTP + rustls TLS
+ureq = { version = "2", default-features = false, features = ["tls", "rustls", "gzip"] }
+# SQLite 直读（Room 数据库 api_configs / companions / memory_entries）
+rusqlite = { version = "0.32", features = ["bundled"] }
+# 时间上下文（system prompt 时间感知）
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# 核心插件底座（方案 A：不重复造轮子，直接使用 Cordis 4.0.1 的 Rust 移植，
+# DSH 官方生态，零第三方依赖；pre-1.0 → 锁精确版本）
+cordis-rs = "=0.6.2"
+# 蓝图装载（②：cordis.yml 语义的 Rust 原生实现——条目树 + group 级联禁用；纯 Rust 依赖）
+cordis-loader = "=0.0.23"
+# 世界书/角色卡（聊天陪伴：SillyTavern World Info 社区规范，Apache-2.0；用于格式校验）
+chara_card = "=0.4.1"
+# 世界书正则激活（v3 use_regex）
+regex = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+# 注意：不能用 strip = true（或 "symbols"）——uniffi-bindgen 的 library 模式依赖
+# .symtab 中的 UNIFFI_META_* 符号提取接口元数据，strip 后 .symtab 被移除会导致
+# `generate --library` 静默产出空结果。用 "debuginfo" 保留符号表同时去掉调试信息。
+strip = "debuginfo"

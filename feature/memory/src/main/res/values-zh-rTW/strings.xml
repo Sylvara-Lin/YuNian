@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="memory_management">記憶管理</string>
+    <string name="core_memory">核心記憶</string>
+    <string name="temp_memory">臨時記憶</string>
+    <string name="select_companion_hint">選擇一個虛擬戀人查看記憶</string>
+    <string name="all">全部</string>
+    <string name="no_core_memory">暫無核心記憶\n多和TA聊天，記憶會自動積累</string>
+    <string name="no_temp_memory">暫無臨時記憶\n開始聊天後會自動記錄</string>
+    <string name="importance">重要度 %1$d%%</string>
+    <string name="context">上下文: %1$s</string>
+    <string name="you">你: %1$s</string>
+    <string name="no_companions">還沒有虛擬戀人</string>
+    <string name="create_first">先去創建或新增一個吧</string>
+    <string name="fact">事實</string>
+    <string name="emotion">情感</string>
+    <string name="preference">偏好</string>
+    <string name="event">事件</string>
+    <string name="habit">習慣</string>
+    <string name="relationship">關係</string>
+    <string name="diary">日記</string>
+    <string name="no_diary">還沒有寫日記
+點擊右下角按鈕開始記錄</string>
+    <string name="add_diary">寫日記</string>
+    <string name="edit_diary">編輯日記</string>
+    <string name="diary_title">標題</string>
+    <string name="diary_title_hint">給這篇日記起個名字</string>
+    <string name="diary_content">正文</string>
+    <string name="diary_content_hint">今天和TA發生了什麼有趣的事？</string>
+    <string name="diary_weather">天氣（可選）</string>
+    <string name="diary_tags">標籤（逗號分隔）</string>
+    <string name="diary_mood">心情</string>
+    <string name="mood_happy">開心</string>
+    <string name="mood_calm">平靜</string>
+    <string name="mood_sad">難過</string>
+    <string name="mood_angry">生氣</string>
+    <string name="mood_touched">感動</string>
+    <string name="mood_miss">思念</string>
+    <string name="ai_generate_diary">AI 生成日記</string>
+    <string name="ai_generating">正在生成…</string>
+    <string name="diary_auto_tip">聊天後每天自動沈澱 1 篇，也可手動生成</string>
+    <string name="diary_generating">生成中…</string>
+    <string name="diary_generate_failed">日記生成失敗，請檢查網路後重試</string>
+    <string name="diary_generated_title">AI 生成的日記</string>
+    <string name="memory_local_only">記憶只存儲在本地裝置，不會上傳到任何伺服器</string>
+</resources>

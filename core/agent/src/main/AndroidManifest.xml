@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- UniFFI 生成的 liblianyu_agent.so 由 jniLibs 自动打包，无需显式声明 -->
+
+</manifest>

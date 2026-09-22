@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="memory_management">Memory</string>
+    <string name="core_memory">Core Memory</string>
+    <string name="temp_memory">Temporary Memory</string>
+    <string name="select_companion_hint">Select a companion to view memories</string>
+    <string name="all">All</string>
+    <string name="no_core_memory">No core memory yet\nChat more to build memories</string>
+    <string name="no_temp_memory">No temporary memory yet\nMemories are recorded after chatting</string>
+    <string name="importance">Importance %1$d%%</string>
+    <string name="context">Context: %1$s</string>
+    <string name="you">You: %1$s</string>
+    <string name="no_companions">No companions yet</string>
+    <string name="create_first">Create or add one first</string>
+    <string name="fact">Fact</string>
+    <string name="emotion">Emotion</string>
+    <string name="preference">Preference</string>
+    <string name="event">Event</string>
+    <string name="habit">Habit</string>
+    <string name="relationship">Relationship</string>
+    <string name="diary">Diary</string>
+    <string name="no_diary">No diary entries yet
+Tap the button to start writing</string>
+    <string name="add_diary">Write Diary</string>
+    <string name="edit_diary">Edit Diary</string>
+    <string name="diary_title">Title</string>
+    <string name="diary_title_hint">Give this diary a title</string>
+    <string name="diary_content">Content</string>
+    <string name="diary_content_hint">What happened with TA today?</string>
+    <string name="diary_weather">Weather (optional)</string>
+    <string name="diary_tags">Tags (comma separated)</string>
+    <string name="diary_mood">Mood</string>
+    <string name="mood_happy">Happy</string>
+    <string name="mood_calm">Calm</string>
+    <string name="mood_sad">Sad</string>
+    <string name="mood_angry">Angry</string>
+    <string name="mood_touched">Touched</string>
+    <string name="mood_miss">Missing</string>
+    <string name="ai_generate_diary">AI Generate Diary</string>
+    <string name="ai_generating">Generating…</string>
+    <string name="diary_auto_tip">Auto-generates 1 entry daily after chats; generate manually anytime</string>
+    <string name="diary_generating">Generating…</string>
+    <string name="diary_generate_failed">Failed to generate diary. Check your network and try again</string>
+    <string name="diary_generated_title">AI-generated Diary</string>
+    <string name="memory_local_only">Memories are stored only on this device and never uploaded to any server</string>
+</resources>
