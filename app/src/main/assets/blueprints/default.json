@@ -1,0 +1,21 @@
+{
+    "id": "default",
+    "name": "默认蓝图",
+    "comment": "对应 cordis.yml 组合语义：plugins 基准列表 + patches 覆盖 + inserts 追加。修改本文件后重启生效（装载在 markInitialized 之前）。",
+    "plugins": [
+        {
+            "id": "coffee.luckin"
+        },
+        {
+            "id": "skill.builtin_chat_protocol"
+        },
+        {
+            "id": "sticker.preference"
+        },
+        {
+            "id": "automation.core"
+        }
+    ],
+    "patches": [],
+    "inserts": []
+}

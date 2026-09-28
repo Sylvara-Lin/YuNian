@@ -1,0 +1,11 @@
+<resources>
+    <string name="backup_title">資料備份</string>
+    <string name="backup_back">返回</string>
+    <string name="backup_export_title">匯出資料備份</string>
+    <string name="backup_export_desc">選擇你要匯出的資料，可儲存至本機或傳輸到其他裝置</string>
+    <string name="backup_export_btn">匯出</string>
+    <string name="backup_import_title">匯入資料備份</string>
+    <string name="backup_import_desc">從備份檔案匯入資料，依聯絡人名稱合併，不會覆蓋現有資料</string>
+    <string name="backup_import_btn">匯入</string>
+    <string name="backup_notice">💡 備份說明：\n• 備份檔案使用密碼加密保護，請妥善保管密碼\n• 匯出時可依聯絡人選擇要備份的資料\n• 備份包含文字、圖片、語音等所有聊天資料欄位\n• 匯入資料依聯絡人名稱合併，不會覆蓋目前資料\n• 建議定期匯出備份以避免資料遺失</string>
+</resources>

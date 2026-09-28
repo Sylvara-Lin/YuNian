@@ -1,0 +1,16 @@
+{
+    global:
+        JNI_OnLoad;
+        lianyu_d2_decrypt;
+        lianyu_auto_decrypt;
+        lianyu_init_ptr;
+        lianyu_xor_key;
+        lianyu_text_start;
+        lianyu_text_size;
+        lianyu_text_decrypt_ptr;
+        kms_provider_register_natives;
+        Java_com_yunian_ai_security_*;
+        Java_com_yunian_ai_common_NativeSafetyFilter_*;
+    local:
+        *;
+};

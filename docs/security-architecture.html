@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YuNian 安全架构全景图</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 1.5rem; color: white; }
+    .container { max-width: 1500px; margin: 0 auto; }
+    .header { margin-bottom: 1.5rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #fb7185; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.8rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 1400px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.rose { background: #fb7185; } .card-dot.amber { background: #fbbf24; } .card-dot.violet { background: #a78bfa; }
+    .card h3 { font-size: 0.85rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.72rem; }
+    .card li { margin-bottom: 0.35rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.72rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+  <div class="header-row">
+    <div class="pulse-dot"></div>
+    <h1>YuNian (予念) 安全架构全景图 — v2.0</h1>
+  </div>
+  <p class="subtitle">Android 物理级防重打包体系 — HMAC-CTR | cert-in-salt | VMP P0-3 | InMemoryDEX | StrongBox证明 | F1 emulator | F2 APK hash | VMP指纹AAD</p>
+</div>
+
+<div class="diagram-container">
+<svg viewBox="0 0 1460 1020">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-rose" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#fb7185"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#fbbf24"/>
+    </marker>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.4"/>
+    </pattern>
+    <linearGradient id="grad-rose" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fb7185;stop-opacity:0.15"/><stop offset="100%" style="stop-color:#fb7185;stop-opacity:0.01"/>
+    </linearGradient>
+    <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0.1"/><stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0.0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+
+  <!-- ====== Layer Boundaries ====== -->
+
+  <!-- L0: Build Pipeline -->
+  <rect x="10" y="15" width="1440" height="110" rx="10" fill="url(#grad-amber)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="25" y="35" fill="#fbbf24" font-size="10" font-weight="600">L0: 构建流水线 (Build Pipeline)</text>
+
+  <!-- L1: Native C++ -->
+  <rect x="10" y="140" width="1440" height="320" rx="10" fill="rgba(6,78,59,0.04)" stroke="#34d399" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="25" y="160" fill="#34d399" font-size="10" font-weight="600">L1: Native C++ 安全层 (liblianyu_security.so)</text>
+
+  <!-- L2: VMP -->
+  <rect x="10" y="475" width="590" height="175" rx="10" fill="rgba(168,58,130,0.04)" stroke="#d946ef" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="25" y="495" fill="#d946ef" font-size="10" font-weight="600">L2: VMP v3.0 虚拟机保护</text>
+
+  <!-- L3: Kotlin -->
+  <rect x="610" y="475" width="840" height="175" rx="10" fill="rgba(8,51,68,0.04)" stroke="#22d3ee" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="625" y="495" fill="#22d3ee" font-size="10" font-weight="600">L3: Kotlin/Java 安全层</text>
+
+  <!-- L4: Network + Detection -->
+  <rect x="10" y="665" width="1440" height="170" rx="10" fill="rgba(136,19,55,0.03)" stroke="#fb7185" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="25" y="685" fill="#fb7185" font-size="10" font-weight="600">L4: 网络安全 + 持续检测 + 响应</text>
+
+  <!-- L5: Hardware -->
+  <rect x="10" y="850" width="1440" height="155" rx="10" fill="rgba(76,29,149,0.04)" stroke="#a78bfa" stroke-width="1" stroke-dasharray="8,4"/>
+  <text x="25" y="870" fill="#a78bfa" font-size="10" font-weight="600">L5: 硬件信任根 (Hardware Root of Trust)</text>
+
+  <!-- ====== L0: Build Pipeline ====== -->
+  <rect x="30" y="50" width="135" height="55" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="97" y="72" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="middle">Phase 1</text>
+  <text x="97" y="88" fill="#cbd5e1" font-size="7" text-anchor="middle">Gradle Release</text>
+  <text x="97" y="99" fill="#64748b" font-size="6" text-anchor="middle">+ 代码消Debug</text>
+
+  <rect x="180" y="50" width="135" height="55" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="247" y="72" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="middle">Phase 2</text>
+  <text x="247" y="88" fill="#cbd5e1" font-size="7" text-anchor="middle">DEX提取→载荷</text>
+  <text x="247" y="99" fill="#64748b" font-size="6" text-anchor="middle">code_items+shell_payload</text>
+
+  <rect x="330" y="50" width="135" height="55" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="397" y="72" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="middle">Phase 3</text>
+  <text x="397" y="88" fill="#cbd5e1" font-size="7" text-anchor="middle">VMP加固</text>
+  <text x="397" y="99" fill="#64748b" font-size="6" text-anchor="middle">opcode随机化+混淆</text>
+
+  <rect x="480" y="50" width="135" height="55" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="547" y="72" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="middle">Phase 4</text>
+  <text x="547" y="88" fill="#cbd5e1" font-size="7" text-anchor="middle">Dex2C转译</text>
+  <text x="547" y="99" fill="#64748b" font-size="6" text-anchor="middle">安全方法→C++编译</text>
+
+  <rect x="630" y="50" width="135" height="55" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="697" y="72" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="middle">Phase 5-6</text>
+  <text x="697" y="88" fill="#cbd5e1" font-size="7" text-anchor="middle">ndk-build+SO加密</text>
+  <text x="697" y="99" fill="#64748b" font-size="6" text-anchor="middle">OLLVM混淆+ROP防护</text>
+
+  <rect x="780" y="50" width="135" height="55" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="847" y="72" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="middle">Phase 7</text>
+  <text x="847" y="88" fill="#cbd5e1" font-size="7" text-anchor="middle">最小壳DEX</text>
+  <text x="847" y="99" fill="#64748b" font-size="6" text-anchor="middle">~3.4KB javac+d8</text>
+
+  <rect x="930" y="50" width="135" height="55" rx="5" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="997" y="72" fill="#fbbf24" font-size="9" font-weight="600" text-anchor="middle">Phase 8</text>
+  <text x="997" y="88" fill="#cbd5e1" font-size="7" text-anchor="middle">替换DEX+签名</text>
+  <text x="997" y="99" fill="#64748b" font-size="6" text-anchor="middle">v3 scheme + CRC32</text>
+
+  <!-- Build Tools -->
+  <rect x="1100" y="50" width="330" height="55" rx="5" fill="rgba(120,53,15,0.15)" stroke="#fbbf24" stroke-width="1.2"/>
+  <text x="1115" y="67" fill="#fbbf24" font-size="8" font-weight="600">18+ Build Tools (构建工具链)</text>
+  <text x="1115" y="82" fill="#64748b" font-size="6.5">gen_wb_tables.py | wb_tables_harden.py | randomize_vmp_ops.py</text>
+  <text x="1115" y="93" fill="#64748b" font-size="6.5">dex2c_transpile.py | vmp_protect.py | patch_so_crc32.py</text>
+  <text x="1115" y="102" fill="#64748b" font-size="6.5">verify_release_apk.py | pack_dex_fast.py | build_shell_apk.py</text>
+
+  <!-- Phase arrows -->
+  <line x1="165" y1="77" x2="178" y2="77" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+  <line x1="315" y1="77" x2="328" y2="77" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+  <line x1="465" y1="77" x2="478" y2="77" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+  <line x1="615" y1="77" x2="628" y2="77" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+  <line x1="765" y1="77" x2="778" y2="77" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+  <line x1="915" y1="77" x2="928" y2="77" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+
+  <!-- ====== L1: Native C++ Layer ====== -->
+
+  <!-- Left column: core defense modules -->
+  <rect x="25" y="180" width="200" height="65" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.2"/>
+  <text x="125" y="202" fill="#34d399" font-size="9" font-weight="600" text-anchor="middle">Native Bridge</text>
+  <text x="125" y="217" fill="#94a3b8" font-size="7" text-anchor="middle">JNI_OnLoad fail-close</text>
+  <text x="125" y="230" fill="#94a3b8" font-size="7" text-anchor="middle">字符串XOR混淆 · dl_iterate_phdr</text>
+  <text x="125" y="241" fill="#64748b" font-size="6.5" text-anchor="middle">frida/xposed/magisk检测</text>
+
+  <rect x="240" y="180" width="200" height="65" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.2"/>
+  <text x="340" y="202" fill="#34d399" font-size="9" font-weight="600" text-anchor="middle">Memory Guard</text>
+  <text x="340" y="217" fill="#94a3b8" font-size="7" text-anchor="middle">Guard Pages (PROT_NONE)</text>
+  <text x="340" y="230" fill="#94a3b8" font-size="7" text-anchor="middle">Stack Canary · Anti-Read</text>
+  <text x="340" y="241" fill="#64748b" font-size="6.5" text-anchor="middle">W^X检测 · ptrace自附加</text>
+
+  <rect x="455" y="180" width="200" height="65" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.2"/>
+  <text x="555" y="202" fill="#34d399" font-size="9" font-weight="600" text-anchor="middle">Integrity Guard</text>
+  <text x="555" y="217" fill="#94a3b8" font-size="7" text-anchor="middle">SO .text HMAC-SHA256</text>
+  <text x="555" y="230" fill="#94a3b8" font-size="7" text-anchor="middle">Shell DEX CRC32 校验</text>
+  <text x="555" y="241" fill="#64748b" font-size="6.5" text-anchor="middle">篡改→SIGABRT 不可恢复</text>
+
+  <rect x="670" y="180" width="200" height="65" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.2"/>
+  <text x="770" y="202" fill="#34d399" font-size="9" font-weight="600" text-anchor="middle">Anti-Debug System</text>
+  <text x="770" y="217" fill="#94a3b8" font-size="7" text-anchor="middle">SW断点检测(4函数快照)</text>
+  <text x="770" y="230" fill="#94a3b8" font-size="7" text-anchor="middle">inotify /proc/self/maps</text>
+  <text x="770" y="241" fill="#64748b" font-size="6.5" text-anchor="middle">signal crash handler</text>
+
+  <rect x="885" y="180" width="200" height="65" rx="5" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1.2"/>
+  <text x="985" y="202" fill="#34d399" font-size="9" font-weight="600" text-anchor="middle">Zero Trust Framework</text>
+  <text x="985" y="217" fill="#94a3b8" font-size="7" text-anchor="middle">PDP + PEP 连续评估</text>
+  <text x="985" y="230" fill="#94a3b8" font-size="7" text-anchor="middle">100ms周期 · 20+检测项</text>
+  <text x="985" y="241" fill="#64748b" font-size="6.5" text-anchor="middle">模块ACL矩阵 · 锁定降级</text>
+
+  <rect x="1100" y="180" width="340" height="65" rx="5" fill="rgba(6,78,59,0.2)" stroke="#34d399" stroke-width="1.2"/>
+  <text x="1115" y="200" fill="#34d399" font-size="8" font-weight="600">ZT 威胁评分采集点 (20+)</text>
+  <text x="1115" y="217" fill="#64748b" font-size="6.5">root|magisk|frida|xposed|lsposed|emulator|debug|MITM|VPN</text>
+  <text x="1115" y="232" fill="#64748b" font-size="6.5">selinux|zygisk|frida_threads|library_injection|virtual_env</text>
+  <text x="1115" y="243" fill="#64748b" font-size="6.5">tampered_time|ring0_maps|overlay_attack|bootloader|kernel_modules</text>
+
+  <!-- Second row: Crypto + VMP -->
+  <rect x="25" y="270" width="245" height="85" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="147" y="292" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">White-Box AES-256 (Chow式)</text>
+  <text x="147" y="308" fill="#cbd5e1" font-size="7" text-anchor="middle">密钥永久内嵌于T-Box查表</text>
+  <text x="147" y="321" fill="#94a3b8" font-size="7" text-anchor="middle">L1: Round CRC32校验 (防DFA)</text>
+  <text x="147" y="334" fill="#94a3b8" font-size="7" text-anchor="middle">L2: 运行时XOR掩码混淆</text>
+  <text x="147" y="347" fill="#64748b" font-size="6.5" text-anchor="middle">L3: Fisher-Yates 位置洗牌 L4: 常数时间GF乘法</text>
+
+  <rect x="285" y="270" width="245" height="85" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="407" y="292" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">KMS Engine v2.0</text>
+  <text x="407" y="308" fill="#cbd5e1" font-size="7" text-anchor="middle">5级密钥体系: MK→DK→SK→BK→AK</text>
+  <text x="407" y="321" fill="#94a3b8" font-size="7" text-anchor="middle">DK仅在NEON寄存器(v0-v3)</text>
+  <text x="407" y="334" fill="#94a3b8" font-size="7" text-anchor="middle">dc civac 缓存失效 · KBKDF-SM3</text>
+  <text x="407" y="347" fill="#64748b" font-size="6.5" text-anchor="middle">NEON擦除+噪声诱饵 · SK每小时轮换 · 安全清零</text>
+
+  <rect x="545" y="270" width="245" height="85" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="667" y="292" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">SM Cipher (国密算法)</text>
+  <text x="667" y="308" fill="#cbd5e1" font-size="7" text-anchor="middle">SM3 哈希 (256-bit)</text>
+  <text x="667" y="321" fill="#94a3b8" font-size="7" text-anchor="middle">SM4 对称加密 (128-bit)</text>
+  <text x="667" y="334" fill="#94a3b8" font-size="7" text-anchor="middle">HMAC-SHA256 消息认证</text>
+  <text x="667" y="347" fill="#64748b" font-size="6.5" text-anchor="middle">SM2 签名验证 (椭圆曲线)</text>
+
+  <rect x="805" y="270" width="245" height="85" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="927" y="292" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">APK签名绑定密钥</text>
+  <text x="927" y="308" fill="#cbd5e1" font-size="7" text-anchor="middle">SM3(签名证书DER) → 解密密钥</text>
+  <text x="927" y="321" fill="#94a3b8" font-size="7" text-anchor="middle">重打包→证书不匹配→无法解密</text>
+  <text x="927" y="334" fill="#94a3b8" font-size="7" text-anchor="middle">360级别反重打包保护</text>
+  <text x="927" y="347" fill="#64748b" font-size="6.5" text-anchor="middle">SO .rodata加密存储证书哈希</text>
+
+  <rect x="1065" y="270" width="375" height="85" rx="5" fill="rgba(136,19,55,0.35)" stroke="#fb7185" stroke-width="1.5"/>
+  <text x="1080" y="290" fill="#fb7185" font-size="8" font-weight="600">Native Safety Filter (内容安全)</text>
+  <text x="1080" y="306" fill="#cbd5e1" font-size="7" text-anchor="middle">AC自动机 (128 ASCII全预计算转移表)</text>
+  <text x="1080" y="320" fill="#94a3b8" font-size="7" text-anchor="middle">多项式朴素贝叶斯分类器</text>
+  <text x="1080" y="334" fill="#94a3b8" font-size="7" text-anchor="middle">JNI: acBuild → acSearch → bayesianPredict</text>
+  <text x="1080" y="347" fill="#64748b" font-size="6.5" text-anchor="middle">关键词过滤级别系统 · 大小写不敏感 · O(1)转移</text>
+
+  <!-- Boot chain arrows in L1 -->
+  <rect x="25" y="380" width="1415" height="55" rx="5" fill="rgba(6,78,59,0.1)" stroke="#34d399" stroke-width="0.8" stroke-dasharray="4,4"/>
+  <text x="40" y="398" fill="#34d399" font-size="7.5" font-weight="600">启动链</text>
+  <text x="40" y="415" fill="#64748b" font-size="6.5">JNI_OnLoad → ptrace自附加 → wb_aes_init (CRC32验证) → KMS_init (NEON密钥派生) → integrity_guard_verify_all → bp_guard_register ×4 → heartbeat_start → VMP_trust_anchors_verify</text>
+
+  <!-- ====== L2: VMP Layer ====== -->
+
+  <rect x="25" y="515" width="180" height="55" rx="5" fill="rgba(168,58,130,0.3)" stroke="#d946ef" stroke-width="1.2"/>
+  <text x="115" y="537" fill="#d946ef" font-size="8.5" font-weight="600" text-anchor="middle">VMP v3.0 虚拟机</text>
+  <text x="115" y="553" fill="#94a3b8" font-size="7" text-anchor="middle">16 GP寄存器 + 256栈</text>
+  <text x="115" y="565" fill="#64748b" font-size="6.5" text-anchor="middle">AES S-Box/GfMul指令</text>
+
+  <rect x="215" y="515" width="180" height="55" rx="5" fill="rgba(168,58,130,0.3)" stroke="#d946ef" stroke-width="1.2"/>
+  <text x="305" y="537" fill="#d946ef" font-size="8.5" font-weight="600" text-anchor="middle">wb_aes_keycheck</text>
+  <text x="305" y="553" fill="#94a3b8" font-size="7" text-anchor="middle">T-Box CRC32校验</text>
+  <text x="305" y="565" fill="#64748b" font-size="6.5" text-anchor="middle">VM内执行防篡改</text>
+
+  <rect x="405" y="515" width="180" height="55" rx="5" fill="rgba(168,58,130,0.3)" stroke="#d946ef" stroke-width="1.2"/>
+  <text x="495" y="537" fill="#d946ef" font-size="8.5" font-weight="600" text-anchor="middle">kms_derive_sk</text>
+  <text x="495" y="553" fill="#94a3b8" font-size="7" text-anchor="middle">VM内密钥派生</text>
+  <text x="495" y="565" fill="#64748b" font-size="6.5" text-anchor="middle">SK不进入ARM64指令</text>
+
+  <rect x="25" y="585" width="180" height="55" rx="5" fill="rgba(168,58,130,0.3)" stroke="#d946ef" stroke-width="1.2"/>
+  <text x="115" y="607" fill="#d946ef" font-size="8.5" font-weight="600" text-anchor="middle">vmp_apk_sig_verify</text>
+  <text x="115" y="623" fill="#94a3b8" font-size="7" text-anchor="middle">签名验证VM字节码</text>
+  <text x="115" y="635" fill="#64748b" font-size="6.5" text-anchor="middle">逻辑永不在ARM64</text>
+
+  <rect x="215" y="585" width="180" height="55" rx="5" fill="rgba(168,58,130,0.3)" stroke="#d946ef" stroke-width="1.2"/>
+  <text x="305" y="607" fill="#d946ef" font-size="8.5" font-weight="600" text-anchor="middle">vmp_frida_heartbeat</text>
+  <text x="305" y="623" fill="#94a3b8" font-size="7" text-anchor="middle">反Frida心跳检测</text>
+  <text x="305" y="635" fill="#64748b" font-size="6.5" text-anchor="middle">0xFFFFFFFF=Frida存在</text>
+
+  <rect x="405" y="585" width="180" height="55" rx="5" fill="rgba(168,58,130,0.3)" stroke="#d946ef" stroke-width="1.2"/>
+  <text x="495" y="607" fill="#d946ef" font-size="8.5" font-weight="600" text-anchor="middle">vmp_root_detect</text>
+  <text x="495" y="623" fill="#94a3b8" font-size="7" text-anchor="middle">vmp_code_integrity</text>
+  <text x="495" y="635" fill="#64748b" font-size="6.5" text-anchor="middle">SO .text CRC32 VM内校验</text>
+
+  <!-- VMP Obfuscation -->
+  <rect x="405" y="515" width="180" height="32" rx="5" fill="rgba(168,58,130,0.1)" stroke="#d946ef" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="495" y="580" fill="#d946ef" font-size="7.5" font-weight="600" text-anchor="middle">VMP v3.0新增</text>
+  <text x="495" y="592" fill="#94a3b8" font-size="6.5" text-anchor="middle">vmp_sm3_hash · vmp_tee_attest</text>
+
+  <!-- ====== L3: Kotlin Layer ====== -->
+
+  <rect x="625" y="515" width="195" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="722" y="537" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">SecurityGuard</text>
+  <text x="722" y="553" fill="#94a3b8" font-size="7" text-anchor="middle">中央安全网关 · Fail-Close</text>
+  <text x="722" y="565" fill="#64748b" font-size="6.5" text-anchor="middle">9维检测+2心跳 · 30s周期</text>
+
+  <rect x="835" y="515" width="195" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="932" y="537" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">NativeBridge</text>
+  <text x="932" y="553" fill="#94a3b8" font-size="7" text-anchor="middle">40+ JNI native方法</text>
+  <text x="932" y="565" fill="#64748b" font-size="6.5" text-anchor="middle">准飞证明Token (SM3)</text>
+
+  <rect x="1045" y="515" width="195" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="1142" y="537" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">KmsProvider</text>
+  <text x="1142" y="553" fill="#94a3b8" font-size="7" text-anchor="middle">SK永不进入Java堆</text>
+  <text x="1142" y="565" fill="#64748b" font-size="6.5" text-anchor="middle">v2 BK盲化流水线</text>
+
+  <rect x="1255" y="515" width="180" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="1345" y="537" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">SecureStorage</text>
+  <text x="1345" y="553" fill="#94a3b8" font-size="7" text-anchor="middle">DeviceId · RemoteKeys</text>
+  <text x="1345" y="565" fill="#64748b" font-size="6.5" text-anchor="middle">TinkAEAD · Keystore</text>
+
+  <rect x="625" y="585" width="195" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="722" y="607" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">SecureLog</text>
+  <text x="722" y="623" fill="#94a3b8" font-size="7" text-anchor="middle">Release: 全部Logger静默</text>
+  <text x="722" y="635" fill="#64748b" font-size="6.5" text-anchor="middle">Critical→Log.wtf(始终可见)</text>
+
+  <rect x="835" y="585" width="195" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="932" y="607" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">AuditLogger · BanManager</text>
+  <text x="932" y="623" fill="#94a3b8" font-size="7" text-anchor="middle">审计日志·封禁管理</text>
+  <text x="932" y="635" fill="#64748b" font-size="6.5" text-anchor="middle">OatDisabler · SecurityConstants</text>
+
+  <rect x="1045" y="585" width="195" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="1142" y="607" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">DeviceIdProvider</text>
+  <text x="1142" y="623" fill="#94a3b8" font-size="7" text-anchor="middle">SHA-256硬件绑定</text>
+  <text x="1142" y="635" fill="#64748b" font-size="6.5" text-anchor="middle">androidId|SERIAL|fingerprint</text>
+
+  <rect x="1255" y="585" width="180" height="55" rx="5" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1.2"/>
+  <text x="1345" y="607" fill="#22d3ee" font-size="8.5" font-weight="600" text-anchor="middle">RemoteKeyProvider</text>
+  <text x="1345" y="623" fill="#94a3b8" font-size="7" text-anchor="middle">AES-256-GCM E2E</text>
+  <text x="1345" y="635" fill="#64748b" font-size="6.5" text-anchor="middle">PBKDF2-SHA256 KDF</text>
+
+  <!-- ====== L4: Network + Detection + Response ====== -->
+
+  <rect x="25" y="705" width="220" height="60" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.2"/>
+  <text x="135" y="726" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">Certificate Pinning</text>
+  <text x="135" y="742" fill="#cbd5e1" font-size="7" text-anchor="middle">SPKI Pinning (12 providers)</text>
+  <text x="135" y="756" fill="#64748b" font-size="6.5" text-anchor="middle">OkHttp内置 · 本地提取</text>
+
+  <rect x="260" y="705" width="220" height="60" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.2"/>
+  <text x="370" y="726" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">MITM Detection</text>
+  <text x="370" y="742" fill="#cbd5e1" font-size="7" text-anchor="middle">用户CA证书扫描</text>
+  <text x="370" y="756" fill="#64748b" font-size="6.5" text-anchor="middle">代理端口检测 · VPN检测</text>
+
+  <rect x="495" y="705" width="220" height="60" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.2"/>
+  <text x="605" y="726" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">Continuous Detection</text>
+  <text x="605" y="742" fill="#cbd5e1" font-size="7" text-anchor="middle">30s SecurityGuard check</text>
+  <text x="605" y="756" fill="#64748b" font-size="6.5" text-anchor="middle">CRC32 Heartbeat (SO代码)</text>
+
+  <rect x="730" y="705" width="220" height="60" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.2"/>
+  <text x="840" y="726" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">Incident Response</text>
+  <text x="840" y="742" fill="#cbd5e1" font-size="7" text-anchor="middle">SIGABRT不可恢复</text>
+  <text x="840" y="756" fill="#64748b" font-size="6.5" text-anchor="middle">KMS密钥销毁 · 锁定降级</text>
+
+  <rect x="965" y="705" width="220" height="60" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.2"/>
+  <text x="1075" y="726" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">Threat Assessment</text>
+  <text x="1075" y="742" fill="#cbd5e1" font-size="7" text-anchor="middle">评分系统(阈值=3)</text>
+  <text x="1075" y="756" fill="#64748b" font-size="6.5" text-anchor="middle">C1-C4 密码成熟度</text>
+
+  <rect x="1200" y="705" width="240" height="60" rx="5" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.2"/>
+  <text x="1320" y="726" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">Body Encryption</text>
+  <text x="1320" y="742" fill="#cbd5e1" font-size="7" text-anchor="middle">WB-AES-256-GCM</text>
+  <text x="1320" y="756" fill="#64748b" font-size="6.5" text-anchor="middle">随机Nonce+Tag · 请求证明</text>
+
+  <!-- Thread: detection chain summary -->
+  <rect x="25" y="785" width="1415" height="38" rx="5" fill="rgba(136,19,55,0.08)" stroke="#fb7185" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="40" y="800" fill="#fb7185" font-size="7" font-weight="600">检测链</text>
+  <text x="40" y="814" fill="#64748b" font-size="6.2">1.Root(原生) → 2.Hook(Xposed/Frida/LSPosed) → 3.Emulator(传感器+Fingerprint+ARM寄存器) → 4.Debug(ptrace+TracerPid+inotify) → 5.MITM(CA证书+代理) → 6.Signature(APK证书SM3) → 7.DEX(CRC32壳校验) → 8.SO(HMAC-SHA256 .text) → 9.Resources(资源篡改) → 10.CRC32 Heartbeat(内存校验) → 11.Frida Heartbeat(VMP字节码) → 威胁评分 → KMS锁/ABRT</text>
+
+  <!-- ====== L5: Hardware ====== -->
+
+  <rect x="30" y="890" width="280" height="55" rx="5" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="170" y="912" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle">Android Keystore (TEE/StrongBox)</text>
+  <text x="170" y="928" fill="#94a3b8" font-size="7" text-anchor="middle">Partner 密钥 AES-256 硬件隔离</text>
+  <text x="170" y="939" fill="#64748b" font-size="6.5" text-anchor="middle">其他App(root)也无法提取密钥材料</text>
+
+  <rect x="330" y="890" width="280" height="55" rx="5" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="470" y="912" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle">NEON SIMD 寄存器</text>
+  <text x="470" y="928" fill="#94a3b8" font-size="7" text-anchor="middle">DK/密钥仅在q0-q7(128-bit NEON)</text>
+  <text x="470" y="939" fill="#64748b" font-size="6.5" text-anchor="middle">dc civac彻底清除 · 噪声诱饵防分析</text>
+
+  <rect x="630" y="890" width="280" height="55" rx="5" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="770" y="912" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle">Tink AEAD (Google加密库)</text>
+  <text x="770" y="928" fill="#94a3b8" font-size="7" text-anchor="middle">硬件KEK + AEAD认证加密</text>
+  <text x="770" y="939" fill="#64748b" font-size="6.5" text-anchor="middle">加密同时提供完整性保护</text>
+
+  <rect x="930" y="890" width="280" height="55" rx="5" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="1070" y="912" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle">Sensor / ARM 寄存器指纹</text>
+  <text x="1070" y="928" fill="#94a3b8" font-size="7" text-anchor="middle">传感器数量/类型→模拟器检测</text>
+  <text x="1070" y="939" fill="#64748b" font-size="6.5" text-anchor="middle">AndroidID+Serial+Fingerprint SHA-256</text>
+
+  <rect x="1230" y="890" width="210" height="55" rx="5" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.2"/>
+  <text x="1335" y="912" fill="#a78bfa" font-size="9" font-weight="600" text-anchor="middle">Anti-Tamper HW</text>
+  <text x="1335" y="928" fill="#94a3b8" font-size="7" text-anchor="middle">/dev/urandom → Canary</text>
+  <text x="1335" y="939" fill="#64748b" font-size="6.5" text-anchor="middle">getrandom syscall → entropy</text>
+
+  <!-- Security flow annotations -->
+  <path d="M 722 571 L 722 705" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <path d="M 115 570 L 115 750 Q 115 765 130 765 L 165 765 Q 185 765 185 780 L 185 785" fill="none" stroke="#d946ef" stroke-width="1.5" stroke-dasharray="4,4"/>
+
+  <!-- Downward arrows between layers -->
+  <path d="M 147 355 L 147 515" fill="none" stroke="#34d399" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+  <text x="160" y="440" fill="#64748b" font-size="6" transform="rotate(-90 160 440)">加密函数→VMP字节码</text>
+
+  <path d="M 722 571 L 722 585" fill="none" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,3"/>
+  <path d="M 932 571 L 932 585" fill="none" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Legend -->
+  <text x="25" y="985" fill="#94a3b8" font-size="7.5" font-weight="600">图例</text>
+  <rect x="25" y="993" width="14" height="8" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1"/>
+  <text x="45" y="1000" fill="#94a3b8" font-size="7">Build</text>
+  <rect x="90" y="993" width="14" height="8" rx="2" fill="rgba(6,78,59,0.3)" stroke="#34d399" stroke-width="1"/>
+  <text x="110" y="1000" fill="#94a3b8" font-size="7">Native</text>
+  <rect x="155" y="993" width="14" height="8" rx="2" fill="rgba(168,58,130,0.3)" stroke="#d946ef" stroke-width="1"/>
+  <text x="175" y="1000" fill="#94a3b8" font-size="7">VMP</text>
+  <rect x="205" y="993" width="14" height="8" rx="2" fill="rgba(8,51,68,0.3)" stroke="#22d3ee" stroke-width="1"/>
+  <text x="225" y="1000" fill="#94a3b8" font-size="7">Kotlin</text>
+  <rect x="270" y="993" width="14" height="8" rx="2" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1"/>
+  <text x="290" y="1000" fill="#94a3b8" font-size="7">Net+Rsp</text>
+  <rect x="345" y="993" width="14" height="8" rx="2" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="365" y="1000" fill="#94a3b8" font-size="7">HW</text>
+
+  <line x1="420" y1="997" x2="470" y2="997" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="478" y="1000" fill="#94a3b8" font-size="7">检测/审计流</text>
+  <line x1="590" y1="997" x2="640" y2="997" stroke="#fbbf24" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="648" y="1000" fill="#94a3b8" font-size="7">构建流</text>
+  <line x1="710" y1="997" x2="760" y2="997" stroke="#34d399" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="768" y="1000" fill="#94a3b8" font-size="7">数据流</text>
+
+  <!-- Security level indicator -->
+  <text x="1000" y="1000" fill="#fb7185" font-size="7" font-weight="600">威胁评分≥3</text>
+  <rect x="1080" y="993" width="20" height="8" rx="8" fill="#fb7185" opacity="0.7"/>
+  <text x="1110" y="1000" fill="#64748b" font-size="7">KMS销毁 → SIGABRT</text>
+  <text x="1240" y="1000" fill="#34d399" font-size="7" font-weight="600">威胁评分=0</text>
+  <rect x="1320" y="993" width="20" height="8" rx="8" fill="#34d399" opacity="0.7"/>
+  <text x="1350" y="1000" fill="#64748b" font-size="7">正常模式</text>
+</svg>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-header"><div class="card-dot rose"></div><h3>防御机制 (Defense)</h3></div>
+    <ul>
+      <li>• 内核级: HMAC-SHA256 CTR流密码 + 随机IV (阻统计攻击)</li>
+      <li>• cert-in-salt 88B: 证书哈希嵌入盐值,零if分支可Patch</li>
+      <li>• VMP P0-3: cert_obs[]→VMP bytecode LOAD_IMM,无.rodata常量</li>
+      <li>• InMemoryDexClassLoader: 业务DEX零磁盘落盘</li>
+      <li>• Poison fallback: cert^DE/AD,剥离Java cert=密钥全错</li>
+      <li>• Dex2C v2.1: 10个胶水方法, 11KB Native诱饵层(三层异构)</li>
+      <li>• KMS v2.0: 5级密钥体系, DK在NEON寄存器, dc civac清除</li>
+      <li>• VMP v3.0: 9个安全函数以VM字节码运行, 永不以ARM64存在</li>
+      <li>• Memory Guard: Guard Pages + Stack Canary + W^X检测</li>
+      <li>• APK签名绑定: 证书SM3 → 解密密钥, 无法脱壳重打包</li>
+      <li>• Body Encryption: WB-AES-256-GCM + 随机Nonce + 请求证明Token</li>
+      <li>• 国密全套: SM2签名 + SM3哈希 + SM4加密 + HMAC-SHA256</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot amber"></div><h3>验证机制 (Verification)</h3></div>
+    <ul>
+      <li>• 启动链: JNI_OnLoad → ptrace → wb_aes CRC32 → KMS → integrity → bp_guard</li>
+      <li>• SO完整性: HMAC-SHA256(.text) + CRC32心跳(30s) + Shell DEX CRC32</li>
+      <li>• VMP信任锚: wb_aes_keycheck + kms_derive_sk + apk_sig_verify(全部VM内)</li>
+      <li>• 证书固定: 12个API Provider SPKI Pinning</li>
+      <li>• 设备指纹: AndroidID|SERIAL|Fingerprint → SHA-256 防篡改缓存</li>
+      <li>• 数据库密钥: Tink AEAD 硬件KEK + APK完整性绑定</li>
+      <li>• 预检Token: SM3(SO状态) → X-Lianyu-Proof Header</li>
+      <li>• 构建后验证: verify_release_apk.py 全量校验签名+SO+载荷</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot violet"></div><h3>安全机制 (Security Controls)</h3></div>
+    <ul>
+      <li>• Fail-Close: DEX密钥绑定maps_crc→HMAC-SHA256, 注入检测+中毒</li>
+      <li>• ContentProvider: 剥离5个库Provider (HMS/AGConnect/WorkManager)</li>
+      <li>• Manifest: MainActivity单LAUNCHER, Gradle sourceSet壳修复</li>
+      <li>• 反逆向: 字符串XOR混淆 · OLLVM控制流平坦化 · 代码在VM内</li>
+      <li>• 反调试: ptrace自附加 · SW断点快照 · inotify监控 · signal handler</li>
+      <li>• 反注入: Frida/GUMJS/Gadget/Xposed/LSPosed/Magisk/Substrate检测</li>
+      <li>• 安全日志: Release全静默 · Critical用Log.wtf · 无stderr泄露</li>
+      <li>• 远程密钥: AES-256-GCM E2E · PBKDF2 · Android Keystore硬件隔离</li>
+      <li>• 零信任: PDP+PEP连续评估 → 威胁评分≥3 → KMS销毁+锁定降级</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot amber"></div><h3>v2.0 交付状态 (2026-06-25)</h3></div>
+    <ul>
+      <li>• 真机: Vivo V2324A API36 ✅ Displayed +1.5s, 0 FATAL</li>
+      <li>• APK: 60MB arm64-only, V2+V3签名</li>
+      <li>• Shell DEX: 5.8KB | SO: 181KB(壳) + 9.2MB(安全) + 3KB(Dex2C)</li>
+      <li>• 加密: HMAC-SHA256 CTR 32B计数器 + 随机IV (阻统计攻击)</li>
+      <li>• cert-in-salt 88B: 证书=密钥, 0 if分支可Patch</li>
+      <li>• VMP P0-3: VM_HYPER_DERIVE_SHELL_KEY=17 (cert_obs→VMP)</li>
+      <li>• InMemoryDexClassLoader: 零磁盘落盘</li>
+      <li>• F1: emulator deadloop | F2: APK hash SIGABRT</li>
+      <li>• StrongBox: 硬件证明链 (19 JNI全部接入SO)</li>
+      <li>• Poison fallback: cert^DE/AD防Java剥离</li>
+      <li>• 载荷: classes.bin 8.5MB + code_items 5.7MB + payload 8.5MB</li>
+  </div>
+</div>
+<p class="footer">YuNian (予念) Security Architecture · 2026-06 · v2.0 · Physical Anti-Repackaging</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,63 @@
+classDiagram
+    class ChatRow {
+        <<sealed interface>>
+        +String stableId
+        +String contentType
+    }
+    class ChatRow.Message {
+        +Message metadata
+    }
+    class ChatRow.TimeDivider {
+        +Long timestamp
+    }
+    class ChatRow.LiveToolGroup {
+        +List~ToolActivity~ activities
+    }
+    ChatRow <|-- ChatRow.Message
+    ChatRow <|-- ChatRow.TimeDivider
+    ChatRow <|-- ChatRow.LiveToolGroup
+
+    class ChatRowRenderer {
+        <<Composable>>
+        +render(row, messageBodies, ...)
+    }
+    class ChatListItem {
+        <<sealed interface>>
+        +String stableId
+        +ChatMessage? messageOrNull
+    }
+    ChatRowRenderer ..> ChatListItem : resolveItem(row, body)
+    ChatRowRenderer ..> ChatRow : reads
+    ChatRowRenderer ..> MessageBodyState : reads by id
+
+    class ChatBackgroundCache {
+        -LruCache cache
+        -Map inFlight
+        +getCachedBitmap(key) Bitmap?
+        +suspend load(ctx, key) Bitmap?
+        +preload(ctx, key)
+        +clear()
+    }
+    class BackgroundBitmapState {
+        <<sealed interface>>
+    }
+    class Idle
+    class Loading
+    class Ready {
+        +Bitmap bitmap
+    }
+    class Failed {
+        +String reason
+    }
+    BackgroundBitmapState <|-- Idle
+    BackgroundBitmapState <|-- Loading
+    BackgroundBitmapState <|-- Ready
+    BackgroundBitmapState <|-- Failed
+
+    class RememberBackground {
+        <<Composable>>
+        +rememberBackgroundBitmapState(key)
+        +rememberBackgroundBitmap(key) BitmapPainter?
+    }
+    RememberBackground ..> ChatBackgroundCache : load/getCached
+    RememberBackground ..> BackgroundBitmapState : emits

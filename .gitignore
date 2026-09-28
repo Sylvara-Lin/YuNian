@@ -1,0 +1,131 @@
+# Build outputs
+/build/
+/app/build/
+/app/release/
+/app/.cxx_native/
+/core/*/build/
+/core/*/.cxx/
+/feature/*/build/
+*.apk
+*.aab
+
+# Gradle
+.gradle/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Generated security files
+core/security/src/main/cpp/generated/
+
+# SECRETS — NEVER COMMIT
+release.keystore
+.lianyu_wb_key
+core/security/src/main/cpp/wb_tables.inc
+core/security/src/main/cpp/*_demo.inc
+core/security/src/main/cpp/.backup_*/
+
+# Build artifacts — NEVER COMMIT
+core/security/src/main/cpp/obj/
+app/src/main/obj/
+app/src/main/jniLibs/
+app/src/main/assets/yunian_shell/
+*.o
+*.o.d
+linker.list
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+fix_progress.json
+generate_pdf.py
+fetchmodels_code.txt
+viewmodel_code.txt
+release_body.txt
+wechat_analysis_report.md
+add_*.ps1
+modify_*.ps1
+remove_*.ps1
+update_*.ps1
+install_*.bat
+build_error*.log
+build_output.txt
+build_ksp_final.txt
+build_signed.bat
+branch_diff_report.md
+debug-*.md
+
+# Local scratch / backups / notes
+_usage_check.*
+build_*.txt
+build_*.log
+install_*.txt
+tools/_tmp_*.py
+*.bak_oldinv
+ui*_local.xml
+
+# One-off remote/server probe helpers (deliverables live in _server_update/)
+_srv_*.sh
+_srv_*.py
+_srv_*.txt
+_srv_*.json
+_check_release_env.ps1
+
+# Docs
+_push_tmp/
+.workbuddy/
+.hermes/
+.trae/
+MODULE_ARCHITECTURE.pdf
+
+# Kotlin compiler session state (should never be tracked)
+.kotlin/
+
+# Local tooling / session artifacts — never upload
+.zcode/
+.playwright-mcp/
+nul
+
+# 项目根调试残留（防止再次污染仓库；根目录不放脚本，脚本请入 tools/）
+/_*.log
+/_*.txt
+/_*.diff
+/.gradle-*.log
+.superpowers/
+
+# 批次0 建议补充（原仅存于 .git/info/exclude，不随仓库共享）
+/releases/
+/*.log
+/bugreport-*.zip
+
+# 签名密钥严禁入库（安全事件 2026-09-16）
+*.jks
+*.keystore
+*.p12
+*.pfx
+/release.keystore
+
+# 本地参考项目副本（146M，不参与构建；此前仅存于 .git/info/exclude，换克隆即失效）
+/rikkahub/
+
+# ── Agent 迁移期临时产物（2026-09-17 收口，防止再次污染仓库）─────────────
+# 临时诊断脚本：一律以 _tmp_ 前缀写在仓库根，禁止入库
+/_tmp_*
+# 根目录 & docs 下的备份残留
+/*.bak
+/docs/*.bak
+# Rust / 构建输出（agent-native 是独立 cargo crate，target 不入库）
+/agent-native/target/
+# JVM 测试模块构建输出
+/shell/bin/
+/shell/build/
+# master 参考工作树（git worktree add 产物，约 146M）
+/_ref_master/

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name="com.yunian.ai.security.StaticApkShell"
+        android:allowBackup="false"
+        android:supportsRtl="true"
+        tools:replace="android:name">
+
+        <activity
+            android:name="com.yunian.ai.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            tools:replace="android:exported">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <provider android:name="com.huawei.hms.support.api.push.PushProvider" tools:node="remove"/>
+        <provider android:name="com.huawei.agconnect.core.provider.AGConnectInitializeProvider" tools:node="remove"/>
+        <provider android:name="com.huawei.hms.mlsdk.common.provider.MLInitializerProvider" tools:node="remove"/>
+        <provider android:name="com.huawei.hms.core.aidl.provider.HMSCoreProvider" tools:node="remove"/>
+        <provider android:name="com.huawei.hms.analytics.provider.HAProvider" tools:node="remove"/>
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                tools:node="remove" />
+        </provider>
+
+        <!-- [LINT FIX] WorkManager on-demand 初始化：YuNianApplication 实现 Configuration.Provider，
+             需移除默认 androidx.startup 初始化器，否则 release lint 报 RemoveWorkManagerInitializer -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+        <activity-alias android:name="com.yunian.ai.SplashActivity" tools:node="remove"/>
+
+        <receiver android:name="com.yunian.ai.feature.notification.BootReceiver"
+            android:enabled="true" android:exported="true"
+            tools:node="remove"/>
+        <receiver android:name="com.yunian.ai.security.SReceiver"
+            tools:node="remove"/>
+        <receiver android:name="com.huawei.hms.support.api.push.PushReceiver"
+            tools:node="remove"/>
+        <receiver android:name="androidx.profileinstaller.ProfileInstallReceiver"
+            tools:node="remove"/>
+
+    </application>
+</manifest>

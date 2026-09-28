@@ -1,0 +1,35 @@
+package com.yunian.ai.security
+
+import android.content.Context
+
+/**
+ * Shell-local NativeBridge stub — mirrors core:security NativeBridge signatures.
+ *
+ * During shell build, only these methods are compiled into the shell DEX.
+ * At runtime, the real native methods are registered via RegisterNatives
+ * when liblianyu_shell.so is loaded.
+ *
+ * Method mapping:
+ *   verifySignature  → native_verify_apk_signature
+ *   isSafe           → native_is_safe
+ *   isDeviceRooted   → native_check_root
+ *   isHookDetected   → native_check_hook
+ *   isDebugged       → native_check_debug
+ */
+object NativeBridge {
+
+    @JvmStatic
+    external fun verifySignature(context: Context): Boolean
+
+    @JvmStatic
+    external fun isSafe(): Boolean
+
+    @JvmStatic
+    external fun isDeviceRooted(): Boolean
+
+    @JvmStatic
+    external fun isHookDetected(): Boolean
+
+    @JvmStatic
+    external fun isDebugged(): Boolean
+}
