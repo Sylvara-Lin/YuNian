@@ -109,6 +109,10 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
         // 冷启动时基：进程内最早可达点（加固壳 preflight 之后、业务代码最早处）。
         PerformanceTrace.startLaunch()
         PerformanceTrace.markStartupStage("app_attach_begin")
+        // ── 崩溃日志：thin-shell 打包路径下本类才是被壳反射创建的真实 Application，
+        //    故此处的安装覆盖「业务层」；Gradle 构建路径下由 StaticApkShell.kt 安装，
+        //    CrashReporter.install 幂等，重复调用无副作用。──
+        runCatching { com.yunian.ai.common.crash.CrashReporter.install(base) }
         super.attachBaseContext(base)
     }
 
@@ -123,6 +127,9 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
         super.onCreate()
         PerformanceTrace.markStartupStage("oncreate_super_done")
         instance = this
+
+        // ── breadcrumbs 后台落盘（thin-shell 路径下本类才是真实 Application 时的兜底）──
+        runCatching { com.yunian.ai.common.crash.CrashBreadcrumbPersister.install(this) }
 
         AppForegroundTracker.init()
         PerformanceTrace.markStartupStage("app_fgt_init_done")

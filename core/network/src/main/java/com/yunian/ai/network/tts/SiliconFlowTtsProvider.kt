@@ -76,7 +76,7 @@ class SiliconFlowTtsProvider : TtsProviderInterface, ConfigurableTtsProvider {
 
             SecureLog.d(
                 "SiliconFlowTts",
-                "key source: useGlobal=${config.siliconflowUseGlobalKey}, prefix=${apiKey.take(6)}…"
+                "key source: useGlobal=${config.siliconflowUseGlobalKey}, keyConfigured=${apiKey.isNotBlank()}"
             )
 
             val finalVoice = resolveVoiceUri(apiKey, rawVoice)

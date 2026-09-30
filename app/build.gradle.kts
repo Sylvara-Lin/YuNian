@@ -38,8 +38,19 @@ android {
             "androidx.test.runner.AndroidJUnitRunner"
         }
 
+        // ABI 夹具：默认仅打包 arm64-v8a（不带属性时行为逐字节不变）。
+        // 需要给 x86_64 模拟器出包时传入属性：
+        //   ./gradlew assembleDebug -PyunianEmulatorAbis=x86_64
+        // 回滚：不传该属性即为原行为（仅 arm64-v8a）。
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            val emulatorAbis = providers.gradleProperty("yunianEmulatorAbis").orNull
+            if (emulatorAbis.isNullOrBlank()) {
+                abiFilters += listOf("arm64-v8a")
+            } else {
+                abiFilters += emulatorAbis.split(',', ' ')
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+            }
         }
     }
 

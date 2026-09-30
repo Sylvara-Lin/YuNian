@@ -507,7 +507,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
             SecureLog.d("SettingsViewModel", "=== TEST CONNECTION START ===")
             SecureLog.d("SettingsViewModel", "Testing config: provider=${config.provider}, baseUrl=${config.baseUrl}, model=${config.model}")
-            SecureLog.d("SettingsViewModel", "Available keys: ${allKeys.size} (userKey=${config.apiKey.takeIf { it.isNotBlank() }?.take(8)}..., remote=${allKeys.size > 1})")
+            SecureLog.d("SettingsViewModel", "Available keys: ${allKeys.size} (userKeyConfigured=${config.apiKey.isNotBlank()}, remote=${allKeys.size > 1})")
             SecureLog.d("SettingsViewModel", "isEnabled=${config.isEnabled}, connectionTested=${config.connectionTested}")
             SecureLog.d("SettingsViewModel", "isPARTNER=${config.provider == ApiProvider.PARTNER}, providerName=${config.provider.name}")
 
@@ -585,7 +585,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
                 val aiService = aiService
                 val keyToUse = allKeys.firstOrNull() ?: currentConfig.apiKey
-                SecureLog.d("SettingsViewModel", "Fetching models with key: ${keyToUse.take(8)}...")
+                SecureLog.d("SettingsViewModel", "Fetching models (keyConfigured=${keyToUse.isNotBlank()})")
 
                 val modelsResult = aiService.fetchModels(currentConfig.baseUrl, keyToUse, currentConfig.provider)
                 val models = modelsResult.getOrNull()
@@ -796,7 +796,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     val remoteKeys = com.yunian.ai.common.RemoteKeyProvider.fetchKeysAsync(getApplication(), forceRefresh = true)
                     if (remoteKeys.isNotEmpty()) {
                         keyToUse = remoteKeys.first()
-                        SecureLog.d("SettingsViewModel", "Using remote key for fetchModels: ${keyToUse.take(8)}...")
+                        SecureLog.d("SettingsViewModel", "Using remote key for fetchModels (keyConfigured=${keyToUse.isNotBlank()})")
                     } else {
                         _modelFetchStates.value = _modelFetchStates.value.toMutableMap().apply {
                             put(provider, ModelFetchState(errorMessage = "无法从服务器获取密钥"))

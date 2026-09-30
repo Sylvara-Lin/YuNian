@@ -21,6 +21,10 @@ class StaticApkShell : Application(), androidx.work.Configuration.Provider {
 
     override fun attachBaseContext(base: Context) {
         PerformanceTrace.startShell()
+        // ── 崩溃日志：最早可达点安装（release 也生效，不依赖 BuildConfig.DEBUG）──
+        // Gradle 构建下本类是真正的 Application（manifest: com.yunian.ai.security.StaticApkShell），
+        // 业务类与它同处一个 DEX，故此处安装即「业务层」捕获；安装本身幂等。
+        runCatching { com.yunian.ai.common.crash.CrashReporter.install(base) }
         if (shellLibAvailable) {
             runCatching { nativeAntiHookInit() }
         }
@@ -56,6 +60,9 @@ class StaticApkShell : Application(), androidx.work.Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+
+        // ── breadcrumbs 后台落盘（native/ANR/被系统杀时 Java handler 不执行，靠它保留上下文）──
+        runCatching { com.yunian.ai.common.crash.CrashBreadcrumbPersister.install(this) }
 
         PerformanceTrace.startSecurity()
         try {

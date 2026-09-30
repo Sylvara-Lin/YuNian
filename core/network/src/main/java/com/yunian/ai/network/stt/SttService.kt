@@ -49,7 +49,8 @@ class SttService(private val context: Context) {
             val result = provider.recognize(context, audioPath)
 
             if (result != null && result.isNotBlank()) {
-                SecureLog.i("SttService", "STT recognition successful: ${result.take(50)}...")
+                // 不打印识别文本（用户语音 PII）：breadcrumbs 会随崩溃报告外发。
+                SecureLog.i("SttService", "STT recognition successful (${result.length} chars)")
             } else {
                 SecureLog.w("SttService", "STT recognition returned empty or null")
             }
@@ -75,7 +76,8 @@ class SttService(private val context: Context) {
             val result = provider.recognizeFromFile(context, audioPath, mimeType)
 
             if (result != null && result.isNotBlank()) {
-                SecureLog.i("SttService", "STT file upload recognition successful: ${result.take(50)}...")
+                // 不打印识别文本（用户语音 PII）：breadcrumbs 会随崩溃报告外发。
+                SecureLog.i("SttService", "STT file upload recognition successful (${result.length} chars)")
             } else {
                 SecureLog.w("SttService", "STT file upload recognition returned empty or null")
             }

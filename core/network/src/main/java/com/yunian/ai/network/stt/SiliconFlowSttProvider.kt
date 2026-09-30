@@ -78,7 +78,8 @@ class SiliconFlowSttProvider : SttProviderInterface {
             val text = json.optString("text", "")
 
             if (text.isNotBlank()) {
-                SecureLog.i("SiliconFlowStt", "STT success: ${text.take(50)}...")
+                // 不打印识别文本（用户语音 PII）：breadcrumbs 会随崩溃报告外发。
+                SecureLog.i("SiliconFlowStt", "STT success (${text.length} chars)")
                 text
             } else {
                 SecureLog.w("SiliconFlowStt", "STT returned empty text")

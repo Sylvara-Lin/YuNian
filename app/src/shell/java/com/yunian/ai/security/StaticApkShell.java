@@ -44,6 +44,16 @@ public class StaticApkShell extends Application {
     @Override
     protected void attachBaseContext(Context base) {
         shellStarted = SystemClock.elapsedRealtimeNanos();
+        // Shell-stage crash safety net: installed before the business DEX is loaded.
+        // Pure Java, zero business dependencies. If a crash happens during the antiHook /
+        // certificate / DEX decrypt / load stages below, it is still persisted to disk, and
+        // the business layer (CrashLogStore) surfaces it on the next launch.
+        // NOTE: this file is compiled by a bare `javac` call in tools/build.py without an
+        // explicit -encoding flag, so it MUST stay ASCII-only. Do not add non-ASCII here.
+        try {
+            ShellCrashHandler.install(base);
+        } catch (Throwable ignored) {
+        }
         super.attachBaseContext(base);
         stageLog("attach.begin");
         try {

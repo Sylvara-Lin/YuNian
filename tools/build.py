@@ -335,7 +335,16 @@ def phase6b_patch_crc32(apk_path, config_dir):
 def shell_dex():
     """Compile shell DEX from source."""
     print("\n═══ Shell DEX ═══")
-    shell_source_names = ["StaticApkShell.java", "SActivity.java", "MethodRecoveryEngine.java"]
+    # Auto-discover the shell sources instead of a hard-coded list. Previously this list had to be
+    # edited by hand whenever a new .java was added to app/src/shell/java/... -- forgetting it made
+    # javac fail with "cannot find symbol" even though the file existed in the repo. Discovery is
+    # sorted so the resulting DEX is deterministic.
+    if os.path.isdir(STABLE_SHELL_SRC):
+        shell_source_names = sorted(f for f in os.listdir(STABLE_SHELL_SRC) if f.endswith(".java"))
+    else:
+        shell_source_names = []
+    if not shell_source_names:
+        sys.exit("No shell sources (*.java) found in " + STABLE_SHELL_SRC)
     os.makedirs(SHELL_SRC, exist_ok=True)
     for name in shell_source_names:
         target = os.path.join(SHELL_SRC, name)
@@ -354,7 +363,11 @@ def shell_dex():
                if not os.path.exists(os.path.join(SHELL_SRC, f))]
     if missing:
         sys.exit("Shell source missing: " + ", ".join(missing) + f" in {SHELL_SRC}")
-    run(["javac","-cp",ANDROID_JAR,"-d",cls] + java_files, timeout=30)
+    # NOTE: -encoding is explicit on purpose. Without it javac falls back to the platform
+    # default charset (GBK on zh-CN Windows) and any UTF-8 source file in the shell source set
+    # fails to compile. The shell sources under app/src/shell/java are kept ASCII-only as an
+    # extra safety margin, but the flag keeps the build correct either way.
+    run(["javac","-encoding","UTF-8","-cp",ANDROID_JAR,"-d",cls] + java_files, timeout=30)
     jar = os.path.join(SHELL_WORK, "shell.jar")
     run(["jar","cf",jar,"-C",cls,"."], timeout=10)
     d8 = os.path.join(BT, "d8.bat") if os.name=="nt" else os.path.join(BT,"d8")

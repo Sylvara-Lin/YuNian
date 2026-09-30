@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.content.edit
 import com.yunian.ai.common.CompanionRole
 import com.yunian.ai.common.FrameRateManager
+import com.yunian.ai.common.crash.ApplicationExitMonitor
+import com.yunian.ai.common.crash.CrashLogStore
 import com.yunian.ai.domain.ServiceRegistry
 import com.yunian.ai.feature.notification.CompanionKeepAliveService
 import com.yunian.ai.feature.notification.CompanionMessageWorker
@@ -39,6 +42,7 @@ import com.yunian.ai.feature.profile.AgreementScreen
 import com.yunian.ai.feature.profile.ProfileViewModel
 import com.yunian.ai.feature.profile.RoleSelectionScreen
 import com.yunian.ai.feature.update.AppUpdateManager
+import com.yunian.ai.uicommon.component.CrashLogDialog
 import com.yunian.ai.uicommon.component.YuNianToastHost
 import com.yunian.ai.uicommon.component.WindowMainBackground
 import com.yunian.ai.uicommon.theme.YuNianTheme
@@ -49,6 +53,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -126,6 +131,31 @@ class MainActivity : ComponentActivity() {
 
             val isServiceReady by ServiceRegistry.initialized.collectAsStateWithLifecycle()
 
+            // ── 上次闪退日志：启动时主动检测并弹出（与 DB/Repository 完全解耦）──
+            // 读盘在 IO 线程，避免主线程阻塞；日志文本落地后由 CrashLogDialog 展示。
+            // 优先级：已有 Java 崩溃报告 > 系统级异常退出（ApplicationExitInfo，覆盖 native/ANR/LMK）。
+            var pendingCrash by remember { mutableStateOf<String?>(null) }
+            var crashDismissed by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                val report = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val ctx = activity.applicationContext
+                        val javaReport = CrashLogStore.readLastCrash(ctx)
+                        if (javaReport != null) {
+                            // 已展示 Java 报告；若最近一次退出正是同一起 Java 崩溃，推进游标避免重复提示。
+                            ApplicationExitMonitor.acknowledgeIfJavaCrashExit(ctx)
+                            javaReport
+                        } else {
+                            // 没有 Java 报告：尝试消费系统级异常退出（native/ANR/LMK）。
+                            val exitReport = ApplicationExitMonitor.consumeNotableExit(ctx)
+                            if (exitReport != null) CrashLogStore.writeBusiness(ctx, exitReport)
+                            exitReport
+                        }
+                    }.getOrNull()
+                }
+                if (!report.isNullOrBlank()) pendingCrash = report
+            }
+
             YuNianTheme(themeMode = themeMode) {
 
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
@@ -179,6 +209,30 @@ class MainActivity : ComponentActivity() {
                                 .padding(top = 56.dp)
                                 .zIndex(100f)
                         )
+
+                        val crashText = pendingCrash
+                        if (crashText != null && !crashDismissed) {
+                            val isSystemExit = crashText.contains("source: system-exit-info")
+                            CrashLogDialog(
+                                logText = crashText,
+                                title = if (isSystemExit) "上次运行异常退出" else "上次运行发生了闪退",
+                                subtitle = if (isSystemExit) {
+                                    "检测到上次是系统级异常退出（可能是底层/native 崩溃、无响应，或被系统回收），并非普通闪退。" +
+                                        "请点「复制日志」，把它发给开发者即可帮助定位问题。"
+                                } else {
+                                    "以下是上次闪退的日志。请点「复制日志」，把它发给开发者即可帮助定位问题。"
+                                },
+                                onDismiss = { crashDismissed = true },
+                                onClear = {
+                                    crashDismissed = true
+                                    pendingCrash = null
+                                    val ctx = activity.applicationContext
+                                    appScope.launch(Dispatchers.IO) {
+                                        runCatching { CrashLogStore.clear(ctx) }
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }

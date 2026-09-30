@@ -16,7 +16,11 @@ object PushMessageDispatcher {
     }
 
     fun onMessageReceived(context: Context, title: String?, content: String?, payload: Map<String, String>?) {
-        SecureLog.d(TAG, "Message from vendor: title=$title content=$content")
+        // 不打印 title/content 正文（PII）：只记录「是否携带」。
+        SecureLog.d(
+            TAG,
+            "Message from vendor: titlePresent=${!title.isNullOrBlank()}, contentPresent=${!content.isNullOrBlank()}"
+        )
         val safeTitle = title?.takeIf { it.isNotBlank() } ?: "予念"
         val safeContent = content?.takeIf { it.isNotBlank() } ?: "您有一条新消息"
         NotificationHelper.showCompanionMessageNotification(context, safeTitle, safeContent, companionId = 0L)
