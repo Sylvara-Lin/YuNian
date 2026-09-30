@@ -187,7 +187,13 @@ class GroupChatViewModel(
         // 并严格保持原顺序语义：校验输入 → 通过后再申请门控 → 再取消旧 job → 启动新一轮。
         val previousJob = sendMessageJob
         val job = applicationScope.launch {
-            val inputCheck = com.yunian.ai.common.ContentFilter.checkInput(content)
+            // 输入安全校验在 try 之外，且 applicationScope 无 CoroutineExceptionHandler：
+            // 一旦这里抛出就会沿线程默认未捕获处理器直接闪退，故显式兜底并中止本轮。
+            val inputCheck = runCatching { com.yunian.ai.common.ContentFilter.checkInput(content) }
+                .getOrElse { e ->
+                    Log.e("GroupChatViewModel", "checkInput failed", e)
+                    return@launch
+                }
             if (inputCheck.isViolating) {
                 android.util.Log.w("GroupChatViewModel", "Input blocked by safety filter: ${inputCheck.reason}")
                 com.yunian.ai.common.BanManager.recordViolation(getApplication(), inputCheck.level)

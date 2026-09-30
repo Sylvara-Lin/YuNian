@@ -1,10 +1,12 @@
 package com.yunian.ai.feature.groupchat
 
+import android.util.Log
 import com.yunian.ai.common.ChatConstants
 import com.yunian.ai.common.MessageBodyState
 import com.yunian.ai.database.model.GroupMessage
 import com.yunian.ai.database.model.Message
 import com.yunian.ai.database.repository.GroupMessageRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +14,27 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+
+/**
+ * 让分页/订阅类后台任务「自愈不闪退」：任何非取消异常都被吞并上报，
+ * 绝不向上抛到 viewModelScope / applicationScope。
+ *
+ * 必要性：这些作用域没有 [kotlinx.coroutines.CoroutineExceptionHandler]，抛出的异常会走到
+ * 线程默认未捕获处理器 → **直接进程闪退**。而当数据库连接被并发关闭/重建（例如启动期
+ * `AppDatabase.verifyAndRecover` 触发的恢复）时，Room 的 InvalidationTracker 流会抛
+ * `IllegalStateException`（连接已关闭 / 无法重新打开已关闭对象）。
+ */
+internal object PagerTaskGuard {
+    internal suspend fun run(onError: (Exception) -> Unit, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            onError(e)
+        }
+    }
+}
 
 /**
  * 群聊「分页 + 正文懒加载」状态机。
@@ -62,44 +85,47 @@ internal class GroupChatPager(
     /** 原 GroupChatViewModel 的 init 种子块 + 实时元数据订阅（行为逐行等价）。 */
     fun start() {
         scope.launch(Dispatchers.IO) {
-            var metadataSeeded = cachedRecent.isNotEmpty()
-            if (!metadataSeeded) {
-                runCatching {
-                    repository.hydrateRecent(groupId, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
+            // 整个种子/订阅流程放在守卫内：DB 连接被并发关闭/重建时抛出的异常不得冒泡成闪退。
+            PagerTaskGuard.run({ e -> Log.e(TAG, "group chat pager failed; UI kept alive", e) }) {
+                var metadataSeeded = cachedRecent.isNotEmpty()
+                if (!metadataSeeded) {
+                    runCatching {
+                        repository.hydrateRecent(groupId, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
+                    }
+                    val hydrated = repository.getCachedRecent(groupId).orEmpty()
+                    if (hydrated.isNotEmpty()) {
+                        _messages.value = hydrated
+                        _messageBodies.value = hydrated.associate { it.id to MessageBodyState.Ready(it) }
+                        _messageMetadata.value = hydrated
+                            .takeLast(ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
+                            .map { toMetadataMessage(it, groupId) }
+                        metadataSeeded = true
+                    }
                 }
-                val hydrated = repository.getCachedRecent(groupId).orEmpty()
-                if (hydrated.isNotEmpty()) {
-                    _messages.value = hydrated
-                    _messageBodies.value = hydrated.associate { it.id to MessageBodyState.Ready(it) }
-                    _messageMetadata.value = hydrated
-                        .takeLast(ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
-                        .map { toMetadataMessage(it, groupId) }
-                    metadataSeeded = true
-                }
-            }
 
-            if (!metadataSeeded) {
-                val recentMetadata = repository
-                    .getRecentMetadata(groupId, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
-                    .reversed()
-                _messageMetadata.value = recentMetadata
-                seedBodiesFromCache(recentMetadata)
-            }
-            _hasMore.value = hasMoreAfterSeed(
-                _messageMetadata.value.size,
-                repository.getMessageCount(groupId)
-            )
-            repository.observeRecentMetadata(
-                groupId,
-                ChatConstants.GROUP_CHAT_MESSAGE_LIMIT
-            ).collectLatest { recent ->
-                val merged = mergeIncomingMetadata(_messageMetadata.value, recent)
-                if (merged != _messageMetadata.value) {
-                    _messageMetadata.value = merged
-                    seedBodiesFromCache(merged)
+                if (!metadataSeeded) {
+                    val recentMetadata = repository
+                        .getRecentMetadata(groupId, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
+                        .reversed()
+                    _messageMetadata.value = recentMetadata
+                    seedBodiesFromCache(recentMetadata)
                 }
-                _hasMore.value = hasMoreAfterSeed(merged.size, repository.getMessageCount(groupId))
-                if (recent.isNotEmpty()) repository.markReadThroughLatest(groupId)
+                _hasMore.value = hasMoreAfterSeed(
+                    _messageMetadata.value.size,
+                    repository.getMessageCount(groupId)
+                )
+                repository.observeRecentMetadata(
+                    groupId,
+                    ChatConstants.GROUP_CHAT_MESSAGE_LIMIT
+                ).collectLatest { recent ->
+                    val merged = mergeIncomingMetadata(_messageMetadata.value, recent)
+                    if (merged != _messageMetadata.value) {
+                        _messageMetadata.value = merged
+                        seedBodiesFromCache(merged)
+                    }
+                    _hasMore.value = hasMoreAfterSeed(merged.size, repository.getMessageCount(groupId))
+                    if (recent.isNotEmpty()) repository.markReadThroughLatest(groupId)
+                }
             }
         }
     }
@@ -136,25 +162,27 @@ internal class GroupChatPager(
             if (_isLoadingMore.value) return@launch
             _isLoadingMore.value = true
             try {
-                val oldest = _messageMetadata.value.firstOrNull()
-                if (oldest != null) {
-                    val older = repository.getMetadataBefore(
-                        groupId = groupId,
-                        beforeTimestamp = oldest.timestamp,
-                        beforeId = oldest.id,
-                        limit = ChatConstants.GROUP_CHAT_MESSAGE_LIMIT
-                    )
-                    if (older.isNotEmpty()) {
-                        _messageMetadata.value = prependOlder(_messageMetadata.value, older)
+                PagerTaskGuard.run({ e -> Log.e(TAG, "loadMoreMessages failed; UI kept alive", e) }) {
+                    val oldest = _messageMetadata.value.firstOrNull()
+                    if (oldest != null) {
+                        val older = repository.getMetadataBefore(
+                            groupId = groupId,
+                            beforeTimestamp = oldest.timestamp,
+                            beforeId = oldest.id,
+                            limit = ChatConstants.GROUP_CHAT_MESSAGE_LIMIT
+                        )
+                        if (older.isNotEmpty()) {
+                            _messageMetadata.value = prependOlder(_messageMetadata.value, older)
+                        }
+                        _hasMore.value = hasMoreAfterLoadMore(older.size, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
+                    } else {
+                        val recent = repository.getRecentMetadata(
+                            groupId,
+                            ChatConstants.GROUP_CHAT_MESSAGE_LIMIT
+                        )
+                        _messageMetadata.value = recent.reversed()
+                        _hasMore.value = hasMoreAfterLoadMore(recent.size, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
                     }
-                    _hasMore.value = hasMoreAfterLoadMore(older.size, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
-                } else {
-                    val recent = repository.getRecentMetadata(
-                        groupId,
-                        ChatConstants.GROUP_CHAT_MESSAGE_LIMIT
-                    )
-                    _messageMetadata.value = recent.reversed()
-                    _hasMore.value = hasMoreAfterLoadMore(recent.size, ChatConstants.GROUP_CHAT_MESSAGE_LIMIT)
                 }
             } finally {
                 _isLoadingMore.value = false
@@ -180,6 +208,9 @@ internal class GroupChatPager(
     }
 
     internal companion object {
+
+        /** 日志标签。 */
+        internal const val TAG = "GroupChatPager"
 
         /** 原 `GroupChatViewModel.GroupMessage.toMetadataMessage`：正文记录 → 列表占位元数据。 */
         internal fun toMetadataMessage(message: GroupMessage, conversationId: Long): Message = Message(
