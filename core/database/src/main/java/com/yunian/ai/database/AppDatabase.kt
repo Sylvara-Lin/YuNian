@@ -189,6 +189,19 @@ abstract class AppDatabase : RoomDatabase() {
                 try {
                     verifyDatabaseCanOpen(current)
                 } catch (error: Throwable) {
+                    val kind = DatabaseRecoveryPolicy.classify(extractExceptionMessages(error))
+                    if (!DatabaseRecoveryPolicy.shouldAttemptRecovery(kind)) {
+                        // 瞬态/未知错误（锁、忙、IO、空间不足……）绝不能关闭一个正被全 App 共享、
+                        // 且已被各仓库/ViewModel 缓存了 DAO 引用的主库——那会把「连接已关闭」异常
+                        // 扩散到所有后续访问并引发闪退；同时更不该据此进入任何恢复（潜在删库）路径。
+                        // 数据不可丢：此处**原样保留**主库，仅记录，交由上层 runCatching 处理。
+                        SecureLog.w(
+                            "AppDatabase",
+                            "Transient/unknown DB open error ($kind), keeping database untouched: ${error.message}"
+                        )
+                        return
+                    }
+                    SecureLog.w("AppDatabase", "DB open failure classified as $kind, entering non-destructive recovery")
                     runCatching { current.close() }
                     INSTANCE = null
                     INSTANCE = openVerifiedDatabase(context.applicationContext, allowRecovery = true)
@@ -196,6 +209,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 打开并校验数据库；只有在「可用非破坏性方式恢复」时才会改动磁盘上的库文件。
+         *
+         * 数据不可丢原则（硬约束）：
+         *  - 任何失败路径都**不删除、不覆盖**主库（[DB_NAME]）；只能「复制留证」或「移动留证」。
+         *  - 只从经过校验的**整库快照**（角色=主库 + 合法 SQLite 魔数 + 尺寸阈值）恢复；
+         *    绝不把 `-wal`/`-shm`/`-journal` 这类附属文件写回主库。
+         *    （历史缺陷：会用共享内存文件覆盖真正的数据库 → 不可逆丢失。）
+         *  - 找不到可恢复快照时，保留原文件按原样打开，把错误交给上层 `runCatching` 记录。
+         */
         private fun openVerifiedDatabase(context: Context, allowRecovery: Boolean): AppDatabase {
             var candidate: AppDatabase? = null
             return try {
@@ -206,63 +229,23 @@ abstract class AppDatabase : RoomDatabase() {
                 runCatching { candidate?.close() }
                 if (!allowRecovery) throw e
 
-                val messages = extractExceptionMessages(e)
+                val kind = DatabaseRecoveryPolicy.classify(extractExceptionMessages(e))
+                // 先无损留证（复制，绝不删除/移动原文件）。
+                quarantineDatabaseFiles(context)
 
-                val isRealSchemaMismatch = messages.any { it.contains("identity hash") }
-                val isCorruption = messages.any { it.contains("cannot verify the data integrity") }
-
-                when {
-                    isRealSchemaMismatch -> {
-
-                        SecureLog.w("AppDatabase", "Schema identity hash mismatch detected")
-                        backupBeforeRecovery(context)
-                        if (tryRecoverFromBackup(context)) {
-                            SecureLog.i("AppDatabase", "Database restored from recovery backup")
-                            createDatabase(context).also { verifyDatabaseCanOpen(it) }
-                        } else {
-                            SecureLog.w("AppDatabase", "No valid backup, recreating database (data loss unavoidable)")
-                            deleteDatabaseFiles(context)
-                            createDatabase(context).also {
-                                verifyDatabaseCanOpen(it)
-                                SecureLog.i("AppDatabase", "Database recreated after schema mismatch")
-                            }
-                        }
-                    }
-                    isCorruption && !isRealSchemaMismatch -> {
-
-                        SecureLog.w("AppDatabase", "Database corruption detected, attempting repair...")
-                        backupBeforeRecovery(context)
-
-                        if (tryRepairWalFiles(context)) {
-                            SecureLog.i("AppDatabase", "WAL repair succeeded")
-                            runCatching { createDatabase(context).also { verifyDatabaseCanOpen(it) } }.getOrElse {
-
-                                recoverDatabase(context)
-                                createDatabase(context).also {
-                                    verifyDatabaseCanOpen(it)
-                                    SecureLog.i("AppDatabase", "Database recovered from backup after failed WAL repair")
-                                }
-                            }
-                        } else {
-
-                            recoverDatabase(context)
-                            createDatabase(context).also {
-                                verifyDatabaseCanOpen(it)
-                                SecureLog.i("AppDatabase", "Database recovered from backup")
-                            }
-                        }
-                    }
-                    else -> {
-
-                        SecureLog.e("AppDatabase", "Unexpected database error: ${e.message}", e)
-                        backupBeforeRecovery(context)
-                        recoverDatabase(context)
-                        createDatabase(context).also {
-                            verifyDatabaseCanOpen(it)
-                            SecureLog.i("AppDatabase", "Database recovered after unknown error")
-                        }
-                    }
+                val restored = DatabaseRecoveryPolicy.shouldAttemptRecovery(kind) &&
+                    restoreMainDbFromBestBackup(context)
+                if (restored) {
+                    SecureLog.i("AppDatabase", "Database restored from a validated backup set (kind=$kind)")
+                    return createDatabase(context).also { verifyDatabaseCanOpen(it) }
                 }
+
+                // 无法安全恢复：绝不删除主库；按原样保留并尝试打开。
+                SecureLog.w(
+                    "AppDatabase",
+                    "No validated full-DB backup for kind=$kind; keeping original files (no deletion)"
+                )
+                createDatabase(context)
             }
         }
 
@@ -271,70 +254,15 @@ abstract class AppDatabase : RoomDatabase() {
             var current: Throwable? = e
             while (current != null) {
                 current.message?.let { messages.add(it) }
-                current = current.cause
-                if (current == e) break
+                val next = current.cause
+                if (next == null || next === current || next === e) break
+                current = next
             }
             return messages
         }
 
-        private fun tryRepairWalFiles(context: Context): Boolean {
-            val dbFile = context.getDatabasePath(DB_NAME)
-            val walFile = File(dbFile.path + "-wal")
-            val shmFile = File(dbFile.path + "-shm")
-
-            if (!dbFile.exists() || dbFile.length() < 512) return false
-
-            var repaired = false
-            if (walFile.exists()) {
-                repaired = walFile.delete()
-                SecureLog.i("AppDatabase", "Deleted corrupted WAL file: $repaired")
-            }
-            if (shmFile.exists()) {
-                val deleted = shmFile.delete()
-                repaired = repaired || deleted
-                SecureLog.i("AppDatabase", "Deleted corrupted SHM file: $deleted")
-            }
-            return repaired || dbFile.exists()
-        }
-
-        private fun tryRecoverFromBackup(context: Context): Boolean {
-            val dbFile = context.getDatabasePath(DB_NAME)
-            val recoveryDir = File(dbFile.parentFile, "recovery")
-            if (!recoveryDir.exists()) return false
-
-            val backups = recoveryDir.listFiles()
-                ?.filter { it.name.endsWith(".db") || it.name.contains("corrupted") }
-                ?.sortedByDescending { it.lastModified() }
-                ?: emptyList()
-
-            for (backup in backups) {
-                if (backup.length() > 1024) {
-
-                    backup.copyTo(dbFile, overwrite = true)
-
-                    listOf("-wal", "-shm", "-journal").forEach { suffix ->
-                        val backupAux = File(backup.parentFile, "${backup.name}$suffix")
-                        val targetAux = File(dbFile.path + suffix)
-                        if (backupAux.exists() && backupAux.length() > 0) {
-                            runCatching { backupAux.copyTo(targetAux, overwrite = true) }
-                        }
-                    }
-                    SecureLog.i("AppDatabase", "Restored from backup: ${backup.name}")
-                    return true
-                }
-            }
-            return false
-        }
-
-        private fun deleteDatabaseFiles(context: Context) {
-            val dbFile = context.getDatabasePath(DB_NAME)
-            dbFile.delete()
-            File(dbFile.path + "-wal").delete()
-            File(dbFile.path + "-shm").delete()
-            File(dbFile.path + "-journal").delete()
-        }
-
-        private fun backupBeforeRecovery(context: Context) {
+        /** 无损留证：把主库与其附属文件**复制**到 recovery/，原文件保持原样（绝不删除）。 */
+        private fun quarantineDatabaseFiles(context: Context) {
             val dbFile = context.getDatabasePath(DB_NAME)
             if (!dbFile.exists()) return
 
@@ -353,30 +281,90 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private fun recoverDatabase(context: Context) {
+        /**
+         * 从「合法整库备份」恢复主库。
+         *
+         * 仅扫描 `filesDir/db_backup/backup_<ts>/` 下的正式备份，挑最新一个其主库文件
+         * 通过校验（角色=主库 + 尺寸 > [DatabaseRecoveryPolicy.MIN_DB_SIZE_BYTES] + SQLite 魔数）的备份目录，
+         * 然后整批（主库 + 同批附属文件）对位写回。recovery/ 里的 `.corrupted_*` 副本只作留证，
+         * 永远不当作恢复源（它们可能正是损坏库的拷贝）。
+         */
+        private fun restoreMainDbFromBestBackup(context: Context): Boolean {
             val dbFile = context.getDatabasePath(DB_NAME)
+            val backupDir = selectBestBackupDir(context) ?: return false
+
+            // 覆盖前先把当前库再留一份证（复制，不删）。
+            quarantineDatabaseFiles(context)
+            // 旧库的附属文件必须与恢复出的主库分离：移动（非删除）到 recovery/，保证字节不丢。
+            moveLiveSidecarsAside(context, dbFile)
+
+            backupDir.listFiles()?.forEach { backupFile ->
+                val target = when (DatabaseRecoveryPolicy.roleOf(backupFile.name, DB_NAME)) {
+                    DatabaseRecoveryPolicy.ArtifactRole.MAIN_DB -> dbFile
+                    DatabaseRecoveryPolicy.ArtifactRole.WAL -> File(dbFile.path + "-wal")
+                    DatabaseRecoveryPolicy.ArtifactRole.SHM -> File(dbFile.path + "-shm")
+                    DatabaseRecoveryPolicy.ArtifactRole.JOURNAL -> File(dbFile.path + "-journal")
+                    else -> null
+                } ?: return@forEach
+                runCatching { backupFile.copyTo(target, overwrite = true) }
+            }
+            SecureLog.i("AppDatabase", "Restored database files from backup set: ${backupDir.name}")
+            return true
+        }
+
+        /**
+         * 把当前库的 `-wal`/`-shm`/`-journal` 移到 recovery/，**绝不丢弃字节**。
+         *
+         * 移动逻辑委托给 [DatabaseRecoveryPolicy.moveAsideNonDestructive]：优先原子改名，
+         * 失败才「复制 + 校验」；**复制未必成功时保留原文件**（宁可不清理，也绝不丢字节）。
+         */
+        private fun moveLiveSidecarsAside(context: Context, dbFile: File) {
             val recoveryDir = File(dbFile.parentFile, "recovery")
-
-            if (!recoveryDir.exists()) return
-
-            val backups = recoveryDir.listFiles()
-                ?.filter { it.name.endsWith(".db") || it.name.contains("corrupted") }
-                ?.sortedByDescending { it.lastModified() }
-                ?: emptyList()
-
-            if (backups.isNotEmpty()) {
-                val latestBackup = backups.first()
-                if (latestBackup.length() > 1024) {
-                    latestBackup.copyTo(dbFile, overwrite = true)
-                    SecureLog.i("AppDatabase", "Restored database from ${latestBackup.name}")
-                    return
+            recoveryDir.mkdirs()
+            val timestamp = System.currentTimeMillis().toString()
+            listOf("-wal", "-shm", "-journal").forEach { suffix ->
+                val sidecar = File(dbFile.path + suffix)
+                if (!sidecar.exists()) return@forEach
+                val target = File(recoveryDir, "${sidecar.name}.stale_$timestamp")
+                if (!DatabaseRecoveryPolicy.moveAsideNonDestructive(sidecar, target)) {
+                    SecureLog.w(
+                        "AppDatabase",
+                        "Skip sidecar cleanup (copy unverified, bytes preserved): ${sidecar.name}"
+                    )
                 }
             }
+        }
 
-            dbFile.delete()
-            File(dbFile.path + "-wal").delete()
-            File(dbFile.path + "-shm").delete()
-            File(dbFile.path + "-journal").delete()
+        /** 选最新的、其主库文件通过校验的备份目录；没有则返回 null。 */
+        private fun selectBestBackupDir(context: Context): File? {
+            val backupRoot = File(context.filesDir, "db_backup")
+            val dirs = backupRoot.listFiles()
+                ?.filter { it.isDirectory && it.name.startsWith("backup_") }
+                ?.sortedByDescending { it.name }
+                ?: return null
+            for (dir in dirs) {
+                if (DatabaseRecoveryPolicy.isRestorableMainDb(toCandidate(File(dir, DB_NAME)))) return dir
+            }
+            return null
+        }
+
+        /** 读取文件元信息（尺寸/修改时间/头部魔数/SQLite 角色）构成校验候选。 */
+        private fun toCandidate(file: File): DatabaseRecoveryPolicy.Candidate {
+            val headerValid = runCatching {
+                if (!file.exists()) return@runCatching false
+                file.inputStream().use { input ->
+                    val header = ByteArray(DatabaseRecoveryPolicy.SQLITE_MAGIC.size)
+                    val read = input.read(header)
+                    read == header.size && DatabaseRecoveryPolicy.hasSqliteHeader(header)
+                }
+            }.getOrDefault(false)
+            return DatabaseRecoveryPolicy.Candidate(
+                name = file.name,
+                sizeBytes = if (file.exists()) file.length() else 0L,
+                headerValid = headerValid,
+                lastModifiedMs = file.lastModified(),
+                role = DatabaseRecoveryPolicy.roleOf(file.name, DB_NAME)
+            )
         }
 
         private fun createDatabase(context: Context): AppDatabase {
@@ -406,30 +394,6 @@ abstract class AppDatabase : RoomDatabase() {
                 database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").close()
             } catch (_: Exception) { }
             database.openHelper.writableDatabase.query("PRAGMA user_version").close()
-        }
-
-        private fun backupBrokenDatabase(context: Context) {
-            val dbFile = context.applicationContext.getDatabasePath(DB_NAME)
-            val candidates = listOf(
-                dbFile,
-                File(dbFile.path + "-wal"),
-                File(dbFile.path + "-shm"),
-                File(dbFile.path + "-journal")
-            ).filter { it.exists() }
-
-            if (candidates.isEmpty()) return
-
-            val backupDir = File(dbFile.parentFile, "recovery")
-            backupDir.mkdirs()
-            val suffix = System.currentTimeMillis().toString()
-
-            candidates.forEach { file ->
-                val target = File(backupDir, "${file.name}.broken.$suffix")
-                if (!file.renameTo(target)) {
-                    runCatching { file.copyTo(target, overwrite = true) }
-                    runCatching { file.delete() }
-                }
-            }
         }
 
         private fun addColumnIfMissing(
@@ -1932,34 +1896,60 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 手动恢复入口（需用户触发）：从最新的**合法整库备份**恢复主库。
+         *
+         * 与自动恢复路径 [restoreMainDbFromBestBackup] 复用同一套校验，确保这条「能覆盖主库」的路径同样满足硬约束：
+         *  - 先用 [selectBestBackupDir] 选出主库文件通过校验的备份目录（角色=主库 + 尺寸 > [DatabaseRecoveryPolicy.MIN_DB_SIZE_BYTES] + SQLite 魔数）；
+         *  - 写回时用 [DatabaseRecoveryPolicy.roleOf] 决定目标路径，**未知角色一律跳过**，绝不把杂散文件写进库目录；
+         *  - 只有与本库同名的整库快照（且再次通过 [DatabaseRecoveryPolicy.isRestorableMainDb]）才允许覆盖主库；
+         *  - 校验不通过一律**不动主库**、返回 false 并 [SecureLog.e] 说明原因。
+         */
         fun restoreFromBackup(context: Context): Boolean {
             return try {
-                val backupDir = File(context.filesDir, "db_backup")
-                if (!backupDir.exists()) return false
-
-                val backups = backupDir.listFiles()
-                    ?.filter { it.isDirectory && it.name.startsWith("backup_") }
-                    ?.sortedByDescending { it.name }
-                    ?: emptyList()
-
-                if (backups.isEmpty()) return false
-
-                val latestBackup = backups.first()
                 val dbFile = context.getDatabasePath(DB_NAME)
+
+                // 复用自动恢复路径的校验：只接受主库通过 isRestorableMainDb 的备份目录。
+                val backupDir = selectBestBackupDir(context)
+                if (backupDir == null) {
+                    SecureLog.e("AppDatabase", "restoreFromBackup aborted: no validated main-db backup set found")
+                    return false
+                }
+
+                // 覆盖主库前，主库快照必须再次显式通过校验（角色=主库 + 尺寸 > 512B + SQLite 魔数）。
+                val mainCandidate = toCandidate(File(backupDir, DB_NAME))
+                if (!DatabaseRecoveryPolicy.isRestorableMainDb(mainCandidate)) {
+                    SecureLog.e(
+                        "AppDatabase",
+                        "restoreFromBackup aborted: ${backupDir.name}/$DB_NAME failed validation"
+                    )
+                    return false
+                }
 
                 INSTANCE?.close()
                 INSTANCE = null
 
-                latestBackup.listFiles()?.forEach { backupFile ->
-                    val target = when {
-                        backupFile.name == DB_NAME -> dbFile
-                        else -> File(dbFile.parentFile, backupFile.name)
+                backupDir.listFiles()?.forEach { backupFile ->
+                    val role = DatabaseRecoveryPolicy.roleOf(backupFile.name, DB_NAME)
+                    val target: File? = when (role) {
+                        // 只有与本库同名的整库快照才写回主库；带 .corrupted_/.broken./.pre_restore_ 的
+                        // 留证副本即便被 roleOf 归为 MAIN_DB，也绝不覆盖主库。
+                        DatabaseRecoveryPolicy.ArtifactRole.MAIN_DB ->
+                            if (backupFile.name == DB_NAME) dbFile else null
+                        DatabaseRecoveryPolicy.ArtifactRole.WAL -> File(dbFile.path + "-wal")
+                        DatabaseRecoveryPolicy.ArtifactRole.SHM -> File(dbFile.path + "-shm")
+                        DatabaseRecoveryPolicy.ArtifactRole.JOURNAL -> File(dbFile.path + "-journal")
+                        // 未知角色（杂散文件）一律跳过。
+                        DatabaseRecoveryPolicy.ArtifactRole.UNKNOWN -> null
                     }
-                    backupFile.copyTo(target, overwrite = true)
+                    if (target == null) return@forEach
+                    runCatching { backupFile.copyTo(target, overwrite = true) }
                 }
 
+                SecureLog.i("AppDatabase", "Restored database files from backup set (manual): ${backupDir.name}")
                 true
             } catch (e: Exception) {
+                SecureLog.e("AppDatabase", "restoreFromBackup failed: ${e.message}")
                 false
             }
         }
