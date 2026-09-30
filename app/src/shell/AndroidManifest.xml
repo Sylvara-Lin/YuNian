@@ -27,6 +27,31 @@
         <provider android:name="com.huawei.hms.mlsdk.common.provider.MLInitializerProvider" tools:node="remove"/>
         <provider android:name="com.huawei.hms.core.aidl.provider.HMSCoreProvider" tools:node="remove"/>
         <provider android:name="com.huawei.hms.analytics.provider.HAProvider" tools:node="remove"/>
+
+        <!-- ── 华为 HMS 组件全面停用（2026-09-30）────────────────────────────
+             HMS Push 在本工程无法工作：仓库内无 agconnect-services.json（HMS 拿不到 app_id），
+             且上面已移除 HMS 的核心 Provider（HMSCoreProvider / AGConnectInitializeProvider）。
+             但 HMS SDK 自带的下列组件仍会被系统自动拉起；其中 aaid.InitProvider 是
+             ContentProvider，会在 Application.onCreate() **之前**实例化 → 华为设备上
+             安装/启动即闪退（非华为设备因走不到 HMS 逻辑而不复现）。
+             故一并移除，使 HMS 在本包内彻底静默。
+             ⚠️ 恢复华为推送需删除本段，并同时补齐 HMS 配置（agconnect-services.json）、
+                还原 app/src/main/AndroidManifest.xml 的 HuaweiPushService 声明、
+                以及 PushManager 的华为分支。 -->
+        <provider android:name="com.huawei.hms.aaid.InitProvider" tools:node="remove"/>
+        <service android:name="com.huawei.hms.support.api.push.service.HmsMsgService" tools:node="remove"/>
+        <receiver android:name="com.huawei.hms.support.api.push.PushMsgReceiver" tools:node="remove"/>
+        <activity android:name="com.huawei.hms.support.api.push.TransActivity" tools:node="remove"/>
+        <!-- 以下三者不会在启动时自动实例化（Activity 需被显式拉起、Service 需被绑定），
+             但 BridgeActivity 是 exported 的，华为设备上 HMS Core 有可能外部拉起它
+             → 仍会启动本进程并进入 HMS 代码。既然 HMS 已停用，一并摘除，
+             使本包内不存在任何可被实例化的 HMS 组件。 -->
+        <service android:name="com.huawei.agconnect.core.ServiceDiscovery" tools:node="remove"/>
+        <activity android:name="com.huawei.hms.activity.BridgeActivity" tools:node="remove"/>
+        <activity android:name="com.huawei.hms.activity.EnableServiceActivity" tools:node="remove"/>
+        <!-- 本 App 自己的 HMS 服务：主 manifest 中已注释停用；此处再兜一道，
+             防止将来有人只恢复主 manifest 而忘了配置 HMS。 -->
+        <service android:name="com.yunian.ai.push.service.HuaweiPushService" tools:node="remove"/>
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

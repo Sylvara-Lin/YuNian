@@ -245,7 +245,17 @@
         </receiver>
         -->
 
-        <!-- 华为 HMS Push 服务 -->
+        <!-- 华为 HMS Push 服务 —— 已停用（2026-09-30）
+             ⚠️ 原因：华为设备上安装/启动即闪退。HMS Push 在本工程中无法工作：
+                ① 仓库内无 agconnect-services.json（且未被 .gitignore 排除 → 确实缺失），HMS 拿不到 app_id；
+                ② app/src/shell/AndroidManifest.xml 已移除 HMS 的核心 Provider
+                   （HMSCoreProvider / AGConnectInitializeProvider 等），初始化链本就断裂；
+                ③ 但仍声明了本 Service（继承 HmsMessageService）+ 保留 aaid.InitProvider，
+                   导致华为设备上系统会去拉起一个注定初始化失败的 HMS 组件 → 闪退。
+             → 处理：本 Service 声明已移除；PushManager 的华为分支已停用；
+               shell manifest 追加了 HMS 其余组件的 remove。
+             恢复华为推送需同时满足：补 agconnect-services.json + 恢复本 Service 声明 +
+             恢复 PushManager 分支 + 还原 shell manifest 的 remove。
         <service
             android:name=".push.service.HuaweiPushService"
             android:exported="false">
@@ -253,6 +263,7 @@
                 <action android:name="com.huawei.push.action.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        -->
     </application>
 
 </manifest>
