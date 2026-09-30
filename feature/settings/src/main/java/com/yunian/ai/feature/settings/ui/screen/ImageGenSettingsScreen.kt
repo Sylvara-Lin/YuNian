@@ -72,6 +72,7 @@ import com.yunian.ai.feature.settings.R
 import com.yunian.ai.feature.settings.ui.viewmodel.ImageGenSettingsViewModel
 import com.yunian.ai.uicommon.component.glass.GlassPageScaffold
 import com.yunian.ai.uicommon.component.glass.LocalPageBackdrop
+import com.yunian.ai.uicommon.component.glass.drawFrosted
 import com.yunian.ai.uicommon.component.glass.drawGlass
 import com.yunian.ai.uicommon.icon.AppIcons
 import com.yunian.ai.uicommon.theme.ThemeMode
@@ -457,8 +458,7 @@ fun ImageGenSettingsScreen(
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(percent = 50))
-                                    .drawGlass(
-                                        backdrop = backdrop,
+                                    .drawFrosted(
                                         shape = RoundedCornerShape(percent = 50),
                                         surfaceColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                                     )
@@ -716,8 +716,9 @@ fun ImageGenSettingsScreen(
                                 Row(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(percent = 50))
-                                        .drawGlass(
-                                            backdrop = backdrop,
+                                        // 关键词数量由用户数据决定（可达十几个），这里用轻量磨砂：
+                                        // 每块少一次 24dp 实时背景模糊 + lens 折射，滚动时逐帧累积的开销直接消失。
+                                        .drawFrosted(
                                             shape = RoundedCornerShape(percent = 50),
                                             surfaceColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                                         )
@@ -759,8 +760,7 @@ fun ImageGenSettingsScreen(
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(percent = 50))
-                                    .drawGlass(
-                                        backdrop = backdrop,
+                                    .drawFrosted(
                                         shape = RoundedCornerShape(percent = 50),
                                         surfaceColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                                     )
@@ -926,8 +926,9 @@ private fun GlassChip(
         modifier = Modifier
             .widthIn(max = maxWidth)
             .clip(shape)
-            .drawGlass(
-                backdrop = LocalPageBackdrop.current,
+            // 本页 chip 数量随数据变化（尺寸 5 + 张数 4 + 概率 5 + 冷却 6 + 模型列表最多 12）,
+            // 单块视觉贡献极小但每块都要重做一次实时模糊，统一走轻量磨砂。
+            .drawFrosted(
                 shape = shape,
                 surfaceColor = if (selected) {
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
@@ -961,8 +962,7 @@ private fun GlassPill(
     Box(
         modifier = Modifier
             .clip(shape)
-            .drawGlass(
-                backdrop = LocalPageBackdrop.current,
+            .drawFrosted(
                 shape = shape,
                 surfaceColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             )
