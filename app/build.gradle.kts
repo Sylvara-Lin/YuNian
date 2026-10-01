@@ -13,8 +13,8 @@ android {
         applicationId = "com.yunian.ai"
         minSdk = 26
         targetSdk = 35
-        versionCode = 25
-        versionName = "2.0.5"
+        versionCode = 26
+        versionName = "2.0.6"
 
         manifestPlaceholders["developerName"] = "苏苏"
         manifestPlaceholders["developerOrg"] = "YuNian"
