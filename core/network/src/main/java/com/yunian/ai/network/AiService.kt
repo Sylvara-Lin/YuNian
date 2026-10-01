@@ -769,13 +769,18 @@ class AiService(context: Context) : AiServiceProvider {
 
         val conversationText = buildString {
             messages.forEach { msg ->
-                val role = if (msg.isFromUser) "用户" else (companionNameMap[msg.companionId] ?: "AI")
                 val content = msg.content
                     .replace(Regex("\\[.*?\\]"), "")
                     .replace(Regex("（.*?）"), "")
                     .trim()
                 if (content.isNotBlank()) {
-                    appendLine("$role: $content")
+                    if (msg.isFromUser) {
+                        // 用户消息用引号包裹形态，避免「用户：内容」回合标记格式被摘要模仿后
+                        // 注入聊天提示词，诱导模型续写「用户：」脚本（角色串线诱导源之一）
+                        appendLine("用户说：\"$content\"")
+                    } else {
+                        appendLine("${companionNameMap[msg.companionId] ?: "AI"}: $content")
+                    }
                 }
             }
         }

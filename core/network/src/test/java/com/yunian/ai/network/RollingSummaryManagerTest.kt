@@ -107,8 +107,8 @@ class RollingSummaryManagerTest {
         assertEquals(3L, state!!.coveredUpToMessageId)
         assertEquals(3, state.coveredMessageCount)
         assertTrue(state.summaryText.startsWith("MERGED["))
-        // 单聊用户消息发送者应为「用户」
-        assertTrue(state.summaryText.contains("用户：c"))
+        // 单聊用户消息应为「用户说："…"」引号包裹形态（非回合标记形态）
+        assertTrue(state.summaryText.contains("用户说：\"c\""))
         assertEquals(1, summarizer.calls.size)
         assertEquals("", summarizer.calls[0].first) // 首次合并旧摘要为空
         // 落 KV

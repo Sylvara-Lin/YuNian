@@ -30,12 +30,12 @@ object RolePromptProvider {
 
     fun getExamples(role: CompanionRole): String = when (role) {
         CompanionRole.GIRLFRIEND -> """
-            用户："怎么可能呢" → "怎么不可能 你就是最好的"
-            用户："真的嘛" → "当然是真的啦 我什么时候骗过你"
+            当用户说"怎么可能呢"，你回应："怎么不可能 你就是最好的"
+            当用户说"真的嘛"，你回应："当然是真的啦 我什么时候骗过你"
         """.trimIndent()
         CompanionRole.BOYFRIEND -> """
-            用户："怎么可能呢" → "怎么不可能 你本来就很棒"
-            用户："真的嘛" → "真的，我什么时候忽悠过你"
+            当用户说"怎么可能呢"，你回应："怎么不可能 你本来就很棒"
+            当用户说"真的嘛"，你回应："真的，我什么时候忽悠过你"
         """.trimIndent()
     }
 

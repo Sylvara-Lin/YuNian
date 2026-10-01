@@ -134,13 +134,24 @@ class AiResponseFinalizer(
 
         val settings = chatDetailSettingsStore.getSettings(companionId)
 
+        // 角色串线防线（确定性兜底）：剥离模型续写出的「用户回合」脚本，再进清洗/分气泡管线。
+        // 必须在落库与显示之前执行——提示词约束（禁自问自答/替用户说话）挡不住所有越界输出。
+        val companionName = runCatching { companionInfoProvider?.invoke()?.name }.getOrNull()
+        val sanitizedContent = ScriptTurnStripper.strip(aiContent, aiName = companionName)
+        if (sanitizedContent != aiContent) {
+            SecureLog.w(
+                "ChatViewModel",
+                "Stripped scripted user turns from AI reply: ${aiContent.length} -> ${sanitizedContent.length} chars, original='${aiContent.take(80)}'"
+            )
+        }
+
         val deliverySafeText = if (!userContentForMemory.isNullOrBlank()) {
             com.yunian.ai.network.ResponsePostProcessor.trimIdleEmotionOverDelivery(
-                aiContent,
+                sanitizedContent,
                 userContentForMemory,
             )
         } else {
-            aiContent
+            sanitizedContent
         }
         val processedText = TextProcessor.processStickerTagsForSplit(
             deliverySafeText,
@@ -159,15 +170,15 @@ class AiResponseFinalizer(
         val hasPendingSticker = turnState.pendingSticker != null
         val stickerBeforeText = hasPendingSticker && kotlin.random.Random.nextFloat() < 0.5f
 
-        if (processedText.isBlank() && aiContent.isNotBlank()) {
-            SecureLog.w("ChatViewModel", "WARNING: processedText is blank but aiContent has ${aiContent.length} chars. Original: '${aiContent.take(80)}'")
+        if (processedText.isBlank() && sanitizedContent.isNotBlank()) {
+            SecureLog.w("ChatViewModel", "WARNING: processedText is blank but aiContent has ${sanitizedContent.length} chars. Original: '${sanitizedContent.take(80)}'")
         }
 
         val aiMessageId = if (segments.size <= 1) {
 
             val safeProcessed = (segments.firstOrNull() ?: processedText).ifBlank {
-                if (aiContent.isNotBlank()) {
-                    SecureLog.w("ChatViewModel", "Falling back to zero-width space. aiContent length=${aiContent.length}")
+                if (sanitizedContent.isNotBlank()) {
+                    SecureLog.w("ChatViewModel", "Falling back to zero-width space. aiContent length=${sanitizedContent.length}")
                     "\u200B"
                 } else {
                     SecureLog.w("ChatViewModel", "Both processedText and aiContent are blank, storing empty message")
@@ -188,7 +199,7 @@ class AiResponseFinalizer(
             )
             // 已落实气泡进跨轮滚动窗口（P1-4）
             turnState.pushRecentDedup(DedupGuard.normalize(safeProcessed))
-            SecureLog.d("ChatViewModel", "$logMessage, length=${aiContent.length}, id=$id, voiceBar=${voiceBar != null}")
+            SecureLog.d("ChatViewModel", "$logMessage, length=${sanitizedContent.length}, id=$id, voiceBar=${voiceBar != null}")
             if (!stickerBeforeText && turnState.pendingSticker != null) {
                 flushPendingSticker()
             }
@@ -248,7 +259,7 @@ class AiResponseFinalizer(
 
         return DeliveredResponse(
             messageId = aiMessageId,
-            aiContent = aiContent,
+            aiContent = sanitizedContent,
             segments = segments,
             userContentForMemory = userContentForMemory,
             allowFollowUpMessage = settings.allowFollowUpMessage

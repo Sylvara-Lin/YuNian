@@ -339,16 +339,18 @@ class RollingSummaryManager(
     }
 
     /**
-     * 把消息片段格式化为摘要输入文本：每行「发送者：内容」，换行串接。
-     * 发送者优先取 [companionNameMap]（群聊成员名），单聊按 isFromUser 兜底。
+     * 把消息片段格式化为摘要输入文本，换行串接。
+     * 发送者优先取 [companionNameMap]（群聊成员名），单聊用户固定「用户说："…"」引号包裹形态。
+     * 不用「用户：内容」回合标记形态：该文本虽只喂给摘要 LLM，但其格式可能被摘要输出
+     * 模仿并随摘要注入聊天提示词，诱导模型续写「用户：」脚本（角色串线缺陷诱导源之一）。
      */
     private fun formatDelta(messages: List<ChatMessage>, companionNameMap: Map<Long, String>): String {
         return messages.joinToString("\n") { message ->
-            val sender = when {
-                message.isFromUser -> "用户"
-                else -> companionNameMap[message.companionId] ?: "AI"
+            if (message.isFromUser) {
+                "用户说：\"${message.content}\""
+            } else {
+                "${companionNameMap[message.companionId] ?: "AI"}：${message.content}"
             }
-            "$sender：${message.content}"
         }
     }
 
