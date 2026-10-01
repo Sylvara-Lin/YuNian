@@ -662,6 +662,45 @@ impl AgentRuntime {
     /// 创建全局运行器（一次传入全局配置；内置基础聊天工具注册表）
     #[uniffi::constructor]
     pub fn new(config: crate::native_gateway::AgentGlobalConfig) -> Arc<AgentRuntime> {
+        // 全局 panic hook（仅安装一次）：任何 Rust panic 的消息/位置/强制回溯都会写入
+        // <db_path 同目录>/rust_panic_last.txt，供 Kotlin 崩溃上报读取。
+        // 动机：厂商 tombstone 可能被截断（Redmi/HyperOS 实测只剩头一行，无 abort 消息
+        // 与回溯栈），panic hook 自证的报告不依赖厂商 trace；panic="abort" 下 hook
+        // 仍会在 abort 前执行。路径与 Kotlin ApplicationExitMonitor 的读取端保持一致
+        // （db_path 同目录 + 固定文件名）。
+        static PANIC_HOOK_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        let hook_path = std::path::Path::new(&config.db_path)
+            .with_file_name("rust_panic_last.txt")
+            .to_string_lossy()
+            .to_string();
+        if PANIC_HOOK_PATH.set(hook_path.clone()).is_ok() {
+            std::panic::set_hook(Box::new(move |info| {
+                // hook 内绝不允许再 panic：全部 best-effort，失败即放弃（不影响 abort 流程）
+                let payload = info.payload();
+                let msg = if let Some(s) = payload.downcast_ref::<&str>() {
+                    (*s).to_string()
+                } else if let Some(s) = payload.downcast_ref::<String>() {
+                    s.clone()
+                } else {
+                    "<non-string panic payload>".to_string()
+                };
+                let loc = info
+                    .location()
+                    .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+                    .unwrap_or_else(|| "<unknown>".to_string());
+                let thread = std::thread::current()
+                    .name()
+                    .unwrap_or("<unnamed>")
+                    .to_string();
+                let bt = std::backtrace::Backtrace::force_capture().to_string();
+                let body = format!(
+                    "=== YuNian Rust Panic ===\nthread: {}\nmessage: {}\nlocation: {}\n--- backtrace (force) ---\n{}\n=== end ===\n",
+                    thread, msg, loc, bt
+                );
+                let _ = std::fs::write(&hook_path, body.as_bytes());
+            }));
+        }
+
         Arc::new(AgentRuntime {
             db_path: config.db_path,
             device_id: config.device_id,

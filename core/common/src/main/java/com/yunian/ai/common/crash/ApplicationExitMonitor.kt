@@ -93,6 +93,28 @@ object ApplicationExitMonitor {
         return infos.firstOrNull()
     }
 
+    /**
+     * 读取并清除 Rust 侧 panic 自证文件（AgentRuntime 的 panic hook 写入）。
+     *
+     * 路径推导须与 agent.rs 的 panic hook 保持一致：**db_path 同目录 + 固定文件名
+     * `rust_panic_last.txt`**（db_path = context.getDatabasePath("yunian_database")，
+     * 库名须与 AppDatabase.DB_NAME / AgentFacade.DB_NAME 保持一致）。
+     * 一次性消费：读后即删，避免同一次 panic 被反复提示。
+     */
+    private fun readAndClearRustPanic(context: Context): String? {
+        val f = java.io.File(
+            context.getDatabasePath("yunian_database").parentFile,
+            "rust_panic_last.txt",
+        )
+        return runCatching {
+            if (!f.exists()) return@runCatching null
+            val text = f.readText().trim()
+            if (text.isEmpty()) return@runCatching null
+            f.delete()
+            text.take(16 * 1024)
+        }.getOrNull()
+    }
+
     private fun buildReport(context: Context, info: ApplicationExitInfo): String {
         val ts = info.timestamp
         return buildString(4096) {
@@ -109,6 +131,12 @@ object ApplicationExitMonitor {
             append("--- system trace ---\n")
             // 系统 trace（tombstone/ANR trace）可能夹带寄存器/内存片段中的密钥或正文，同样脱敏。
             append(CrashRedactor.redact(readTrace(info))).append('\n')
+            // Rust panic 自证文件（AgentRuntime 的 panic hook 写入，一次性消费）。
+            // 部分 ROM 的 tombstone 会被截断（Redmi/HyperOS 实测只剩头一行，无 abort
+            // 消息与回溯栈）——此文件由 Rust panic hook 直接写入，保证 panic 的
+            // 消息/位置/回溯不丢。
+            append("--- rust panic (self-reported, one-shot) ---\n")
+            append(CrashRedactor.redact(readAndClearRustPanic(context) ?: "(none)")).append('\n')
             append("--- breadcrumbs (persisted) ---\n")
             // 落盘面包屑可能含业务正文/密钥片段（SecureLog 会记录调用内容），必须脱敏后再展示。
             append(
