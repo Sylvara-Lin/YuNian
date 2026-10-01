@@ -91,8 +91,8 @@ class AgentToolHost(context: Context) : ToolHost {
         val startedAt = System.currentTimeMillis()
         Log.i(TAG, "tool call: name=$toolName args=$argumentsJson ctx=$contextJson")
         var ok = true
+        val task = toolScope.async { executeToolSuspending(toolName, argumentsJson, contextJson) }
         val result = try {
-            val task = toolScope.async { executeToolSuspending(toolName, argumentsJson, contextJson) }
             try {
                 // Rust 回调线程同步等待；超时则取消子协程（挂起型工具在取消点真正中止）
                 runBlocking { withTimeout(TOOL_TIMEOUT_MS) { task.await() } }
@@ -103,7 +103,15 @@ class AgentToolHost(context: Context) : ToolHost {
                 "错误：工具 $toolName 执行超时（超过 ${TOOL_TIMEOUT_MS / 1000} 秒）已请求取消，结果未知——请先核实状态，不要重复执行有副作用的操作"
             }
         } catch (cancelled: CancellationException) {
-            throw cancelled
+            // ★ UniFFI 回调边界铁律：任何异常都不允许抛回 Rust —— 否则会变成
+            //   UnexpectedUniFFICallbackError -> Rust panic -> SIGABRT（真机闪退，
+            //   崩溃报告 reason=CRASH_NATIVE/status=6 已实锤此路径）。
+            //   触发场景：WorkManager 中断 worker 线程（如主动问候 Worker 被停止）时，
+            //   runBlocking 的事件队列 take() 被打断抛 InterruptedException。
+            task.cancel(CancellationException("worker interrupted: $toolName"))
+            ok = false
+            Log.w(TAG, "tool cancelled: $toolName (worker interrupted)")
+            "错误：工具 $toolName 已被取消，结果未知——请先核实状态，不要重复执行有副作用的操作"
         } catch (t: Throwable) {
             ok = false
             Log.e(TAG, "execute $toolName failed", t)

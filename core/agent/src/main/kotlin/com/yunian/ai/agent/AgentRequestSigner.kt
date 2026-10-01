@@ -22,6 +22,23 @@ class AgentRequestSigner : RequestSignatureProvider {
         body: String,
         clientId: String,
     ): List<RequestHeader> {
+        // ★ UniFFI 回调边界铁律：任何异常都不允许抛回 Rust（Keystore 异常/线程中断等
+        //   会被 UniFFI 包装成 UnexpectedUniFFICallbackError -> Rust panic -> SIGABRT）。
+        //   签名失败返回空列表，Rust 侧 fail-closed 拒绝发送。
+        return try {
+            signHeadersInternal(method, path, body, clientId)
+        } catch (t: Throwable) {
+            android.util.Log.e("AgentRequestSigner", "signHeaders failed: ${t.javaClass.simpleName}", t)
+            emptyList()
+        }
+    }
+
+    private fun signHeadersInternal(
+        method: String,
+        path: String,
+        body: String,
+        clientId: String,
+    ): List<RequestHeader> {
         val timestamp = System.currentTimeMillis() / 1000
         val nonce = generateNonce()
         val bodyHash = sha256Hex(body.toByteArray(Charsets.UTF_8))
