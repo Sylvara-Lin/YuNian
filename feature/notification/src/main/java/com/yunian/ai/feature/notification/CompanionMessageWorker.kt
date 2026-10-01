@@ -34,6 +34,7 @@ import com.yunian.ai.common.BanManager
 import com.yunian.ai.common.ChatConstants
 import com.yunian.ai.common.ChatDetailSettingsDataStoreProvider
 import com.yunian.ai.common.RemoteKeyProvider
+import com.yunian.ai.common.ScriptTurnStripper
 import com.yunian.ai.common.SecureLog
 import com.yunian.ai.common.text.BubbleTextSplitter
 import com.yunian.ai.common.text.DedupGuard
@@ -406,9 +407,11 @@ class CompanionMessageWorker(
         }
         // 主动消息同样可能夹带生图标签/画面描述：落库前统一清洗
         val clean = ImageGenProtocol.sanitizeForDisplay(trimmed).ifBlank { trimmed }
+        // 角色串线防线：剥离模型续写的「用户回合」脚本（主动问候旁路）
+        val stripped = ScriptTurnStripper.strip(clean, aiName = companion.name)
 
         // 换行即下一条气泡；无换行时整条为 1 个气泡
-        val bubbles = BubbleTextSplitter.splitByParagraphs(clean)
+        val bubbles = BubbleTextSplitter.splitByParagraphs(stripped)
         val writeCoordinator = ServiceRegistry.getOrThrow(MessageWriteCoordinator::class.java)
         // 查重窗口 = 本批已发出气泡的归一化内容
         val sentNorms = mutableListOf<String>()

@@ -1,4 +1,4 @@
-package com.yunian.ai.feature.chat.ui.viewmodel
+package com.yunian.ai.common
 
 /**
  * 角色串线防线（确定性后处理）：剥离 AI 回复里模型自行续写出的「用户回合」脚本内容。
@@ -24,6 +24,10 @@ package com.yunian.ai.feature.chat.ui.viewmodel
  * 自报家门剥离：回复以「AI 自己名字：」开头时仅剥掉该前缀（不截断内容）。
  *
  * 纯函数、无 Android 依赖，可直接单测（见 ScriptTurnStripperTest）。
+ *
+ * 位置说明：本类原在 feature/chat，因微信/QQ 桥接（core:agent）、群聊
+ * （feature/groupchat）、主动消息 Worker（feature:notification）等旁路也需要
+ * 同样的防线，而 core 不得依赖 feature、feature 之间不得互相依赖，故上移至 core:common。
  */
 object ScriptTurnStripper {
 

@@ -1,5 +1,6 @@
 package com.yunian.ai.feature.chat.ui.viewmodel
 
+import com.yunian.ai.common.ScriptTurnStripper
 import com.yunian.ai.common.text.BubbleTextSplitter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

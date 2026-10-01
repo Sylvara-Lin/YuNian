@@ -8,6 +8,7 @@ import com.yunian.ai.agent.uniffi.ImageInput
 import com.yunian.ai.common.BanManager
 import com.yunian.ai.common.ContentFilter
 import com.yunian.ai.common.RemoteKeyProvider
+import com.yunian.ai.common.ScriptTurnStripper
 import com.yunian.ai.common.SecureLog
 import com.yunian.ai.common.StickerManager
 import com.yunian.ai.database.model.ChatMessage
@@ -123,7 +124,13 @@ class AgentDialogueCoordinator(
             ?: return DialogueResult(replyText = "抱歉，我暂时无法处理这条消息。", blocked = true)
 
         // 画面描述绝不能出现在消息或聊天记录里：统一走 ImageGenProtocol 清洗
-        val aiText = sanitizeImageGen(aiTextRaw)
+        val sanitized = sanitizeImageGen(aiTextRaw)
+        // 角色串线防线：剥离模型续写的「用户回合」脚本（微信/QQ/语音桥接与主聊天同源缺陷）。
+        val aiText = ScriptTurnStripper.strip(sanitized, aiName = companion.name).also { stripped ->
+            if (stripped != sanitized) {
+                SecureLog.w(TAG, "Stripped scripted user turns from bridge reply: ${sanitized.length} -> ${stripped.length} chars")
+            }
+        }
 
         if (aiText.isNotBlank()) {
             val outputSafety = ContentFilter.checkOutputSafety(aiText)
@@ -193,7 +200,13 @@ class AgentDialogueCoordinator(
                 blocked = false,
             )
 
-        val aiText = sanitizeImageGen(aiTextRaw)
+        val sanitized = sanitizeImageGen(aiTextRaw)
+        // 角色串线防线：剥离模型续写的「用户回合」脚本（微信/QQ/语音桥接与主聊天同源缺陷）。
+        val aiText = ScriptTurnStripper.strip(sanitized, aiName = companion.name).also { stripped ->
+            if (stripped != sanitized) {
+                SecureLog.w(TAG, "Stripped scripted user turns from bridge reply: ${sanitized.length} -> ${stripped.length} chars")
+            }
+        }
 
         if (aiText.isNotBlank()) {
             val outputSafety = ContentFilter.checkOutputSafety(aiText)

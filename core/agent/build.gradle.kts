@@ -25,6 +25,9 @@ dependencies {
     implementation(project(":core:domain"))
     // SkillStore 实现需要 Room 索引（混合存储之"索引"侧）与协程
     implementation(project(":core:database"))
+    // 角色串线防线（ScriptTurnStripper）：微信/QQ/语音桥接路径在落库与记忆提取前，
+    // 剥离模型续写的「用户回合」脚本（与主聊天路径同源缺陷）。
+    implementation(project(":core:common"))
     implementation(libs.kotlinx.coroutines.core)
 
     // UniFFI 生成的 Kotlin 绑定依赖 JNA（com.sun.jna.Pointer 等）。

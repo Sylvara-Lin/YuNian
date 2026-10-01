@@ -10,6 +10,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.yunian.ai.common.AppForegroundTracker
+import com.yunian.ai.common.ScriptTurnStripper
 import com.yunian.ai.database.AppDatabase
 import com.yunian.ai.database.model.ChatMessage
 import com.yunian.ai.database.model.MessageType
@@ -101,9 +102,11 @@ class AiReplyWorker(
                     // 主动消息同样可能夹带生图标签/画面描述：落库前统一清洗
                     val cleanResponse = ImageGenProtocol.sanitizeForDisplay(safeResponse)
                         .ifBlank { safeResponse }
+                    // 角色串线防线：剥离模型续写的「用户回合」脚本（通知快捷回复旁路）
+                    val stripped = ScriptTurnStripper.strip(cleanResponse, aiName = companionModel.name)
                     val aiMessage = ChatMessage(
                         companionId = companionId,
-                        content = cleanResponse,
+                        content = stripped,
                         isFromUser = false
                     )
                     ServiceRegistry.getOrThrow(MessageWriteCoordinator::class.java).enqueueChat(aiMessage)
@@ -113,14 +116,14 @@ class AiReplyWorker(
                     ServiceRegistry.getOrThrow(com.yunian.ai.domain.MemoryProvider::class.java)
                         .extractAndSaveFromConversation(
                             userInput = userMessageContent,
-                            aiResponse = safeResponse,
+                            aiResponse = stripped,
                             companionId = companionId,
                         )
 
                     if (!AppForegroundTracker.isInForeground) {
-                        val notificationPreview = if (cleanResponse.length > 50) {
-                            cleanResponse.take(50) + "..."
-                        } else cleanResponse
+                        val notificationPreview = if (stripped.length > 50) {
+                            stripped.take(50) + "..."
+                        } else stripped
                         NotificationHelper.showCompanionMessageNotification(
                             applicationContext,
                             companionModel.name,
