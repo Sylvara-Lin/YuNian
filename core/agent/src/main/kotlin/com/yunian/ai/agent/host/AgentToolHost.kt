@@ -79,16 +79,51 @@ class AgentToolHost(context: Context) : ToolHost {
     private val appContext: Context = context.applicationContext
 
     /**
-     * 本回合工具调用明细（线程安全，Rust 回调线程写入；回合结束后由调用方读取
+     * 工具执行进度回调（可选）：在每次工具执行「开始前(RUNNING)」与「结束后(DONE/FAILED)」
+     * 各回调一次，供上层（feature）驱动过程卡片实时刷新。
+     *
+     * ⚠️ 回调在 Rust 回调线程上**同步**触发（与 `execute` 同线程），实现方须保证线程安全；
+     * 本类对回调调用一律做 Throwable 兜底（见 [notifyProgress]），
+     * 绝不允许实现方的异常跨 UniFFI 边界抛出（否则会变成 Rust panic = SIGABRT）。
+     */
+    @Volatile
+    var onProgress: ((ToolCallProgress) -> Unit)? = null
+
+    /** 本回合工具调用明细（线程安全，Rust 回调线程写入；回合结束后由调用方读取
      * 并传入 AgentFacade.recordDispatchLog 落调度日志）。
      */
     private val toolCalls = CopyOnWriteArrayList<ToolCallRecord>()
 
+    /** 工具执行自增序号（跨回合唯一，用于过程卡片 RUNNING→终态同 id 覆写）。 */
+    private val callSeq = java.util.concurrent.atomic.AtomicLong(0L)
+
     /** 回合结束后读取全部工具调用明细（时间正序）。 */
     fun collectedToolCalls(): List<ToolCallRecord> = toolCalls.toList()
 
+    /** 安全触发进度回调：任何异常都被吞掉并记录，绝不跨 FFI 边界抛出。 */
+    private fun notifyProgress(progress: ToolCallProgress) {
+        val listener = onProgress ?: return
+        runCatching { listener(progress) }.onFailure {
+            Log.w(TAG, "onProgress 回调异常（已忽略）: ${it.message}")
+        }
+    }
+
     override fun execute(toolName: String, argumentsJson: String, contextJson: String): String {
         val startedAt = System.currentTimeMillis()
+        val callId = callSeq.incrementAndGet()
+        val argsSummary = summarize(argumentsJson, 80)
+        // 过程卡片：先入列 RUNNING（UI 实时可见「执行中」），结束再以同 id 覆写终态。
+        notifyProgress(
+            ToolCallProgress(
+                callId = callId,
+                toolName = toolName,
+                argsSummary = argsSummary,
+                phase = ToolCallPhase.RUNNING,
+                resultSummary = null,
+                startedAtMs = startedAt,
+                elapsedMs = 0L,
+            )
+        )
         Log.i(TAG, "tool call: name=$toolName args=$argumentsJson ctx=$contextJson")
         var ok = true
         val task = toolScope.async { executeToolSuspending(toolName, argumentsJson, contextJson) }
@@ -119,9 +154,27 @@ class AgentToolHost(context: Context) : ToolHost {
         }
         val elapsed = System.currentTimeMillis() - startedAt
         toolCalls.add(ToolCallRecord(name = toolName, args = argumentsJson, result = result, elapsedMs = elapsed, ok = ok))
+        notifyProgress(
+            ToolCallProgress(
+                callId = callId,
+                toolName = toolName,
+                argsSummary = argsSummary,
+                phase = if (ok) ToolCallPhase.DONE else ToolCallPhase.FAILED,
+                resultSummary = summarize(result, 60),
+                startedAtMs = startedAt,
+                elapsedMs = elapsed,
+            )
+        )
         Log.i(TAG, "tool done: name=$toolName elapsed=${elapsed}ms ok=$ok result=${result.take(120)}")
         return result
     }
+
+    /** 单行 + 截断的摘要（供过程卡片副标题展示；保留原始前缀便于定位）。 */
+    private fun summarize(text: String, max: Int): String {
+        val single = text.replace('\n', ' ').replace('\r', ' ').trim()
+        return if (single.length <= max) single else single.take(max) + "…"
+    }
+
 
     /**
      * 实际工具执行（在 [toolScope] 受限并行调度器上运行）：记忆工具 / load_skill /

@@ -933,6 +933,10 @@ class ChatGenerationManager private constructor(
         // 本轮工具调用活动（按执行先后保序，同 id 覆盖 RUNNING→终态）；
         // 轮次结束时持久化为一条 TOOL_ACTIVITY 消息，让过程卡片进入消息流。
         val turnActivityMap = LinkedHashMap<Long, ToolActivity>()
+        // 去重键 → 卡片 id：同一 (工具名, 参数摘要) 视为同一次调用（覆盖而非重复），
+        // 从而在「确认门」重跑同回合时不会把已执行的工具重复入列。
+        val turnActivityIndex = HashMap<String, Long>()
+        var nextActivityId = 0L
         try {
             val companion = companionRepository.getCompanionById(companionId)
             if (companion == null) {
@@ -996,8 +1000,30 @@ class ChatGenerationManager private constructor(
                     companionNameMapJson = null,
                 )
                 val toolHost = com.yunian.ai.agent.host.AgentToolHost(application)
+                // 接入过程卡片：Rust Agent 路径的真实工具执行经 AgentToolHost 回调节点驱动
+                // turnActivityMap（持久化）与 _toolActivity（实时）。此前该链路缺失，
+                // 导致消息流里的工具卡片恒为空（本地工具循环退役后漏接）。
+                toolHost.onProgress = { progress ->
+                    val key = progress.toolName + '\u0000' + progress.argsSummary
+                    val id = turnActivityIndex.getOrPut(key) { nextActivityId++ }
+                    turnActivityMap[id] = ToolActivity(
+                        id = id,
+                        toolName = progress.toolName,
+                        argsSummary = progress.argsSummary,
+                        status = when (progress.phase) {
+                            com.yunian.ai.agent.host.ToolCallPhase.RUNNING -> ToolStatus.RUNNING
+                            com.yunian.ai.agent.host.ToolCallPhase.DONE -> ToolStatus.DONE
+                            com.yunian.ai.agent.host.ToolCallPhase.FAILED -> ToolStatus.FAILED
+                        },
+                        resultSummary = progress.resultSummary,
+                        startedAtMs = progress.startedAtMs,
+                    )
+                    _toolActivity.value = turnActivityMap.values.toList()
+                }
                 val agentResult = runTurnWithConfirmation(turnRequest, toolHost, companionId)
                     ?: throw java.util.concurrent.TimeoutException("AI response timeout")
+                // 回合（含确认门重跑循环）已结束，工具不会再回调：摘除监听，避免悬挂引用
+                toolHost.onProgress = null
 
                 recordAgentDispatchLog(
                     sessionId = conversationId,
