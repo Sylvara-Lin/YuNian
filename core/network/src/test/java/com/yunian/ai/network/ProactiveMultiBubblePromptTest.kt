@@ -127,7 +127,8 @@ class ProactiveMultiBubblePromptTest {
         val instruction = AiPromptBuilder.buildProactiveDecisionInstruction("小云", envHint)
 
         assertTrue(instruction.contains("以小云的身份"))
-        assertTrue("多气泡指令保留", instruction.contains("消息条数不限"))
+        assertTrue("主动消息上界措辞「1~3 条」", instruction.contains("1~3 条"))
+        assertFalse("主动消息不得写「条数不限」", instruction.contains("条数不限"))
         assertTrue(instruction.contains("换行即下一条"))
         assertTrue("必须包含围栏式格式演示", instruction.contains("【格式演示：只演示「换行=发出下一条」"))
         assertTrue("envUserHint 必须透传", instruction.contains(envHint))

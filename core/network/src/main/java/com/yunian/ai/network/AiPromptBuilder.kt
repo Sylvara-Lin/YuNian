@@ -661,7 +661,7 @@ ${innerThoughtExamples}${RolePromptProvider.getExamples(role)}
             append(memorySection)
             appendLine()
             appendLine("=== 追问纪律 ===")
-            appendLine("1. 追问短而自然，可像真人微信连发那样一次发多条（换行即下一条）；条数由性格与想说的话决定，不硬凑也不封顶——黏人可多发两条，冷淡/傲娇一条即止。禁止堆叠同一句话、禁止复述已问过的问题。")
+            appendLine("1. 追问短而自然，可像真人微信那样连发短消息（换行即下一条），最多 2~3 条——黏人可多发两条，冷淡/傲娇一条即止。禁止堆叠同一句话、禁止复述已问过的问题。")
             appendLine("2. 语气严格服从角色性格：黏人可撒娇催促，冷淡/傲娇可轻戳一句或装作不在意，内向可简短试探。")
             appendLine("3. 不要替用户回答；不要说教；不要输出关心模板（吃没吃/睡没睡类）。")
             appendLine("4. 若判断对方在忙、已休息或不想被打扰，可以不追问，让对话自然安静（输出 ${NO_PROACTIVE_MARKER}）。")
@@ -691,7 +691,7 @@ ${innerThoughtExamples}${RolePromptProvider.getExamples(role)}
                 appendLine("但若旧话题已完结或你不感兴趣，允许自然收束/轻转，绝不要为了遵守偏好而硬续。")
             }
             if (settings != null && !settings.allowFollowUpMessage) {
-                appendLine("用户偏好（软约束）：本次尽量少追问；把核心意思说完即可（不必追加反问），可以说一条，也可以按真人习惯连发多条短消息（条数不限）。")
+                appendLine("用户偏好（软约束）：本次尽量少追问；把核心意思说完即可（不必追加反问），可以说一条，也可以按真人习惯连发短消息（最多 2~3 条）。")
             }
         }
     }
@@ -699,7 +699,12 @@ ${innerThoughtExamples}${RolePromptProvider.getExamples(role)}
     /**
      * 主动问候路径的用户决策指令（generateProactiveMessage 的第二条 user 消息）。
      *
-     * 抽为可测纯函数：在「消息条数不限」规则后附 few-shot 格式示例，向模型演示
+     * **当前无生产调用点（旧路径 / 死路径，仅口径对齐）**：主动消息的 LLM 生成已迁移到
+     * `feature:notification` 的 `CompanionMessageWorker`（Rust Agent 路径，见其 `generateWithAgent`
+     * 与 `ProactiveMessageInstruction`）。本函数保留仅为兼容与历史参考；措辞已与主动消息新口径
+     * 对齐（连发 1~3 条），且与聊天路径的「条数不限」刻意区分。
+     *
+     * 抽为可测纯函数：在「连发 1~3 条」规则后附 few-shot 格式示例，向模型演示
      * 「换行 = 发出下一条气泡」（1 行版 + 3 行版），提升多行连发输出的稳定性。
      * 示例采用「围栏 + 占位行」形态：每一行本身都不像聊天消息，模型即使照抄也
      * 显然不应作为消息发出；万一仍被照抄，由 [stripProactiveDemoLeakLines]
@@ -717,7 +722,7 @@ ${innerThoughtExamples}${RolePromptProvider.getExamples(role)}
         - 已完结或不感兴趣：可轻转、只回情绪/态度，或输出 $NO_PROACTIVE_MARKER；不要硬续旧话题。
         若决定发消息，要求：
         1. 像真人在微信连发那样说话：口语、自然，不要长文堆共情+方案+大道理，也不要半截残句
-        2. 消息条数不限：换行即下一条。话多就多敲几行（真人会连发），话少一条也行——由你的性格与此刻想说的话决定，不硬凑条数，也不要把全部内容塞进一条
+        2. 可像真人微信那样连发 1~3 条短消息（换行即下一条）：话多一点就拆成 2~3 条短句，只有一句短回应时发一条即可。不要硬凑条数，也不要把全部内容塞进一条
         【格式演示：只演示「换行=发出下一条」，以下围栏内文字只是占位，你的输出禁止包含】
         只想发一条时，输出占一行：
         （占位：一行消息）
@@ -737,8 +742,12 @@ ${innerThoughtExamples}${RolePromptProvider.getExamples(role)}
     /**
      * 追问路径的用户决策指令（generateFollowUpReminder 的第二条 user 消息）。
      *
-     * 抽为可测纯函数：已去掉「只发 1 条 / 10~30 字」单行硬限制——可像真人微信连发那样
-     * 一次发多条（换行即下一条），条数由性格与想说的话决定，不硬凑也不封顶；
+     * **当前无生产调用点（旧路径 / 死路径，仅口径对齐）**：追问生成已迁移到
+     * `feature:notification` 的 `CompanionMessageWorker`（Rust Agent 路径）；本函数保留仅为兼容
+     * 与历史参考，措辞已与主动消息新口径对齐（最多 2~3 条）。
+     *
+     * 抽为可测纯函数：已去掉「只发 1 条 / 10~30 字」单行硬限制——可像真人微信那样
+     * 连发短消息（换行即下一条），最多 2~3 条；
      * 保留「不重复上一条、不堆叠同一句话、不说教」纪律。
      */
     internal fun buildFollowUpReminderInstruction(): String {
@@ -746,7 +755,7 @@ ${innerThoughtExamples}${RolePromptProvider.getExamples(role)}
         你上一条消息发出后，用户一直没回复。
         现在由你决定是否追问：
         - 若判断用户可能在忙、已休息或对话已自然收尾，只输出 $NO_PROACTIVE_MARKER，不要硬催。
-        - 若决定追问：可像真人微信连发那样一次发多条（换行即下一条），条数由你的性格与想说的话决定，不硬凑也不封顶；简短自然，语气严格服从你的性格（黏人可撒娇多戳两句，冷淡/傲娇一条即止）。
+        - 若决定追问：可像真人微信那样连发短消息（换行即下一条），最多 2~3 条；简明自然，语气严格服从你的性格（黏人可撒娇多戳两句，冷淡/傲娇一条即止）。
         - 不要重复上一条消息的内容，不要堆叠同一句话，不要说教。
         - 禁止括号，禁止AI感词汇。
         """.trimIndent()

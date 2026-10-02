@@ -597,6 +597,11 @@ class AiService(context: Context) : AiServiceProvider {
         }
     }
 
+    /**
+     * **旧路径（当前无生产调用点，仅兼容/历史参考）**：主动消息的 LLM 生成已迁移到
+     * `feature:notification` 的 `CompanionMessageWorker`（Rust Agent 路径）；本方法保留仅为兼容，
+     * 其提示词（[AiPromptBuilder.buildProactiveDecisionInstruction]）已同步口径为「连发 1~3 条」。
+     */
     suspend fun generateProactiveMessage(companion: CompanionModel, recentMessages: List<ChatMessage>, settings: ProactiveMessageSettings? = null): String? {
         return withContext(Dispatchers.IO) {
             val config = resolveConfig(companion.id)
@@ -664,6 +669,11 @@ class AiService(context: Context) : AiServiceProvider {
         }
     }
 
+    /**
+     * **旧路径（当前无生产调用点，仅兼容/历史参考）**：追问生成已迁移到
+     * `feature:notification` 的 `CompanionMessageWorker`（Rust Agent 路径）；本方法保留仅为兼容，
+     * 其提示词（[AiPromptBuilder.buildFollowUpReminderInstruction]）已同步口径为「最多 2~3 条」。
+     */
     suspend fun generateFollowUpReminder(companion: CompanionModel, recentMessages: List<ChatMessage>, settings: ProactiveMessageSettings? = null): String? {
         return withContext(Dispatchers.IO) {
             val config = resolveConfig(companion.id)
