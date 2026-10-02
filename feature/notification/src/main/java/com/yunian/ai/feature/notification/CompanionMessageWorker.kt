@@ -403,8 +403,17 @@ class CompanionMessageWorker(
         // 角色串线防线：剥离模型续写的「用户回合」脚本（主动问候旁路）
         val stripped = ScriptTurnStripper.strip(clean, aiName = companion.name)
 
-        // 换行即下一条气泡；无换行时整条为 1 个气泡
-        val bubbles = BubbleTextSplitter.splitByParagraphs(stripped)
+        // 换行即下一条气泡；无换行时整条为 1 个气泡。
+        // 主动消息推送到通知栏/锁屏，连发过多骚扰感强 → 施加代码侧硬上限兜底
+        // （与 ProactiveMessageInstruction 的「1~3 条」软引导形成双保险）。
+        val allBubbles = BubbleTextSplitter.splitByParagraphs(stripped)
+        val bubbles = ProactiveBubblePolicy.cap(allBubbles)
+        if (allBubbles.size > bubbles.size) {
+            SecureLog.w(
+                "CompanionMessageWorker",
+                "Proactive bubbles capped: raw=${allBubbles.size} -> ${bubbles.size} (MAX=${ProactiveBubblePolicy.MAX_BUBBLES})",
+            )
+        }
         val writeCoordinator = ServiceRegistry.getOrThrow(MessageWriteCoordinator::class.java)
         // 查重窗口 = 本批已发出气泡的归一化内容
         val sentNorms = mutableListOf<String>()

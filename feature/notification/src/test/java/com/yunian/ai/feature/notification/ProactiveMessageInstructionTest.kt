@@ -22,7 +22,9 @@ class ProactiveMessageInstructionTest {
         )
 
         assertTrue("必须含「换行即下一条」", text.contains("换行即下一条"))
-        assertTrue("必须含「条数不限」", text.contains("条数不限"))
+        assertTrue("必须含上界措辞「1~3 条」", text.contains("1~3 条"))
+        assertFalse("主动消息不得写「条数不限」", text.contains("条数不限"))
+        assertFalse("主动消息不得写「不封顶」", text.contains("不封顶"))
         assertTrue("必须含角色名", text.contains("以「小云」的身份") || text.contains("以小云的身份"))
         assertTrue("marker 语义保留", text.contains(ProactiveMessageInstruction.NO_PROACTIVE_MARKER))
         assertFalse("不得再写死「优先 1 条」", text.contains("优先 1 条"))
@@ -39,6 +41,8 @@ class ProactiveMessageInstructionTest {
         )
 
         assertTrue("必须含「换行即下一条」", text.contains("换行即下一条"))
+        assertTrue("必须含上界措辞「最多 2~3 条」", text.contains("最多 2~3 条"))
+        assertFalse("主动消息不得写「不封顶」", text.contains("不封顶"))
         assertTrue("marker 语义保留", text.contains(ProactiveMessageInstruction.NO_PROACTIVE_MARKER))
         assertFalse("不得再写死「只发 1 条」", text.contains("只发 1 条"))
         assertFalse("不得再写死字数区间「10~30」", text.contains("10~30"))

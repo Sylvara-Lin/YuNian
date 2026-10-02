@@ -267,7 +267,8 @@ class ProactiveMultiBubblePromptTest {
         val context = AiPromptBuilder.buildProactiveContext(messages, companion)
 
         assertTrue("必须含多气泡引导「换行即下一条」", context.contains("换行即下一条"))
-        assertTrue("必须含「条数不限」", context.contains("条数不限"))
+        assertTrue("主动消息上界措辞「1~3 条」", context.contains("1~3 条"))
+        assertFalse("主动消息不得写「条数不限」", context.contains("条数不限"))
         assertTrue("必须保留 marker 语义", context.contains(AiPromptBuilder.NO_PROACTIVE_MARKER))
         assertTrue("应保留最近对话正文", context.contains("那你忙吧"))
     }
