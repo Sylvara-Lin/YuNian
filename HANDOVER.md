@@ -253,7 +253,7 @@ cd D:/Android/Sdk/emulator && ./emulator.exe -avd Unpack_Device \
 
 | 项 | 值 |
 |---|---|
-| 应用 | `applicationId=com.yunian.ai`、`versionCode=26`、`versionName=2.0.6`、label 予念 |
+| 应用 | `applicationId=com.yunian.ai`、`versionCode=27`、`versionName=2.0.7`、label 予念 |
 | SDK | compileSdk/targetSdk 35、minSdk 26 |
 | Kotlin / AGP / Gradle | 2.2.10 / 9.2.1 / 9.4.1 |
 | 模块 | 25 个（`:app` + 15 `feature:*` + 8 `core:*` + `:shell`） |
