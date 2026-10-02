@@ -34,7 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yunian.ai.domain.ToolRegistry
+import com.yunian.ai.domain.ToolFriendlyNames
 import com.yunian.ai.feature.chat.ui.viewmodel.ToolActivity
 import com.yunian.ai.feature.chat.ui.viewmodel.ToolStatus
 import com.yunian.ai.uicommon.component.glass.LocalPageBackdrop
@@ -110,7 +110,7 @@ private fun ToolActivityCard(activity: ToolActivity) {
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = friendlyToolName(activity.toolName),
+                text = ToolFriendlyNames.of(activity.toolName),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.onSurface,
@@ -180,67 +180,3 @@ private fun rememberPulseAlpha(): Float {
     )
     return alpha
 }
-
-/** 工具名 → 界面友好名（未映射的走 ToolRegistry 描述首行/原名） */
-private fun friendlyToolName(toolName: String): String {
-    val mapped = TOOL_FRIENDLY_NAMES[toolName]
-    if (mapped != null) return mapped
-    return ToolRegistry.get(toolName)?.let { tool ->
-        tool.description.lineFirstOrNull() ?: toolName
-    } ?: toolName
-}
-
-private fun String.lineFirstOrNull(): String? =
-    lineSequence().firstOrNull { it.isNotBlank() }?.take(24)
-
-private val TOOL_FRIENDLY_NAMES = mapOf(
-    // ── Agent 原生工具（Rust / AgentToolHost 特判，不经过本地 ToolRegistry）──
-    "load_skill" to "加载技能",
-    "save_memory" to "记住这件事",
-    "consolidate_memory" to "整理记忆",
-    "emit_bubble" to "分条回复",
-    "emit_segmented" to "分条回复",
-    "send_sticker" to "发表情",
-    "sticker_pick" to "挑表情",
-    "delegate_task" to "安排子任务",
-    "fetch_delegation_result" to "取回子任务结果",
-    "core_status" to "查看运行状态",
-    "commerce_buy" to "下单购买",
-    "order_coffee" to "点咖啡",
-    // ── 本地注册工具（走 ToolRegistry，此处提供短名以避免取整段描述）──
-    "skillhub_search" to "搜索技能商店",
-    "skill_install" to "安装技能",
-    "skill_uninstall" to "卸载技能",
-    "recall_memory" to "翻看记忆",
-    "search_web" to "联网搜索",
-    "web_fetch" to "读取网页",
-    "recent_chats" to "翻看最近会话",
-    "conversation_search" to "搜索历史对话",
-    "device_open_app" to "打开应用",
-    "device_open_url" to "打开网页",
-    "device_get_clipboard" to "读取剪贴板",
-    "device_set_clipboard" to "写入剪贴板",
-    "device_set_alarm" to "设置闹钟",
-    "device_notify" to "发送通知",
-    "device_battery_status" to "查看电量",
-    "device_get_time" to "看时间",
-    "accessibility_status" to "检查手机控制",
-    "screen_read" to "读取屏幕",
-    "screen_tap" to "点击屏幕",
-    "screen_swipe" to "滑动屏幕",
-    "screen_click_text" to "点击屏幕元素",
-    "press_back" to "按返回键",
-    "go_home" to "回到主屏",
-    "shizuku_status" to "检查 Shizuku",
-    "automation_create" to "创建自动化",
-    "automation_create_workflow" to "创建工作流",
-    "automation_list" to "查看自动化",
-    "automation_cancel" to "取消自动化",
-    "automation_fire" to "触发自动化",
-    "luckin_query_shops" to "查找咖啡门店",
-    "luckin_search_products" to "搜索咖啡商品",
-    "luckin_preview_order" to "预览咖啡订单",
-    "luckin_create_order" to "下单咖啡",
-    "luckin_query_order" to "查询咖啡订单",
-    "luckin_cancel_order" to "取消咖啡订单",
-)

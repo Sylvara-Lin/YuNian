@@ -37,6 +37,8 @@ dependencies {
 
     // Eval 断言引擎等纯逻辑单测
     testImplementation(libs.junit)
+    // AiActivityBus 的 StateFlow 状态机单测（runBlocking / flow）
+    testImplementation(libs.kotlinx.coroutines.core)
     // 本模块源码走 org.json。Android 的 org.json 只是抛 Stub! 的空壳，
     // JVM 单测必须挂真实实现，否则 JSONObject/JSONArray 一调用就崩。
     testImplementation(libs.org.json)

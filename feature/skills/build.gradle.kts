@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
     implementation(libs.okhttp)
+    // AI 活动悬浮窗：在主线程观察 AiActivityBus（Dispatchers.Main 来自 coroutines-android）
+    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
 

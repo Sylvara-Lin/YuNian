@@ -3,6 +3,7 @@ package com.yunian.ai.agent.host
 import android.content.Context
 import android.util.Log
 import com.yunian.ai.agent.AgentFacade
+import com.yunian.ai.agent.activity.AiActivityBus
 import com.yunian.ai.agent.audit.ToolCallRecord
 import com.yunian.ai.agent.sticker.StickerPreferenceFacade
 import com.yunian.ai.agent.uniffi.ToolHost
@@ -102,6 +103,12 @@ class AgentToolHost(context: Context) : ToolHost {
 
     /** 安全触发进度回调：任何异常都被吞掉并记录，绝不跨 FFI 边界抛出。 */
     private fun notifyProgress(progress: ToolCallProgress) {
+        // 共享「当前 AI 活动」总线：无论上层是否注册了 onProgress 都要写入。
+        // 关键场景——后台主动消息路径未注册 onProgress（故卡片为空），但悬浮窗仍需可见，
+        // 因此本步必须放在「listener 为空即返回」之前。写入本身同样做 Throwable 兜底。
+        runCatching { AiActivityBus.onProgress(progress) }.onFailure {
+            Log.w(TAG, "AiActivityBus 写入异常（已忽略）: ${it.message}")
+        }
         val listener = onProgress ?: return
         runCatching { listener(progress) }.onFailure {
             Log.w(TAG, "onProgress 回调异常（已忽略）: ${it.message}")

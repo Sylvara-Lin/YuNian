@@ -14,9 +14,16 @@ import com.yunian.ai.common.SecureLog
  */
 class YuNianAccessibilityService : AccessibilityService() {
 
+    /**
+     * AI 活动悬浮窗控制器：服务连接期间常驻，订阅 [com.yunian.ai.agent.activity.AiActivityBus]
+     * 展示「AI 正在控制手机」。随服务连接建立/断开而启停，避免窗口 token 泄漏。
+     */
+    private var overlayController: AiActivityOverlayController? = null
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        overlayController = AiActivityOverlayController(this).also { it.start() }
         SecureLog.i(TAG, "Accessibility service connected")
     }
 
@@ -25,6 +32,9 @@ class YuNianAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
+        // 先移除悬浮窗（窗口 token 随服务断开立即失效，晚移会抛 BadTokenException 并残留）
+        overlayController?.stop()
+        overlayController = null
         instance = null
         return super.onUnbind(intent)
     }
