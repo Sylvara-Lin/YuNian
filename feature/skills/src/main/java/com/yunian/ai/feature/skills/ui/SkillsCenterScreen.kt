@@ -53,8 +53,10 @@ import com.yunian.ai.domain.ServiceRegistry
 import com.yunian.ai.domain.SkillManager
 import com.yunian.ai.domain.SkillMetadata
 import com.yunian.ai.feature.skills.accessibility.YuNianAccessibilityService
+import com.yunian.ai.feature.skills.tools.ShizukuPermissionRequest
 import com.yunian.ai.feature.skills.tools.ShizukuStatus
 import com.yunian.ai.feature.skills.tools.checkShizukuStatus
+import com.yunian.ai.feature.skills.tools.openShizukuApp
 import com.yunian.ai.uicommon.component.glass.GlassPageScaffold
 import com.yunian.ai.uicommon.component.glass.GlassTopBar
 import com.yunian.ai.uicommon.component.glass.LocalPageBackdrop
@@ -80,6 +82,7 @@ fun SkillsCenterScreen(onNavigateBack: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var a11yReady by remember { mutableStateOf(YuNianAccessibilityService.isReady) }
     var shizuku by remember { mutableStateOf<ShizukuStatus?>(null) }
+    var shizukuNotice by remember { mutableStateOf<String?>(null) }
 
     fun refreshAll() {
         scope.launch {
@@ -89,6 +92,23 @@ fun SkillsCenterScreen(onNavigateBack: () -> Unit) {
             a11yReady = YuNianAccessibilityService.isReady
             shizuku = runCatching { checkShizukuStatus(context) }.getOrNull()
         }
+    }
+
+    // Shizuku 授权请求桥：调用方须与「请求授权」按钮成对，随组合销毁注销监听。
+    // Shizuku 的机制是应用主动请求后才会出现在可授权列表里，所以必须由本页发起请求。
+    val permissionRequest = remember {
+        ShizukuPermissionRequest { granted ->
+            shizukuNotice = if (granted) {
+                "授权成功：Shizuku 特权通道已就绪"
+            } else {
+                "授权被拒绝或未完成：可再次点击「请求授权」；若系统无弹窗请确认 Shizuku 服务正在运行"
+            }
+            // 无论成功与否都重新检测，让状态卡片与提示保持一致
+            refreshAll()
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { permissionRequest.dispose() }
     }
 
     LaunchedEffect(Unit) { refreshAll() }
@@ -135,9 +155,49 @@ fun SkillsCenterScreen(onNavigateBack: () -> Unit) {
                 }
                 item {
                     val s = shizuku
+                    val subtitle = buildString {
+                        append(s?.hint ?: "检测中…")
+                        val notice = shizukuNotice
+                        if (!notice.isNullOrBlank()) {
+                            append("\n")
+                            append(notice)
+                        }
+                    }
+                    val canRequest = s != null && s.running && !s.granted
+                    val canStart = s != null && s.installed && !s.running
+
+                    // 授权入口：Shizuku 只有在「应用主动请求授权」后才会出现在可授权列表，
+                    // 因此未授权且服务在运行时必须给出「请求授权」按钮，否则用户无从授权。
+                    val actionText: String?
+                    val onAction: (() -> Unit)?
+                    when {
+                        canRequest -> {
+                            actionText = "请求授权"
+                            onAction = {
+                                if (permissionRequest.request()) {
+                                    shizukuNotice = "已发出授权请求：请在系统弹窗中点击「允许」"
+                                } else {
+                                    shizukuNotice = "Shizuku 服务当前不可用：已尝试打开 Shizuku 应用，请先启动服务"
+                                    openShizukuApp(context)
+                                }
+                            }
+                        }
+                        canStart -> {
+                            actionText = "去启动"
+                            onAction = {
+                                shizukuNotice = "已尝试打开 Shizuku 应用，请启动服务后再回来点「请求授权」"
+                                openShizukuApp(context)
+                            }
+                        }
+                        else -> {
+                            actionText = null
+                            onAction = null
+                        }
+                    }
+
                     CapabilityCard(
                         title = "Shizuku 特权通道",
-                        subtitle = s?.hint ?: "检测中…",
+                        subtitle = subtitle,
                         statusColor = when {
                             s == null -> colors.onSurfaceVariant
                             s.granted -> colors.success
@@ -150,8 +210,8 @@ fun SkillsCenterScreen(onNavigateBack: () -> Unit) {
                             s.installed -> "未运行"
                             else -> "未安装"
                         },
-                        actionText = null,
-                        onAction = null,
+                        actionText = actionText,
+                        onAction = onAction,
                     )
                 }
 
