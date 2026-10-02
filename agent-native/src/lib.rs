@@ -27,6 +27,7 @@ pub fn parse_character_card_json(json: String) -> Option<card_import::CharacterC
 pub mod memory_selector;
 pub mod native_gateway;
 pub mod prompt_orchestrator;
+pub(crate) mod retry;
 pub mod segmenter;
 pub mod skill_selector;
 pub mod sticker_preference;

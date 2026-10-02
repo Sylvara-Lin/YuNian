@@ -12,6 +12,7 @@
 // - Kotlin 现有代码不改动，Agent 层以独立模块接入
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::segmenter::{agent_segment, SplitMode};
@@ -648,6 +649,9 @@ pub struct AgentRuntime {
     signature_provider: std::sync::Mutex<Option<std::sync::Arc<dyn RequestSignatureProvider>>>,
     /// 世界书（聊天陪伴：社区 World Info 规范；set_worldbook 注入，None = 未启用）
     worldbook: std::sync::Mutex<Option<Arc<crate::lorebook::Lorebook>>>,
+    /// 回合取消标志：跨 FFI 可被 Kotlin 置位（cancel_current_turn），
+    /// 供 NativeGateway 的 LLM 自动重试循环中断；每回合开始时自动复位。
+    turn_cancel: Arc<AtomicBool>,
 }
 
 /// AgentRuntime 的全局可变配置（Mutex 保护，支持 update_* 热更新）
@@ -718,6 +722,7 @@ impl AgentRuntime {
             mock_transport: std::sync::Mutex::new(None),
             signature_provider: std::sync::Mutex::new(None),
             worldbook: std::sync::Mutex::new(None),
+            turn_cancel: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -824,6 +829,18 @@ impl AgentRuntime {
     /// 后续匹配调用回灌「用户拒绝」而不执行、也不再触发确认。
     pub fn reject_tool(&self, name: String, args: String) {
         self.rejected_tools.lock().unwrap().insert((name, args));
+    }
+
+    /// 请求取消当前正在进行中的回合（可从任意线程调用）。
+    ///
+    /// 语义：置位共享取消标志 → NativeGateway 的 LLM 自动重试循环在
+    /// 「下一次尝试前 / 退避等待后」立即停止重试并以「请求已取消」结束，
+    /// 不再对上游发起新的请求。每回合开始时自动复位（见 `run_turn_inner`）。
+    ///
+    /// 用途：用户停止生成、或 WorkManager 停止 worker 时，避免有界重试把
+    /// 回合继续拖长（对应「调用方取消/中断时不得继续重试」）。
+    pub fn cancel_current_turn(&self) {
+        self.turn_cancel.store(true, Ordering::SeqCst);
     }
 
     /// Eval：注入脚本化传输（离线 mock，按序弹出预置响应，不发真实网络）。
@@ -939,10 +956,13 @@ impl AgentRuntime {
         let mock = self.mock_transport.lock().unwrap().clone();
         let signer = self.signature_provider.lock().unwrap().clone();
         drop(m);
-        if let Some(transport) = mock {
-            return crate::native_gateway::NativeGateway::with_transport_and_signer(cfg, transport, signer);
-        }
-        crate::native_gateway::NativeGateway::with_signer(cfg, signer)
+        let gw = if let Some(transport) = mock {
+            crate::native_gateway::NativeGateway::with_transport_and_signer(cfg, transport, signer)
+        } else {
+            crate::native_gateway::NativeGateway::with_signer(cfg, signer)
+        };
+        // 注入回合取消标志：LLM 自动重试循环据此在取消后停止重试
+        gw.with_cancel(self.turn_cancel.clone())
     }
 
     /// 组装编排器选项：静态元数据（device_id / timezone / session_id / owner_name）
@@ -1018,6 +1038,9 @@ impl AgentRuntime {
         // 回合级互斥（P3-12）：聊天 / 群聊 / 后台回复串行执行，避免并发放大上游请求。
         // 工具回调（ToolHost → Kotlin）不会重入 run_turn_inner，无死锁风险。
         let _turn_guard = self.turn_lock.lock().unwrap();
+
+        // 每回合开始复位取消标志（上一回合若被取消，不得影响本回合）
+        self.turn_cancel.store(false, Ordering::SeqCst);
 
         // 方案 A：cordis-rs 核心插件底座——回合生命周期事件（start/end）。
         // RAII 作用域保证 end 事件在任意返回路径上都发出；宿主失败不致命。
@@ -1290,6 +1313,26 @@ impl AgentRuntime {
 
             // 模型调用了工具
             if !tool_calls.is_empty() {
+                // 多轮叙述（「边调边说」）：本轮既产出正文又调用工具时，把正文作为**独立气泡**
+                // 先发出，保持「文本 → 工具 → 文本 → 工具」的先后顺序（对齐参考截图的真人节奏）。
+                // 约束：
+                //  - 仅非流式路径（流式增量已经由 StreamSink 实时交付，再补发会重复）；
+                //  - 本轮未使用 emit_bubble / emit_segmented 气泡协议时（否则正文与工具气泡重复）。
+                if stream_sink.is_none() && !content.trim().is_empty() {
+                    let uses_bubble_protocol = tool_calls.iter().any(|tc| {
+                        matches!(
+                            tc.get("name").and_then(|v| v.as_str()),
+                            Some("emit_bubble") | Some("emit_segmented")
+                        )
+                    });
+                    if !uses_bubble_protocol {
+                        events.push(AgentEvent {
+                            kind: "bubble".to_string(),
+                            text: content.clone(),
+                            extra: String::new(),
+                        });
+                    }
+                }
                 let mut tool_messages: Vec<serde_json::Value> = Vec::new();
                 for call in &tool_calls {
                     let name = call.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -1750,6 +1793,70 @@ mod tests {
         assert_eq!(result.finished_reason, "completed");
         assert!(result.events.iter().any(|e| e.kind == "bubble"));
         assert_eq!(result.final_text, "好的呢");
+    }
+
+    /// 多轮叙述（「边调边说」）：带工具调用的那一轮的正文，必须作为**独立气泡**先于工具产出送达，
+    /// 保持「文本 → 工具」的先后顺序（对齐参考截图的真人节奏）；后续轮正文同样独立成泡。
+    #[test]
+    fn tool_round_narration_text_emitted_as_bubble_in_order() {
+        let req = AgentTurnRequest {
+            group_id: None,
+            history_json: r#"[]"#.to_string(),
+            tools: vec![],
+            max_rounds: 3,
+            tool_choice: String::new(),
+            sticker_probability: 0,
+            image: None,
+            system_prompt: None,
+            companion_name_map_json: None,
+        };
+        let (runner, gw, _t) = mock_gateway(vec![
+            // 第1轮：正文叙述 + 非气泡工具调用（模拟手机控制）→ 正文应先成为独立气泡
+            r#"{"choices":[{"message":{"role":"assistant","content":"我点进去看看","tool_calls":[{"id":"c1","type":"function","function":{"name":"screen_tap","arguments":"{\"x\":1}"}}]},"finish_reason":"tool_calls"}]}"#,
+            // 第2轮：叙述 + 结束
+            r#"{"choices":[{"message":{"role":"assistant","content":"找到了，我点购买"},"finish_reason":"stop"}]}"#,
+        ]);
+        let result = runner.run_turn_inner(&req, Some(1), &gw, None, &NoopHost, &DefaultTurnStateMachine);
+        assert_eq!(result.finished_reason, "completed");
+        let bubbles: Vec<String> = result
+            .events
+            .iter()
+            .filter(|e| e.kind == "bubble")
+            .map(|e| e.text.clone())
+            .collect();
+        assert_eq!(bubbles, vec!["我点进去看看", "找到了，我点购买"]);
+    }
+
+    /// 使用 emit_bubble 气泡协议时，带工具调用的那一轮的 content 不得再补发气泡（避免重复）。
+    #[test]
+    fn tool_round_with_emit_bubble_protocol_does_not_duplicate_narration() {
+        let req = AgentTurnRequest {
+            group_id: None,
+            history_json: r#"[]"#.to_string(),
+            tools: vec![],
+            max_rounds: 3,
+            tool_choice: String::new(),
+            sticker_probability: 0,
+            image: None,
+            system_prompt: None,
+            companion_name_map_json: None,
+        };
+        let (runner, gw, _t) = mock_gateway(vec![
+            r#"{"choices":[{"message":{"role":"assistant","content":"不应补发的气泡","tool_calls":[{"id":"c1","type":"function","function":{"name":"emit_bubble","arguments":"{\"text\":\"协议气泡\"}"}}]},"finish_reason":"tool_calls"}]}"#,
+            r#"{"choices":[{"message":{"role":"assistant","content":"收尾"},"finish_reason":"stop"}]}"#,
+        ]);
+        let result = runner.run_turn_inner(&req, Some(1), &gw, None, &NoopHost, &DefaultTurnStateMachine);
+        let bubbles: Vec<String> = result
+            .events
+            .iter()
+            .filter(|e| e.kind == "bubble")
+            .map(|e| e.text.clone())
+            .collect();
+        assert_eq!(bubbles, vec!["协议气泡", "收尾"]);
+        assert!(
+            !bubbles.iter().any(|b| b == "不应补发的气泡"),
+            "emit_bubble 协议下不得重复补发 content: {bubbles:?}"
+        );
     }
 
     /// 工具调用完整链路：模型首轮返回 emit_bubble tool_calls →

@@ -15,14 +15,16 @@
 // - 工具副作用（ToolHost）保留 Kotlin 实现（不回沉）。
 
 use std::io::{BufRead, BufReader};
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use rusqlite::{Connection, OpenFlags};
 use serde_json::{json, Value};
 
 use crate::agent::{AgentTurnRequest, StreamSink};
 use crate::prompt_orchestrator::{CompanionProfile, PromptOrchestrator};
+use crate::retry::{self, AttemptFailure, RetryPolicy};
 
 /// Room schema（AppDatabase @Database version）直读支持范围。
 /// ⚠️ Room 迁移版本号变化时必须同步更新，否则 Agent 直读查询会静默失败。
@@ -115,6 +117,12 @@ pub struct NativeGateway {
     db: Mutex<Option<Connection>>,
     /// 首次打开时读取的 SQLite user_version（Room 版本），0 = 未读取
     schema_version: AtomicI64,
+    /// LLM 调用自动重试策略（瞬时故障退避重试；默认见 `RetryPolicy::default`）
+    retry_policy: RetryPolicy,
+    /// 退避睡眠实现（生产 = `std::thread::sleep`；测试注入零等待，避免真实等待）
+    sleeper: Arc<dyn Fn(Duration) + Send + Sync>,
+    /// 回合取消标志（`Some` 时重试循环在每次尝试前/退避后可被中断；由 AgentRuntime 注入）
+    cancel: Option<Arc<AtomicBool>>,
 }
 
 /// HTTP 传输抽象（内部 trait，非 uniffi 面）：便于单测注入 mock。
@@ -172,6 +180,9 @@ impl NativeGateway {
             signer,
             db: Mutex::new(None),
             schema_version: AtomicI64::new(0),
+            retry_policy: RetryPolicy::default(),
+            sleeper: Arc::new(|d| std::thread::sleep(d)),
+            cancel: None,
         }
     }
 
@@ -192,7 +203,30 @@ impl NativeGateway {
             signer,
             db: Mutex::new(None),
             schema_version: AtomicI64::new(0),
+            retry_policy: RetryPolicy::default(),
+            sleeper: Arc::new(|d| std::thread::sleep(d)),
+            cancel: None,
         }
+    }
+
+    // ── 重试 / 取消注入（生产走默认；测试注入零等待睡眠与取消标志） ──
+
+    /// 注入重试策略与退避睡眠实现（测试专用；生产用默认）。
+    pub(crate) fn with_retry(
+        mut self,
+        policy: RetryPolicy,
+        sleeper: Arc<dyn Fn(Duration) + Send + Sync>,
+    ) -> Self {
+        self.retry_policy = policy;
+        self.sleeper = sleeper;
+        self
+    }
+
+    /// 注入回合取消标志：重试循环在每次尝试前 / 退避等待后检查该标志，
+    /// 一旦置位立即停止重试（避免在 WorkManager 中断 / 用户停止生成后继续重试）。
+    pub(crate) fn with_cancel(mut self, cancel: Arc<AtomicBool>) -> Self {
+        self.cancel = Some(cancel);
+        self
     }
 
     // ── SQLite 直读 ──
@@ -713,6 +747,10 @@ impl NativeGateway {
 
     /// 发送一轮请求并返回与旧契约同构的响应 JSON：
     /// {content, tool_calls:[{id,name,arguments}], finish_reason}
+    ///
+    /// 重试：每个 API Key 的 HTTP 调用经 [`retry::run_with_retry`] 包裹——
+    /// 瞬时故障（连接/超时/408/429/5xx）按策略退避重试；客户端错误（4xx）立即失败。
+    /// 单个 Key 重试耗尽后沿用既有「故障转移到下一个 Key」语义；最终失败保留原始错误。
     pub fn send(
         &self,
         request: &AgentTurnRequest,
@@ -726,40 +764,51 @@ impl NativeGateway {
             return Err("模型名未配置，请在「API设置」中重新测试连接".to_string());
         }
         let keys = self.resolve_keys(&cfg)?;
+        let anthropic = self.is_anthropic(&cfg);
+
+        // 每轮重建请求体（与 Key 无关，循环外只构造一次）
+        let system_prompt = self.resolve_system_prompt(request);
+        let (path, body) = if anthropic {
+            let body =
+                self.build_anthropic_body(&cfg, messages, &system_prompt, request, tools, tool_choice);
+            ("/messages", body)
+        } else {
+            let mut msgs = messages.to_vec();
+            replace_persona_system(&mut msgs, &system_prompt);
+            let body = self.build_openai_body(&cfg, &msgs, tools, tool_choice, request, false);
+            ("/chat/completions", body)
+        };
 
         let mut last_err: Option<String> = None;
         for key in &keys {
-            if self.is_anthropic(&cfg) {
-                // Anthropic 非流式
-                let system_prompt = self.resolve_system_prompt(request);
-                let body =
-                    self.build_anthropic_body(&cfg, messages, &system_prompt, request, tools, tool_choice);
-                match self.http_post_json(&cfg, key, "/messages", &body, true) {
-                    Ok(resp) => {
-                        if extract_error_message(&resp).is_some() {
-                            last_err = Some("API返回错误".to_string());
-                        } else {
-                            return Ok(parse_anthropic_response(&resp));
-                        }
+            let attempt = || match self.http_post_json(&cfg, key, path, &body, anthropic) {
+                Ok(resp) => {
+                    // HTTP 2xx 但响应体含 error 字段（部分厂商）→ 视为该 Key 失败（不重试，换 Key）
+                    match extract_error_message(&resp) {
+                        Some(msg) => Err(AttemptFailure::fatal(format!("API 返回错误: {msg}"))),
+                        None => Ok(resp),
                     }
-                    Err(e) => last_err = Some(e),
                 }
-            } else {
-                // OpenAI 兼容
-                let system_prompt = self.resolve_system_prompt(request);
-                let mut msgs = messages.to_vec();
-                replace_persona_system(&mut msgs, &system_prompt);
-                let body = self.build_openai_body(&cfg, &msgs, tools, tool_choice, request, false);
-                match self.http_post_json(&cfg, key, "/chat/completions", &body, false) {
-                    Ok(resp) => {
-                        if extract_error_message(&resp).is_some() {
-                            last_err = Some("API返回错误".to_string());
-                        } else {
-                            return Ok(parse_openai_response(&resp));
-                        }
-                    }
-                    Err(e) => last_err = Some(e),
+                Err(e) => {
+                    let (retryable, retry_after) = retry::classify_error(&e);
+                    Err(AttemptFailure { message: e, retryable, retry_after })
                 }
+            };
+            match retry::run_with_retry(
+                self.retry_policy,
+                self.cancel.as_deref(),
+                "send",
+                attempt,
+                |d| (self.sleeper)(d),
+            ) {
+                Ok(resp) => {
+                    return Ok(if anthropic {
+                        parse_anthropic_response(&resp)
+                    } else {
+                        parse_openai_response(&resp)
+                    });
+                }
+                Err(e) => last_err = Some(e),
             }
         }
         Err(last_err.unwrap_or_else(|| "所有 API Key 均请求失败".to_string()))
@@ -768,6 +817,9 @@ impl NativeGateway {
     // ── 流式发送（SSE） ──
 
     /// 流式发送：OpenAI 兼容 SSE。增量经 sink 实时回调；返回与 send 同构的完整响应 JSON。
+    ///
+    /// 重试：与 [`Self::send`] 同策略，但**已向 sink 交付过任何增量后不再重试**
+    /// （否则会重复打字/重复气泡）——此时立即失败，也不再切换 API Key。
     pub fn send_stream(
         &self,
         request: &AgentTurnRequest,
@@ -802,9 +854,34 @@ impl NativeGateway {
 
         let mut last_err: Option<String> = None;
         for key in &keys {
-            match self.http_post_stream(&cfg, key, &body, sink) {
+            // 交付守卫：一旦本 Key 尝试中已向 sink 交付增量，则不得重试/换 Key
+            let delivered = AtomicBool::new(false);
+            let guarded = DeliveryGuardedSink { inner: sink, delivered: &delivered };
+            let attempt = || match self.http_post_stream(&cfg, key, &body, &guarded) {
+                Ok(resp) => Ok(resp),
+                Err(e) => {
+                    let (mut retryable, retry_after) = retry::classify_error(&e);
+                    if delivered.load(Ordering::SeqCst) {
+                        retryable = false;
+                    }
+                    Err(AttemptFailure { message: e, retryable, retry_after })
+                }
+            };
+            match retry::run_with_retry(
+                self.retry_policy,
+                self.cancel.as_deref(),
+                "send_stream",
+                attempt,
+                |d| (self.sleeper)(d),
+            ) {
                 Ok(resp) => return Ok(resp),
-                Err(e) => last_err = Some(e),
+                Err(e) => {
+                    // 已交付增量 → 不能换 Key 重放（重复输出）
+                    if delivered.load(Ordering::SeqCst) {
+                        return Err(e);
+                    }
+                    last_err = Some(e);
+                }
             }
         }
         Err(last_err.unwrap_or_else(|| "所有 API Key 均请求失败".to_string()))
@@ -891,7 +968,48 @@ impl NativeGateway {
     }
 }
 
+/// 交付守卫 Sink：包装真实 `StreamSink`，一旦有任一增量/完成回调发生即置位 `delivered`。
+///
+/// 用途：流式重试安全——只要已经向 UI 交付过字节，就不允许重试（否则重复打字/气泡）。
+struct DeliveryGuardedSink<'a> {
+    inner: &'a dyn StreamSink,
+    delivered: &'a AtomicBool,
+}
+
+impl StreamSink for DeliveryGuardedSink<'_> {
+    fn on_text_delta(&self, text: String) {
+        self.delivered.store(true, Ordering::SeqCst);
+        self.inner.on_text_delta(text);
+    }
+
+    fn on_reasoning_delta(&self, text: String) {
+        self.delivered.store(true, Ordering::SeqCst);
+        self.inner.on_reasoning_delta(text);
+    }
+
+    fn on_done(&self, full_text: String, finish_reason: String) {
+        self.delivered.store(true, Ordering::SeqCst);
+        self.inner.on_done(full_text, finish_reason);
+    }
+
+    fn on_error(&self, error: String) {
+        // 错误回调不算「已交付有效增量」：允许重试（若此前没有任何 delta）
+        self.inner.on_error(error);
+    }
+}
+
 // ── ureq 传输实现 ──
+
+/// 从错误响应提取 Retry-After（秒）并格式化为人类可读后缀。
+///
+/// 约定：仅整数秒（HTTP-date 形式忽略）。格式 `" (retry-after {secs}s)"`，
+/// 由 [`crate::retry::classify_error`] 解析并作为退避等待（受单次上限约束）。
+fn retry_after_suffix(resp: &ureq::Response) -> String {
+    resp.header("Retry-After")
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .map(|secs| format!(" (retry-after {secs}s)"))
+        .unwrap_or_default()
+}
 
 /// GET 请求：返回响应体文本（模型列表 / 余额查询等只读探测）
 fn ureq_get_once(url: &str, headers: &[(String, String)]) -> Result<String, String> {
@@ -943,10 +1061,11 @@ fn ureq_post_once(
     let resp = match req.send_string(body) {
         Ok(r) => r,
         Err(ureq::Error::Status(code, r)) => {
+            let suffix = retry_after_suffix(&r);
             let body = r.into_string().unwrap_or_default();
             let detail = extract_error_message(&body)
                 .unwrap_or_else(|| body.chars().take(300).collect::<String>());
-            return Err(format!("HTTP {code}: {detail}"));
+            return Err(format!("HTTP {code}: {detail}{suffix}"));
         }
         Err(e) => return Err(format!("HTTP 请求失败: {e}")),
     };
@@ -982,10 +1101,11 @@ fn ureq_post_stream(
     let resp = match req.send_string(body) {
         Ok(r) => r,
         Err(ureq::Error::Status(code, r)) => {
+            let suffix = retry_after_suffix(&r);
             let body = r.into_string().unwrap_or_default();
             let detail = extract_error_message(&body)
                 .unwrap_or_else(|| body.chars().take(300).collect::<String>());
-            return Err(format!("HTTP {code}: {detail}"));
+            return Err(format!("HTTP {code}: {detail}{suffix}"));
         }
         Err(e) => return Err(format!("HTTP 流式请求失败: {e}")),
     };
@@ -1368,6 +1488,7 @@ fn replace_persona_system(msgs: &mut Vec<Value>, system_prompt: &str) {
 mod tests {
     use super::*;
     use super::testutil::FakeSigner;
+    use crate::retry::RetryPolicy;
 
     /// 复用测试 sink：记录 delta / error / done
     struct CollectingSink {
@@ -2324,6 +2445,130 @@ mod tests {
         assert_eq!(v["finish_reason"], "error");
         assert_eq!(v["error"], "bad key");
     }
+
+    // ── LLM 调用自动重试（核心诉求：瞬时失败不得中断回合） ──
+
+    /// 构造一个注入了「零等待睡眠」的网关（测试不真实 sleep）。
+    fn gateway_with_retry(
+        db: &str,
+        transport: Arc<dyn HttpTransport>,
+        sleeper: Arc<dyn Fn(Duration) + Send + Sync>,
+    ) -> NativeGateway {
+        NativeGateway::with_transport(testutil::global_config(db), transport)
+            .with_retry(RetryPolicy::default(), sleeper)
+    }
+
+    fn simple_send_request() -> AgentTurnRequest {
+        AgentTurnRequest {
+            group_id: None,
+            history_json: r#"[{"role":"user","content":"在吗"}]"#.to_string(),
+            tools: vec![],
+            max_rounds: 1,
+            tool_choice: "auto".to_string(),
+            sticker_probability: 0,
+            image: None,
+            system_prompt: None,
+            companion_name_map_json: None,
+        }
+    }
+
+    /// 瞬时错误（5xx / 429）→ 自动重试 → 最终成功；3 次尝试全部发出。
+    #[test]
+    fn send_retries_transient_errors_then_succeeds() {
+        let db = testutil::temp_db();
+        let transport = Arc::new(testutil::ScriptedResultTransport::new(vec![
+            Err("HTTP 503: service unavailable"),
+            Err("HTTP 429: rate limited (retry-after 1s)"),
+            Ok(r#"{"choices":[{"message":{"content":"重试成功"},"finish_reason":"stop"}]}"#),
+        ]));
+        let gw = gateway_with_retry(&db, transport.clone(), Arc::new(|_| {}));
+        let request = simple_send_request();
+        let raw = gw
+            .send(&request, Some(1), &[], &json!([]), "auto")
+            .expect("重试后应成功");
+        let parsed: Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(parsed["content"], "重试成功");
+        // 证据：3 次尝试都被真实发出（前两次失败、第三次成功）
+        assert_eq!(transport.requests.lock().unwrap().len(), 3);
+    }
+
+    /// 客户端错误（401）不可重试：立即失败，只发出 1 次请求，保留原始错误语义。
+    #[test]
+    fn send_does_not_retry_client_errors() {
+        let db = testutil::temp_db_single_key();
+        let transport = Arc::new(testutil::ScriptedResultTransport::new(vec![Err(
+            "HTTP 401: invalid api key",
+        )]));
+        let gw = gateway_with_retry(&db, transport.clone(), Arc::new(|_| {}));
+        let request = simple_send_request();
+        let err = gw
+            .send(&request, Some(1), &[], &json!([]), "auto")
+            .unwrap_err();
+        assert!(err.contains("401"), "应保留原始状态码，实际: {err}");
+        assert!(err.contains("invalid api key"), "应保留原始错误信息，实际: {err}");
+        assert_eq!(transport.requests.lock().unwrap().len(), 1, "401 不得重试");
+    }
+
+    /// 重试耗尽后保留最终失败信息（不吞错），尝试次数 = max_attempts。
+    #[test]
+    fn send_preserves_final_error_after_retries_exhausted() {
+        let db = testutil::temp_db_single_key();
+        let transport = Arc::new(testutil::ScriptedResultTransport::new(vec![Err(
+            "HTTP 500: upstream boom",
+        )]));
+        let gw = gateway_with_retry(&db, transport.clone(), Arc::new(|_| {}));
+        let request = simple_send_request();
+        let err = gw
+            .send(&request, Some(1), &[], &json!([]), "auto")
+            .unwrap_err();
+        assert!(err.contains("upstream boom"), "最终错误应保留原始信息，实际: {err}");
+        assert_eq!(
+            transport.requests.lock().unwrap().len(),
+            RetryPolicy::default().max_attempts as usize
+        );
+    }
+
+    /// 取消：退避等待期间被取消 → 停止重试，只尝试 1 次。
+    #[test]
+    fn send_retry_stops_when_cancelled_during_backoff() {
+        let db = testutil::temp_db_single_key();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let cancel_for_sleep = cancel.clone();
+        let transport = Arc::new(testutil::ScriptedResultTransport::new(vec![Err(
+            "HTTP 503: service unavailable",
+        )]));
+        let gw = NativeGateway::with_transport(testutil::global_config(&db), transport.clone())
+            .with_retry(RetryPolicy::default(), Arc::new(move |_| {
+                cancel_for_sleep.store(true, Ordering::SeqCst);
+            }))
+            .with_cancel(cancel.clone());
+        let request = simple_send_request();
+        let err = gw
+            .send(&request, Some(1), &[], &json!([]), "auto")
+            .unwrap_err();
+        assert!(err.contains("取消"), "应返回取消语义，实际: {err}");
+        assert_eq!(transport.requests.lock().unwrap().len(), 1, "取消后不得再次尝试");
+    }
+
+    /// 流式：首个增量交付前的瞬时错误 → 重试成功。
+    #[test]
+    fn send_stream_retries_before_any_delta() {
+        let db = testutil::temp_db();
+        let transport = Arc::new(testutil::ScriptedResultTransport::new(vec![
+            Err("HTTP 500: boom"),
+            Ok(r#"{"content":"流式重试成功","finish_reason":"stop"}"#),
+        ]));
+        let gw = gateway_with_retry(&db, transport.clone(), Arc::new(|_| {}));
+        let request = simple_send_request();
+        let sink = collecting_sink();
+        let raw = gw
+            .send_stream(&request, Some(1), &[], &json!([]), "auto", &sink)
+            .expect("流式重试后应成功");
+        let parsed: Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(parsed["content"], "流式重试成功");
+        assert_eq!(sink.deltas.lock().unwrap().join(""), "流式重试成功");
+        assert_eq!(transport.requests.lock().unwrap().len(), 2);
+    }
 }
 
 // ── 测试工具（供 agent.rs tests 复用） ──
@@ -2413,6 +2658,17 @@ pub(crate) mod testutil {
                 crate::agent::RequestHeader { name: "X-LianYu-Sig".into(), value: "sig123".into() },
             ]
         }
+    }
+
+    /// 构造单 API Key 的临时库（清除备用 Key）——用于断言「尝试次数」的重试用例，
+    /// 避免多 Key 故障转移把请求计数放大。
+    pub fn temp_db_single_key() -> String {
+        let db = temp_db();
+        let conn = Connection::open(&db).unwrap();
+        conn.execute("UPDATE api_configs SET extraApiKeys='' WHERE id=1", [])
+            .unwrap();
+        drop(conn);
+        db
     }
 
     /// 构造带 api_configs/companions/memory_entries 的临时 SQLite 库，返回路径
@@ -2551,7 +2807,73 @@ pub(crate) mod testutil {
         }
     }
 
-    /// PARTNER 设备签名注入：回调产出 7 个头且随请求发出
+    /// 可编程结果传输：按序返回 `Ok(响应体)` / `Err(错误文本)`，用于重试与取消测试。
+    ///
+    /// 与 [MockTransport] 的区别：本传输能**返回 Err**（模拟 429/5xx/网络错误），
+    /// 从而驱动 NativeGateway 的重试路径；序列只剩最后一项时重复返回（便于「持续失败」用例）。
+    pub struct ScriptedResultTransport {
+        pub results: Mutex<Vec<Result<String, String>>>,
+        /// (url, headers, body)
+        pub requests: Mutex<Vec<(String, Vec<(String, String)>, String)>>,
+    }
+
+    impl ScriptedResultTransport {
+        pub fn new(results: Vec<Result<&str, &str>>) -> Self {
+            ScriptedResultTransport {
+                results: Mutex::new(
+                    results
+                        .into_iter()
+                        .map(|r| r.map(|s| s.to_string()).map_err(|s| s.to_string()))
+                        .collect(),
+                ),
+                requests: Mutex::new(Vec::new()),
+            }
+        }
+    }
+
+    impl HttpTransport for ScriptedResultTransport {
+        fn post_json(
+            &self,
+            url: &str,
+            headers: &[(String, String)],
+            body: &str,
+            stream: bool,
+            sink: Option<&dyn StreamSink>,
+        ) -> Result<String, String> {
+            self.requests
+                .lock()
+                .unwrap()
+                .push((url.to_string(), headers.to_vec(), body.to_string()));
+            let mut results = self.results.lock().unwrap();
+            if results.is_empty() {
+                return Err("ScriptedResultTransport: 无预置结果".to_string());
+            }
+            let outcome = results[0].clone();
+            if results.len() > 1 {
+                results.remove(0);
+            }
+            if stream {
+                if let (Ok(resp), Some(sink)) = (&outcome, sink) {
+                    let v: Value = serde_json::from_str(resp).unwrap_or(json!({}));
+                    let content = v.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
+                    let finish = v
+                        .get("finish_reason")
+                        .and_then(|f| f.as_str())
+                        .unwrap_or("stop")
+                        .to_string();
+                    if !content.is_empty() {
+                        sink.on_text_delta(content.clone());
+                    }
+                    sink.on_done(content, finish);
+                }
+            }
+            outcome
+        }
+
+        fn get_json(&self, _url: &str, _headers: &[(String, String)]) -> Result<String, String> {
+            Err("ScriptedResultTransport: get_json 未实现".to_string())
+        }
+    }
     #[test]
     fn partner_request_injects_device_signature_headers() {
         let mut config = testutil::global_config(&testutil::temp_db());
