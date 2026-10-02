@@ -29,7 +29,10 @@ class YuNianAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
 
-    override fun onInterrupt() = Unit
+    override fun onInterrupt() {
+        // 系统要求中断：立即移除悬浮窗（防残留），但保留订阅以便服务继续工作时按需再次显示。
+        overlayController?.hideNow()
+    }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         // 先移除悬浮窗（窗口 token 随服务断开立即失效，晚移会抛 BadTokenException 并残留）

@@ -1,6 +1,7 @@
 package com.yunian.ai.agent
 
 import android.content.Context
+import com.yunian.ai.agent.activity.AiActivityBus
 import com.yunian.ai.agent.audit.AgentDispatchRecorder
 import com.yunian.ai.agent.audit.PromptAuditRecorder
 import com.yunian.ai.agent.memory.MemoryStoreImpl
@@ -244,7 +245,11 @@ object AgentFacade {
         context: Context,
         companionId: Long?,
         toolHost: ToolHost,
-    ): AgentTurnResult = runtime(context).runTurn(request, companionId, toolHost)
+    ): AgentTurnResult = AiActivityBus.withTurn(AiActivityBus.nextTurnId()) {
+        // 回合边界（Task #4）：begin/end 包裹整轮，finally 保证异常/取消路径也 endTurn，
+        // 从而悬浮窗「回合内常驻、回合结束才消失」且不会永久滞留。
+        runtime(context).runTurn(request, companionId, toolHost)
+    }
         // 回合结束即把 Rust 侧新增日志（含自动重试链路）增量转发到 logcat，真机可见。
         .also { RustAgentLogBridge.dump(context) }
 
@@ -267,7 +272,10 @@ object AgentFacade {
         companionId: Long?,
         toolHost: ToolHost,
         sink: StreamSink,
-    ): AgentTurnResult = runtime(context).runTurnStream(request, companionId, toolHost, sink)
+    ): AgentTurnResult = AiActivityBus.withTurn(AiActivityBus.nextTurnId()) {
+        // 同 [runTurn]：finally 保证 endTurn，异常/取消路径也结束回合。
+        runtime(context).runTurnStream(request, companionId, toolHost, sink)
+    }
         // 同上：流式回合结束后增量转发 Rust 日志到 logcat。
         .also { RustAgentLogBridge.dump(context) }
 
