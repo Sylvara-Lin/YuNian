@@ -1144,6 +1144,8 @@ internal open class UniffiVTableCallbackInterfaceTurnStateController(
 
 
 
+
+
 // For large crates we prevent `MethodTooLargeException` (see #2340)
 // N.B. the name of the extension is very misleading, since it is 
 // rather `InterfaceTooLargeException`, caused by too many methods 
@@ -1178,6 +1180,8 @@ fun uniffi_lianyu_agent_checksum_func_parse_character_card_json(
 fun uniffi_lianyu_agent_checksum_func_parse_character_card_png(
 ): Short
 fun uniffi_lianyu_agent_checksum_method_agentruntime_approve_tool(
+): Short
+fun uniffi_lianyu_agent_checksum_method_agentruntime_cancel_current_turn(
 ): Short
 fun uniffi_lianyu_agent_checksum_method_agentruntime_core_plugin_snapshot(
 ): Short
@@ -1390,6 +1394,8 @@ fun uniffi_lianyu_agent_fn_free_agentruntime(`ptr`: Pointer,uniffi_out_err: Unif
 fun uniffi_lianyu_agent_fn_constructor_agentruntime_new(`config`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): Pointer
 fun uniffi_lianyu_agent_fn_method_agentruntime_approve_tool(`ptr`: Pointer,`name`: RustBuffer.ByValue,`args`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+fun uniffi_lianyu_agent_fn_method_agentruntime_cancel_current_turn(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): Unit
 fun uniffi_lianyu_agent_fn_method_agentruntime_core_plugin_snapshot(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
@@ -1775,6 +1781,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lianyu_agent_checksum_method_agentruntime_approve_tool() != 65336.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lianyu_agent_checksum_method_agentruntime_cancel_current_turn() != 39982.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lianyu_agent_checksum_method_agentruntime_core_plugin_snapshot() != 3821.toShort()) {
@@ -2550,6 +2559,18 @@ public interface AgentRuntimeInterface {
     fun `approveTool`(`name`: kotlin.String, `args`: kotlin.String)
     
     /**
+     * 请求取消当前正在进行中的回合（可从任意线程调用）。
+     *
+     * 语义：置位共享取消标志 → NativeGateway 的 LLM 自动重试循环在
+     * 「下一次尝试前 / 退避等待后」立即停止重试并以「请求已取消」结束，
+     * 不再对上游发起新的请求。每回合开始时自动复位（见 `run_turn_inner`）。
+     *
+     * 用途：用户停止生成、或 WorkManager 停止 worker 时，避免有界重试把
+     * 回合继续拖长（对应「调用方取消/中断时不得继续重试」）。
+     */
+    fun `cancelCurrentTurn`()
+    
+    /**
      * 核心插件宿主快照（审计/调试/设置页；宿主未初始化返回空对象）。
      * 方案 A：cordis-rs 底座可见性（UniFFI 导出，Kotlin AgentFacade 透传）。
      */
@@ -2764,6 +2785,27 @@ open class AgentRuntime: Disposable, AutoCloseable, AgentRuntimeInterface
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lianyu_agent_fn_method_agentruntime_approve_tool(
         it, FfiConverterString.lower(`name`),FfiConverterString.lower(`args`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * 请求取消当前正在进行中的回合（可从任意线程调用）。
+     *
+     * 语义：置位共享取消标志 → NativeGateway 的 LLM 自动重试循环在
+     * 「下一次尝试前 / 退避等待后」立即停止重试并以「请求已取消」结束，
+     * 不再对上游发起新的请求。每回合开始时自动复位（见 `run_turn_inner`）。
+     *
+     * 用途：用户停止生成、或 WorkManager 停止 worker 时，避免有界重试把
+     * 回合继续拖长（对应「调用方取消/中断时不得继续重试」）。
+     */override fun `cancelCurrentTurn`()
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lianyu_agent_fn_method_agentruntime_cancel_current_turn(
+        it, _status)
 }
     }
     
