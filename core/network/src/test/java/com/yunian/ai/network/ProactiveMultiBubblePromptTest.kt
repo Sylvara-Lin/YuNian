@@ -1,6 +1,7 @@
 package com.yunian.ai.network
 
 import com.yunian.ai.common.text.BubbleTextSplitter
+import com.yunian.ai.database.model.ChatMessage
 import com.yunian.ai.database.model.CompanionEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -249,5 +250,25 @@ class ProactiveMultiBubblePromptTest {
     @Test
     fun `parseProactiveGenerationResult 剥离marker后过短返回null`() {
         assertNull(AiPromptBuilder.parseProactiveGenerationResult("[NO_PROACTIVE]嗯"))
+    }
+
+    // ==================================================================
+    // 5. buildProactiveContext：补齐多气泡「输出格式」引导（旧路径兜底，与决策指令口径一致）
+    // ==================================================================
+
+    @Test
+    fun `主动上下文包含多气泡格式引导并与marker语义兼容`() {
+        val messages = listOf(
+            ChatMessage(companionId = 1L, content = "在忙吗", isFromUser = true),
+            ChatMessage(companionId = 1L, content = "在的", isFromUser = false),
+            ChatMessage(companionId = 1L, content = "那你忙吧", isFromUser = true),
+        )
+
+        val context = AiPromptBuilder.buildProactiveContext(messages, companion)
+
+        assertTrue("必须含多气泡引导「换行即下一条」", context.contains("换行即下一条"))
+        assertTrue("必须含「条数不限」", context.contains("条数不限"))
+        assertTrue("必须保留 marker 语义", context.contains(AiPromptBuilder.NO_PROACTIVE_MARKER))
+        assertTrue("应保留最近对话正文", context.contains("那你忙吧"))
     }
 }

@@ -129,6 +129,14 @@ object AiPromptBuilder {
             }
         }
 
+        // 输出格式：多气泡引导（换行即下一条）。与聊天路径 / 追问路径等价，
+        // 修复「主动问候永远只发一句」的观感（模型只敲一行 → 只产生 1 个气泡）。
+        sb.appendLine()
+        sb.appendLine("=== 输出格式（多气泡）===")
+        sb.appendLine("- 消息条数不限：换行即下一条。想多聊几句就多敲几行（真人微信会连发），只想说一句就一条。")
+        sb.appendLine("- 每条都是一句完整的口语；不要为凑条数硬拆，也不要把全部内容塞进一条长文。")
+        sb.appendLine("- 若判定本轮不该打扰，只输出 ${NO_PROACTIVE_MARKER}（不要附带任何正文或格式内容）。")
+
         return sb.toString()
     }
 

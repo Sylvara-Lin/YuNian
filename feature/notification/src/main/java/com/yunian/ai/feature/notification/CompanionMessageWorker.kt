@@ -325,8 +325,13 @@ class CompanionMessageWorker(
                 if (without.length < 2) return@withContext null
                 return@withContext without
             }
-            raw.replace(Regex("\\r\\n|\\r|\\n+"), "，")
+            // 保留模型自敲的换行（= 想连发下一条的信号），**不再**压成「，」——
+            // 下游 sendMessage 用 BubbleTextSplitter.splitByParagraphs 按换行拆分，多行即多气泡。
+            // （此前 `\n+ -> ，` 会把多行硬压成一行 → 永远只发一句，真机实测根因之一。）
+            raw.replace(Regex("\\r\\n|\\r"), "\n")   // 统一换行符，保留换行
+                .replace(Regex("\\n{3,}"), "\n\n")    // 折叠多余空行，避免空气泡
                 .replace(Regex("，{2,}"), "，")
+                .trim()
                 .trimStart('，', ',', '.', '。', ' ')
                 .trim()
                 .takeIf { it.length >= 2 }
@@ -335,33 +340,21 @@ class CompanionMessageWorker(
         }.getOrNull()
     }
 
-    /** 主动消息 / 追问的单轮指令（对齐旧 AiService 提示词的语义要点）。 */
+    /**
+     * 主动消息 / 追问的单轮指令（对齐旧 AiService 提示词的语义要点）。
+     *
+     * 迁到 [ProactiveMessageInstruction]（纯函数、可单测）：补齐多气泡引导，
+     * 去掉旧的「只发 1 条 / 优先 1 条」单气泡硬限制（真机问题「主动问候只发一句」的根因之一）。
+     */
     private fun buildProactiveInstruction(
         companion: com.yunian.ai.database.model.CompanionEntity,
         settings: ProactiveMessageSettings,
         followUp: Boolean,
-    ): String = if (followUp) {
-        """
-        你上一条消息发出后，用户一直没回复。
-        现在由你决定是否追问：
-        - 若判断用户可能在忙、已休息或对话已自然收尾，只输出 $NO_PROACTIVE_MARKER，不要硬催。
-        - 若决定追问：只发 1 条，10~30 字，简短自然，语气严格服从你的性格。
-        - 不要重复上一条消息的内容，不要堆叠追问，不要说教。禁止括号，禁止AI感词汇。
-        """.trimIndent()
-    } else {
-        """
-        以${companion.name}的身份决定是否、以及如何继续刚才的对话。
-        - 若用户此刻明显不想被打扰、对话已自然收束，只输出 $NO_PROACTIVE_MARKER，不要硬聊。
-        - 话题选择以性格优先：上一话题已完结或不感兴趣时，可轻转、只回情绪，或输出 $NO_PROACTIVE_MARKER。
-        若决定发消息：
-        1. 像真人聊天一样自然，单次单动作且句式完整；不要长文堆叠共情+方案+追问
-        2. 优先 1 条消息，不要拆成很多短句连发
-        3. 不要重新开场、不要念日程；语气严格服从角色性格
-        4. 禁止括号，禁止AI感词汇，禁止说教
-        5. 时间只是背景，不要机械报时或按时段派发固定关心任务
-        ${if (settings.allowLateNightMessage) "" else "6. 当前处于免打扰时段，只做话题延续或情绪轻触，禁止提睡/吃/到家/报时"}
-        """.trimIndent()
-    }
+    ): String = ProactiveMessageInstruction.build(
+        companionName = companion.name,
+        allowLateNightMessage = settings.allowLateNightMessage,
+        followUp = followUp,
+    )
 
     /** 领域历史 → OpenAI messages JSON，尾部追加一条 user 指令。 */
     private fun serializeHistoryJson(
@@ -525,8 +518,8 @@ class CompanionMessageWorker(
     companion object {
         private const val WORK_NAME = "companion_message_work"
 
-        /** 主动消息/追问的「本轮不发言」语义标记（与 AiPromptBuilder.NO_PROACTIVE_MARKER 同值）。 */
-        private const val NO_PROACTIVE_MARKER = "[NO_PROACTIVE]"
+        /** 主动消息/追问的「本轮不发言」语义标记（与 AiPromptBuilder / ProactiveMessageInstruction 同值）。 */
+        private const val NO_PROACTIVE_MARKER = ProactiveMessageInstruction.NO_PROACTIVE_MARKER
 
         private const val DAILY_COUNT_PREFS = "proactive_daily_count"
 
