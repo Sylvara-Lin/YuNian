@@ -250,8 +250,11 @@ impl NativeGateway {
             if let Ok(v) = conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0)) {
                 self.schema_version.store(v, Ordering::Relaxed);
                 if v < MIN_SUPPORTED_SCHEMA || v > MAX_SUPPORTED_SCHEMA {
-                    eprintln!(
-                        "[lianyu_agent] Room schema user_version={v} 超出 Agent 直读支持范围 [{MIN_SUPPORTED_SCHEMA}..={MAX_SUPPORTED_SCHEMA}]——Room 迁移后必须同步 native_gateway.rs 的 MIN/MAX_SUPPORTED_SCHEMA"
+                    crate::agentlog::warn(
+                        "native_gateway",
+                        &format!(
+                            "Room schema user_version={v} 超出 Agent 直读支持范围 [{MIN_SUPPORTED_SCHEMA}..={MAX_SUPPORTED_SCHEMA}]——Room 迁移后必须同步 native_gateway.rs 的 MIN/MAX_SUPPORTED_SCHEMA"
+                        ),
                     );
                 }
             }

@@ -103,7 +103,7 @@ fn turn_observer_handle() -> PluginHandle {
             Ok(None)
         })?;
         Ok(PluginOutput::infallible(|| {
-            eprintln!("[lianyu_agent] cordis plugin unloaded: turn-observer");
+            crate::agentlog::info("cordis", "cordis plugin unloaded: turn-observer");
         }))
     })
 }
@@ -165,7 +165,10 @@ fn turn_consolidation_handle() -> PluginHandle {
             let turns = stats_end.turns_completed.load(Ordering::Relaxed);
             if turns > 0 && turns % 5 == 0 && mem_end.should_consolidate(None) {
                 stats_end.consolidations_due.fetch_add(1, Ordering::Relaxed);
-                eprintln!("[lianyu_agent] cordis plugin turn-consolidation: 记忆整理时机已到 (turns={turns})");
+                crate::agentlog::info(
+                    "cordis",
+                    &format!("cordis plugin turn-consolidation: 记忆整理时机已到 (turns={turns})"),
+                );
             }
             Ok::<Option<EventValue>, _>(None)
         })?;

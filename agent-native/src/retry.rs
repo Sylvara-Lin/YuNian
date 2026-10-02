@@ -204,14 +204,14 @@ where
     let mut tries: u32 = 0;
     loop {
         if is_cancelled(cancel) {
-            eprintln!("[lianyu_agent][retry] {label}: 已取消，停止重试");
+            crate::agentlog::warn("retry", &format!("{label}: 已取消，停止重试"));
             return Err(CANCELLED_MESSAGE.to_string());
         }
         tries += 1;
         match attempt() {
             Ok(value) => {
                 if tries > 1 {
-                    eprintln!("[lianyu_agent][retry] {label}: 第 {tries} 次尝试成功");
+                    crate::agentlog::info("retry", &format!("{label}: 第 {tries} 次尝试成功"));
                 }
                 return Ok(value);
             }
@@ -220,27 +220,36 @@ where
                     return Err(failure.message);
                 }
                 if tries >= policy.max_attempts {
-                    eprintln!(
-                        "[lianyu_agent][retry] {label}: 已达最大尝试次数 {tries}/{}，最终失败：{}",
-                        policy.max_attempts, failure.message
+                    crate::agentlog::warn(
+                        "retry",
+                        &format!(
+                            "{label}: 已达最大尝试次数 {tries}/{}，最终失败：{}",
+                            policy.max_attempts, failure.message
+                        ),
                     );
                     return Err(failure.message);
                 }
                 let backoff = compute_backoff(&policy, tries, failure.retry_after);
                 if started.elapsed() + backoff > policy.total_budget {
-                    eprintln!(
-                        "[lianyu_agent][retry] {label}: 退避将超出总预算 {:?}，放弃重试：{}",
-                        policy.total_budget, failure.message
+                    crate::agentlog::warn(
+                        "retry",
+                        &format!(
+                            "{label}: 退避将超出总预算 {:?}，放弃重试：{}",
+                            policy.total_budget, failure.message
+                        ),
                     );
                     return Err(failure.message);
                 }
-                eprintln!(
-                    "[lianyu_agent][retry] {label}: 第 {tries}/{} 次失败（{}），{:?} 后重试",
-                    policy.max_attempts, failure.message, backoff
+                crate::agentlog::warn(
+                    "retry",
+                    &format!(
+                        "{label}: 第 {tries}/{} 次失败（{}），{:?} 后重试",
+                        policy.max_attempts, failure.message, backoff
+                    ),
                 );
                 on_backoff(backoff);
                 if is_cancelled(cancel) {
-                    eprintln!("[lianyu_agent][retry] {label}: 退避期间被取消，停止重试");
+                    crate::agentlog::warn("retry", &format!("{label}: 退避期间被取消，停止重试"));
                     return Err(CANCELLED_MESSAGE.to_string());
                 }
             }

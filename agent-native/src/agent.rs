@@ -705,6 +705,11 @@ impl AgentRuntime {
             }));
         }
 
+        // 初始化 Agent 日志文件（真机可见性方案 A）：与 db 同目录 + 固定文件名，
+        // Kotlin 侧 RustAgentLogBridge 增量 dump 到 logcat（tag=LianYuNative）。
+        // eprintln! 在 Android 应用进程被重定向到 /dev/null，故必须有文件通道。
+        crate::agentlog::init(&config.db_path);
+
         Arc::new(AgentRuntime {
             db_path: config.db_path,
             device_id: config.device_id,
@@ -868,7 +873,7 @@ impl AgentRuntime {
                 match crate::lorebook::Lorebook::parse(&j) {
                     Ok(lb) => Some(Arc::new(lb)),
                     Err(e) => {
-                        eprintln!("[lianyu_agent] worldbook parse failed: {e}");
+                        crate::agentlog::warn("agent", &format!("worldbook parse failed: {e}"));
                         None
                     }
                 }
@@ -1570,7 +1575,7 @@ impl AgentRuntime {
                     skill: self.orchestrator.as_ref().and_then(|o| o.skill_selector()),
                 };
                 crate::cordis_bridge::CorePluginHost::new(selectors).map_err(|e| {
-                    eprintln!("[lianyu_agent] core plugin host init failed: {e}");
+                    crate::agentlog::warn("agent", &format!("core plugin host init failed: {e}"));
                 })
             })
             .clone()

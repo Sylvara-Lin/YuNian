@@ -9,6 +9,7 @@
 //   不承载任何 Agent 决策逻辑。
 
 pub mod agent;
+pub mod agentlog;
 pub mod api_probe;
 pub mod card_import;
 pub mod cordis_bridge;

@@ -257,22 +257,31 @@ impl PromptOrchestrator {
                             content: trimmed.to_string(),
                             role: None,
                         });
-                        eprintln!(
-                            "[prompt] chat_protocol injected ({} chars) companion={:?}",
-                            trimmed.chars().count(),
-                            companion_id
+                        crate::agentlog::info(
+                            "prompt",
+                            &format!(
+                                "chat_protocol injected ({} chars) companion={:?}",
+                                trimmed.chars().count(),
+                                companion_id
+                            ),
                         );
                     }
                 } else {
-                    eprintln!(
-                        "[prompt] chat_protocol NOT FOUND companion={:?} available_tools={:?}",
-                        companion_id, options.available_tools
+                    crate::agentlog::info(
+                        "prompt",
+                        &format!(
+                            "chat_protocol NOT FOUND companion={:?} available_tools={:?}",
+                            companion_id, options.available_tools
+                        ),
                     );
                 }
             } else {
-                eprintln!(
-                    "[prompt] no emit_bubble in available_tools={:?}",
-                    options.available_tools
+                crate::agentlog::info(
+                    "prompt",
+                    &format!(
+                        "no emit_bubble in available_tools={:?}",
+                        options.available_tools
+                    ),
                 );
             }
             // 已注入正文的聊天协议不再要求 load_skill，避免每次普通聊天额外消耗一轮。

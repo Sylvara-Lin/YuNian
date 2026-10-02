@@ -85,6 +85,8 @@ object AgentFacade {
         runCatching { runtime(context) }.onFailure {
             android.util.Log.w(TAG, "warmUp failed: ${it.message}")
         }
+        // 转发上一会话遗留的 Rust 日志到 logcat（真机可见性方案 A；见 RustAgentLogBridge）。
+        RustAgentLogBridge.dump(context)
     }
 
     /**
@@ -243,6 +245,8 @@ object AgentFacade {
         companionId: Long?,
         toolHost: ToolHost,
     ): AgentTurnResult = runtime(context).runTurn(request, companionId, toolHost)
+        // 回合结束即把 Rust 侧新增日志（含自动重试链路）增量转发到 logcat，真机可见。
+        .also { RustAgentLogBridge.dump(context) }
 
     /**
      * 运行一轮流式 Agent 回合（SSE 流式输出完全下沉 rs）。
@@ -264,6 +268,8 @@ object AgentFacade {
         toolHost: ToolHost,
         sink: StreamSink,
     ): AgentTurnResult = runtime(context).runTurnStream(request, companionId, toolHost, sink)
+        // 同上：流式回合结束后增量转发 Rust 日志到 logcat。
+        .also { RustAgentLogBridge.dump(context) }
 
     // ── 全局工具注册表（决策在 Rust：builtin + global + session 三级组装） ──
 
