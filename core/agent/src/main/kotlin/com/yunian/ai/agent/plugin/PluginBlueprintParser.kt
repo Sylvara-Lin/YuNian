@@ -13,8 +13,8 @@ import org.json.JSONObject
  * {
  *   "id": "default",
  *   "name": "默认蓝图",
- *   "plugins": [ { "id": "coffee.luckin", "enabled": true, "config": {...} } ],
- *   "patches": [ { "id": "coffee.luckin", "enabled": true, "config": {...} } ],
+ *   "plugins": [ { "id": "automation.core", "enabled": true, "config": {...} } ],
+ *   "patches": [ { "id": "automation.core", "enabled": true, "config": {...} } ],
  *   "inserts": [ { "id": "skill.xxx", "config": {...} } ]
  * }
  * ```

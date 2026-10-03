@@ -141,3 +141,47 @@ core:domain / core:network / feature:chat 编译全过。
 4. **新增 `web_fetch` 工具**：抓取任意网页/GET 接口转文本（等效 OpenMinis 沙盒里的 curl，但无需虚拟 Linux）。行动指令写入技能安装标准路径：web_fetch 搜 GitHub 仓库 → 读 raw SKILL.md → skill_install 全程自主，不再向用户索要链接。
 
 验证：core:domain + feature:chat 编译全过。
+
+---
+
+# 瑞幸咖啡功能下线（2026-10-03）
+
+## 做了什么
+按用户裁定**整体下线**「瑞幸咖啡」功能：模块、Cordis 代码插件、跨模块契约、导航路由与 UI 入口、蓝图条目、定位权限与测试夹具引用一并清除，并在启动时一次性清理历史版本残留的凭据文件。全程未动仓库环境配置（`gradle.properties` / `gradle/wrapper/*` / `gradle/libs.versions.toml` / `settings.gradle.kts` 的仓库镜像），未新增任何 Gradle 依赖，未改变模块依赖方向。
+
+## 删了什么
+1. **模块**：整目录 `feature/coffee/`（13 个 Kotlin 文件 + `res/values/strings.xml` + `AndroidManifest.xml` + `build.gradle.kts`，共 16 个文件），并从 `settings.gradle.kts` 删 `include(":feature:coffee")`、从 `app/build.gradle.kts` 删 `implementation(project(":feature:coffee"))` 各一行。
+2. **Cordis 代码插件**：`coffee.luckin`（6 个 `luckin_*` 工具）从 `app/src/main/assets/blueprints/default.json` 移除（JSON 仍合法，其余 7 项顺序不变）；`YuNianApplication` 里 `pluginHost.register(CoffeePlugin(...))` 与其 `ServiceRegistry.registerSingleton(CoffeeOrderProvider::class.java)` 绑定、`import CoffeeOrderProvider` 一并删除，首批代码插件清单注释同步订正。
+3. **跨模块契约**：`core/domain/.../CoffeeOrderProvider.kt` 删除。删前全仓复核：唯一消费者是 `YuNianApplication`。
+4. **路由与 UI 入口**：`MainRoute` 的 `Coffee` / `CoffeeProduct` / `CoffeeSettings` / `CoffeeToken` / `CoffeeOrderQuery` / `CoffeeOrderQueryWithId` 六个路由对象及 `fromRoute` 的 6 个分支；`MainNavGraph` 的 5 条 import、`onCoffeeClick` 实参与 6 个 `composable` 块；`feature/profile` 的 `ToolsSettingsScreen.onCoffeeClick` 形参（含 `GeneralSettingsScreen` 默认值）、「瑞幸咖啡」菜单项与 `coffee_title` / `coffee_desc` 两条字符串。工具分类入口图标 `AppIcons.Coffee` **保留**（共享图标名，仍是「工具设置」分类的图标）。
+5. **权限**：`app/src/main/AndroidManifest.xml` 的 `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` 与配套注释删除。删前复核：全仓源码（排除 `build/` 与嵌套参考检出 `_ref_master/`）搜 `ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|LocationManager|getLastKnownLocation`，命中仅 `feature/coffee/.../CoffeeScreen.kt`（已删）与 app manifest 自身（唯一声明点），复核通过。
+6. **测试夹具**：6 个测试文件把陈旧插件 id `coffee.luckin` 换成仍存在的真实 id `automation.core`（排序 / 大小写断言同步改成新 id 的正确期望值，未放宽、未删除任何断言）；`CapabilityGrantTestFixtures` 的生产确认工具镜像删掉 `luckin_create_order` 一条，7 → 6，类级 KDoc 与辅助函数 KDoc 的「7 个」表述同步订正。
+
+## 残留凭据清理
+历史版本的瑞幸 MCP Token 存在 DataStore 文件 `filesDir/datastore/luckin_coffee_prefs.preferences_pb`。功能下线后该文件不再有任何读取方，但 Token 属明文凭据，故在启动时一次性清除（`YuNianApplication` 内，紧邻 `McpToolRegistrar.syncTools()` 那段）：
+- **幂等**：`takeIf { it.exists() }?.delete()`，文件不存在时静默返回，不抛、不报错；
+- **best-effort**：整体 `runCatching`，失败只走 `SecureLog.e`，绝不阻断启动；
+- **不占主线程**：放在既有的 `bgScope.launch { }` 后台协程里；且**独立 launch** 而非并入 `syncTools` 的协程体——并入会让清理排在 `syncTools` 之后（它抛异常则清理永不执行），也会给既有启动时序增加耦合。独立 launch 保证零干扰，未改变任何既有启动时序 / 放行屏障。
+
+**不涉及 Room**：本地数据走 DataStore，未新增 Entity / DAO / Migration，AppDatabase 版本 45 与实体清单一行未动；未动 `ContentFilter` / FGS / 心跳 / 消息管线 / 网络层。
+
+## 验证
+- `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL**（459 actionable tasks，`app:compileDebugKotlin` 零错误）。
+- `./gradlew :core:agent:testDebugUnitTest :core:ui-common:testDebugUnitTest` → **BUILD SUCCESSFUL**；`:core:agent` **303 tests / 0 failures**，`:core:ui-common` **15 tests / 0 failures**。
+- 全仓（排除 `build/`、`docs/`、`.git/`、嵌套参考检出 `_ref_master/`）grep `coffee|luckin|瑞幸`：2152 个源文件扫描，剩 74 处命中，均为**保留项或历史记录**，无功能性残留（清单见下）。
+- 构建期两次因**并行任务占用** `core/domain|core:database` 的 `classes.jar`（`java.nio.file.FileSystemException: 另一个程序正在使用此文件`）失败，非本次改动所致；待并行 Gradle 守护进程空闲后重跑即通过。
+
+## 剩余引用与保留理由
+| 位置 | 数量 | 保留理由 |
+|---|---|---|
+| `core/ui-common/.../AppIcons.kt` + `feature/profile/.../GeneralSettingsScreen.kt` | 2 | `AppIcons.Coffee` 是共享图标名，「工具设置」分类仍在使用 |
+| `YuNianApplication.kt` | 4 | **本次新增**的凭据清理代码自身（路径字面量 `luckin_coffee_prefs` 与日志文案），属必需 |
+| `.device-backup/logcat_*.txt` | 9 | 设备日志历史回显，非当前态断言 |
+| `README.md` / `AGENTS.md` / `CLAUDE.md` | 7 | 仓库文档，不在本次授权范围 |
+| `core/agent` / `core/ui-common` 源码 KDoc（`CapabilityGrantCodec.kt`、`CapabilityGrantStoreImpl.kt`、`PluginBlueprintParser.kt`、`PluginSettingsSection.kt`、`Plugin.kt`） | 7 | 插件 id 的**示例注释**（形如「如 `coffee.luckin`」），非功能引用 |
+| `core/agent` 测试里把 `luckin_*` 当**任意夹具工具名** | 25 | 纯字符串夹具，测试全绿；不影响编译与行为 |
+| `feature/chat`：`ToolActivityBar.kt` / `ChatScreen.kt` / `ChatToolIntent.kt` | 9 | ⚠️ **功能性残留（非本次授权范围）**：`luckin_*` 工具友好名映射、确认标题映射，以及 `ChatToolIntent` 关键词闸门里的「咖啡 / 瑞幸 / luckin」——工具已不存在，这些映射成为死条目（关键词会让「瑞幸」触发一次无结果的工具意图判定）。建议后续清理 |
+| `feature/settings`：`CapabilityGrantBoard.kt` / `CapabilityGrantBoardTest.kt` / `PluginSettingsBoardTest.kt` | 6 | ⚠️ 属**并行子代理**领地，未动 |
+| `feature/profile` 4 个 locale 的 `settings_category_tools_desc` | 4 | ⚠️ **用户可见残留（非本次授权范围）**：文案仍为「瑞幸咖啡等工具能力」/「Luckin Coffee and other tools」/「瑞幸コーヒーなどのツール」。建议改为「自动化等工具能力」等 |
+| `.idea/gradle.xml` | 1 | IDE 工程配置里仍列 `$PROJECT_DIR$/feature/coffee`（本地 IDE 元数据，非构建输入） |
+

@@ -17,8 +17,8 @@ import org.junit.Test
 class CapabilityGrantCodecTest {
 
     private val tapAllowed = CapabilityGrant(companionId = 42L, toolName = "screen_tap", allowed = true)
-    private val luckinWildcardAllowed =
-        CapabilityGrant(companionId = null, toolName = "luckin_create_order", allowed = true)
+    private val clickTextWildcardAllowed =
+        CapabilityGrant(companionId = null, toolName = "screen_click_text", allowed = true)
     private val tapDeniedFor7 = CapabilityGrant(companionId = 7L, toolName = "automation_create", allowed = false)
 
     // ── 编码 ──
@@ -26,10 +26,10 @@ class CapabilityGrantCodecTest {
     @Test
     fun `编码格式为每条决定一行、竖线分隔三字段`() {
         assertEquals("42|screen_tap|1", CapabilityGrantCodec.encode(listOf(tapAllowed)))
-        assertEquals("*|luckin_create_order|1", CapabilityGrantCodec.encode(listOf(luckinWildcardAllowed)))
+        assertEquals("*|screen_click_text|1", CapabilityGrantCodec.encode(listOf(clickTextWildcardAllowed)))
         assertEquals(
-            "42|screen_tap|1\n*|luckin_create_order|1",
-            CapabilityGrantCodec.encode(listOf(tapAllowed, luckinWildcardAllowed)),
+            "42|screen_tap|1\n*|screen_click_text|1",
+            CapabilityGrantCodec.encode(listOf(tapAllowed, clickTextWildcardAllowed)),
         )
     }
 
@@ -63,7 +63,7 @@ class CapabilityGrantCodecTest {
 
     @Test
     fun `编解码往返稳定（含通配、allowed = false、保序、去重）`() {
-        val decisions = listOf(tapAllowed, luckinWildcardAllowed, tapDeniedFor7)
+        val decisions = listOf(tapAllowed, clickTextWildcardAllowed, tapDeniedFor7)
         val encoded = CapabilityGrantCodec.encode(decisions)
         val decoded = CapabilityGrantCodec.decode(encoded)
         assertEquals(0, decoded.droppedLineCount)
@@ -95,9 +95,9 @@ class CapabilityGrantCodecTest {
 
     @Test
     fun `容忍 CRLF、行首尾空白与只有部分行合法`() {
-        val raw = " 42|screen_tap|1 \r\n\r\n\t*|luckin_create_order|1\r\n"
+        val raw = " 42|screen_tap|1 \r\n\r\n\t*|screen_click_text|1\r\n"
         val decoded = CapabilityGrantCodec.decode(raw)
-        assertEquals(listOf(tapAllowed, luckinWildcardAllowed), decoded.decisions)
+        assertEquals(listOf(tapAllowed, clickTextWildcardAllowed), decoded.decisions)
         assertEquals(0, decoded.droppedLineCount)
     }
 
@@ -129,7 +129,7 @@ class CapabilityGrantCodecTest {
     fun `旧的三段式行（含通道维度）整体按坏行丢弃 ⇒ 等同无决定`() {
         val legacy = listOf(
             "42|qqbot|screen_tap",
-            "*|wechat|luckin_create_order",
+            "*|wechat|screen_click_text",
             "1|app.chat|automation_create",
         )
         for (line in legacy) {
@@ -149,11 +149,11 @@ class CapabilityGrantCodecTest {
             "42|screen_tap|1",
             "THIS IS GARBAGE",
             "1||broken_tool",
-            "*|luckin_create_order|1",
+            "*|screen_click_text|1",
             "1|screen_tap|1|with|pipes",
         ).joinToString("\n")
         val decoded = CapabilityGrantCodec.decode(raw)
-        assertEquals(listOf(tapAllowed, luckinWildcardAllowed), decoded.decisions)
+        assertEquals(listOf(tapAllowed, clickTextWildcardAllowed), decoded.decisions)
         assertEquals("3 条坏行全部计数", 3, decoded.droppedLineCount)
     }
 

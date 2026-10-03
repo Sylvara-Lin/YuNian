@@ -133,7 +133,6 @@ object CapabilityGrantBoard {
         "screen_tap" to "点击屏幕",
         "screen_swipe" to "滑动屏幕",
         "screen_click_text" to "点击屏幕元素",
-        "luckin_create_order" to "下单咖啡",
         "automation_create" to "创建自动化",
         "automation_create_workflow" to "创建工作流",
     )

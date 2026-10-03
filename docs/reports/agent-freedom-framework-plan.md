@@ -2135,6 +2135,10 @@ feature:profile  → implementation(project(":core:ui-common")) ✅ + core:domai
 | `skill.builtin_chat_protocol` | 内置聊天工具协议技能 | SKILL | 通用插件 |
 | `sticker.preference` | 表情包偏好引擎 | STICKER | 通用插件 |
 
+> **（2026-10-03 更正）** 上表第 3 行 `coffee.luckin` 已随「瑞幸咖啡」功能**整体下线**移除：`feature/coffee` 模块删除、蓝图 `app/src/main/assets/blueprints/default.json` 的该条目删除、`core:domain` 的 `CoffeeOrderProvider` 契约删除、`YuNianApplication` 里 `pluginHost.register(CoffeePlugin(...))` 及其 `ServiceRegistry` 绑定删除。
+> **当前在册插件为 6 个 + `ui.assists`**（即上表去掉 `coffee.luckin` 后的 6 条，加上上表成文后才新增的 `ui.assists`）：`channel.qqbot` / `channel.wechat` / `automation.core` / `message.send` / `skill.builtin_chat_protocol` / `sticker.preference` / `ui.assists`。
+> 本节其余内容与下方「缺口 1 / 缺口 2」是 2026-08 的历史记录，按原样保留，不作当前态断言。
+
 （`PluginKind` 枚举：TOOL / SKILL / STICKER / ADAPTER / PIPELINE。用户的两分类与枚举**不是一一对应**：消息通道 = ADAPTER，通用插件 = 其余全部。目前仓里**没有 PIPELINE 插件**。）
 
 #### ⚠️ 两处必须上报的缺口（已由调度者独立复核）

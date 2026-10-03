@@ -33,7 +33,7 @@ import org.junit.Test
  * - [PluginEventBus]（**真实**宿主级共享总线）。
  *
  * 只有插件是替身：core:agent 不能依赖任何 feature 模块，因此这里用与契约同构的最小
- * 替身插件（setup 里订阅 / 派发）。真实插件（coffee.luckin / skill.builtin_chat_protocol /
+ * 替身插件（setup 里订阅 / 派发）。真实插件（skill.builtin_chat_protocol /
  * sticker.preference / automation.core / channel.qqbot）零改动继续通过由各自的单测覆盖。
  *
  * ## 在旧实现下为什么失败（行为回归，不是编译错误）

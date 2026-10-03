@@ -32,15 +32,13 @@
     <string name="chat_background_desc">自定义聊天页面背景</string>
     <string name="background_settings">背景设置</string>
     <string name="background_settings_desc">自定义主界面与聊天背景</string>
-    <string name="coffee_title">瑞幸咖啡</string>
-    <string name="coffee_desc">AI点餐（MCP接入）</string>
     <!-- 设置 -->
     <string name="general_settings">设置</string>
     <string name="general_settings_desc">通用、实验性功能、工具、权限、关于</string>
     <string name="settings_category_general">通用</string>
     <string name="settings_category_general_desc">语言、帧率、思考、TTS、备份、平台与系统适配</string>
     <string name="settings_category_tools">工具设置</string>
-    <string name="settings_category_tools_desc">瑞幸咖啡等工具能力</string>
+    <string name="settings_category_tools_desc">自动化等工具能力</string>
     <string name="settings_category_permissions">权限管理</string>
     <string name="settings_category_permissions_desc">自启动、电池白名单、通知</string>
     <string name="settings_category_about">关于予念</string>

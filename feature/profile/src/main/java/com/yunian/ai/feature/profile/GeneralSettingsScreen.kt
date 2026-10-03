@@ -61,7 +61,6 @@ fun GeneralSettingsScreen(
     onCheckUpdateClick: () -> Unit = {},
     onDataBackupClick: () -> Unit = {},
     onOriginOSAdaptionClick: () -> Unit = {},
-    onCoffeeClick: () -> Unit = {},
     onExperimentalFeaturesClick: () -> Unit = {},
     onGeneralCategoryClick: () -> Unit = {},
     onPermissionsClick: () -> Unit = {},
@@ -260,7 +259,6 @@ private fun TypingSpinnerSettingCard() {
 @Composable
 fun ToolsSettingsScreen(
     onNavigateBack: () -> Unit,
-    onCoffeeClick: () -> Unit,
     onAutomationClick: () -> Unit = {}
 ) {
     val colorScheme = AppTheme.colors
@@ -284,12 +282,6 @@ fun ToolsSettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             SettingsCategoryList(
                 items = listOf(
-                    MenuItemData(
-                        AppIcons.Coffee,
-                        stringResource(R.string.coffee_title),
-                        stringResource(R.string.coffee_desc),
-                        onCoffeeClick
-                    ),
                     MenuItemData(
                         AppIcons.AlarmClock,
                         "自动化",

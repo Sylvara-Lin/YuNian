@@ -60,7 +60,7 @@ internal object SecureLogCapabilityGrantStoreLog : CapabilityGrantStoreLog {
  *
  * ```
  * <companionId>|<toolName>|0或1
- * *|luckin_create_order|1
+ * *|automation_create|1
  * 42|screen_tap|0
  * ```
  *

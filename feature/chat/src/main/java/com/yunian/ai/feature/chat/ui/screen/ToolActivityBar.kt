@@ -237,10 +237,4 @@ private val TOOL_FRIENDLY_NAMES = mapOf(
     "automation_list" to "查看自动化",
     "automation_cancel" to "取消自动化",
     "automation_fire" to "触发自动化",
-    "luckin_query_shops" to "查找咖啡门店",
-    "luckin_search_products" to "搜索咖啡商品",
-    "luckin_preview_order" to "预览咖啡订单",
-    "luckin_create_order" to "下单咖啡",
-    "luckin_query_order" to "查询咖啡订单",
-    "luckin_cancel_order" to "取消咖啡订单",
 )

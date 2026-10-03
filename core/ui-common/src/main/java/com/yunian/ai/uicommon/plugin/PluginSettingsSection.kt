@@ -91,9 +91,9 @@ enum class PluginSettingsPresentation {
  *
  * ```
  * channel.qqbot                  channel.wechat
- * coffee.luckin                  automation.core
- * message.send                   skill.builtin_chat_protocol
- * sticker.preference
+ * automation.core                message.send
+ * skill.builtin_chat_protocol    sticker.preference
+ * ui.assists
  * ```
  *
  * ⚠️ **不要把插件 id 与「通道键」混为一谈**：通道键是
@@ -117,7 +117,7 @@ interface PluginSettingsSection {
 
     /**
      * 贡献者插件的唯一 id，必须与 `LianYuPlugin.id` **逐字一致**
-     * （如 `channel.wechat` / `channel.qqbot` / `coffee.luckin`）。
+     * （如 `channel.wechat` / `channel.qqbot` / `ui.assists`）。
      *
      * ⚠️ 不是通道键：`qqbot` / `wechat` 是 `ChannelKeys` 的取值域，写错会导致
      * [PluginSettingsSections.forPlugin] 永远查不到、设置区静默不显示。

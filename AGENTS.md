@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-YuNian (予念) is an Android AI companion app built with Kotlin and Jetpack Compose. It uses a **feature-based modular architecture** with 25 Gradle modules: 1 `:app` entry, 15 `feature:*` modules, 8 `core:*` modules, and 1 `:shell` JVM test module.
+YuNian (予念) is an Android AI companion app built with Kotlin and Jetpack Compose. It uses a **feature-based modular architecture** with 24 Gradle modules: 1 `:app` entry, 14 `feature:*` modules, 8 `core:*` modules, and 1 `:shell` JVM test module.
 
 ## Build Commands
 
@@ -30,7 +30,7 @@ Gradle wrapper uses a Tencent mirror (`mirrors.cloud.tencent.com/gradle/gradle-9
 
 ```
 :app
-  └─→ feature:* (automation, backup, chat, coffee, companion, groupchat, mcp, memory, notification, profile, qqbot, settings, skills, wechat, worldbook)
+  └─→ feature:* (automation, backup, chat, companion, groupchat, mcp, memory, notification, profile, qqbot, settings, skills, wechat, worldbook)
         └─→ core:* (agent, common, database, domain, network, security, ui-common, wechat)
 
 :shell  (JVM test module, isolated — not part of Android build)
@@ -59,7 +59,7 @@ All routes are registered in `MainNavGraph.kt` (`MainNavHost`, invoked from `Mai
 - `chat/{companionId}` (Long), `chat_detail/{companionId}` (Long), `voice_call/{companionId}` (Long)
 - `group_chat/{groupId}` (Long), `create`, `edit/{companionId}` (Long), `create_group`
 - `settings`, `general_settings`, `settings_tools`, `settings_permissions`, `plugin_settings`, `memory`, `theme`, `language`, `frame_rate`, `check_update`, `about`, `agreement_view`, `data_backup`
-- `tts_settings`, `token_usage`, `role_manager`, `background_settings`, `profile_settings`, `yandere_mode`, `worldbook`, `skills`, `mcp_settings`, `coffee`, `automation`
+- `tts_settings`, `token_usage`, `role_manager`, `background_settings`, `profile_settings`, `yandere_mode`, `worldbook`, `skills`, `mcp_settings`, `automation`
 
 Pass arguments via navigation path parameters, not global state.
 

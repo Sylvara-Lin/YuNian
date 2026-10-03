@@ -132,14 +132,14 @@ class CapabilityGrantStoreImplTest {
         val dao = FakeAppMetaDao()
         dao.putRaw(
             CapabilityGrantStoreImpl.KEY,
-            listOf("42|screen_tap|1", "GARBAGE", "|bad|1", "*|luckin_create_order|1").joinToString("\n"),
+            listOf("42|screen_tap|1", "GARBAGE", "|bad|1", "*|automation_create|1").joinToString("\n"),
         )
         val log = RecordingCapabilityGrantStoreLog()
         val store = grantStoreOn(dao, log)
 
         // 通配行对每个伴侣都生效，因此两份结果里都有它；伴侣 42 另有自己的一条。
-        assertEquals(mapOf("screen_tap" to true, "luckin_create_order" to true), store.decisionsFor(42L))
-        assertEquals(mapOf("luckin_create_order" to true), store.decisionsFor(999L))
+        assertEquals(mapOf("screen_tap" to true, "automation_create" to true), store.decisionsFor(42L))
+        assertEquals(mapOf("automation_create" to true), store.decisionsFor(999L))
         assertTrue("每次读取各记一条告警（2 次查询 = 2 条）", log.warnings.size == 2)
         assertTrue(
             "告警必须带丢弃条数便于定位",
@@ -152,7 +152,7 @@ class CapabilityGrantStoreImplTest {
         val dao = FakeAppMetaDao()
         dao.putRaw(
             CapabilityGrantStoreImpl.KEY,
-            listOf("42|qqbot|screen_tap", "*|wechat|luckin_create_order").joinToString("\n"),
+            listOf("42|qqbot|screen_tap", "*|wechat|automation_create").joinToString("\n"),
         )
         val log = RecordingCapabilityGrantStoreLog()
         val store = grantStoreOn(dao, log)

@@ -27,7 +27,7 @@
     <string name="settings_category_general">一般</string>
     <string name="settings_category_general_desc">言語、フレームレート、思考、TTS、バックアップ、連携</string>
     <string name="settings_category_tools">ツール設定</string>
-    <string name="settings_category_tools_desc">瑞幸コーヒーなどのツール</string>
+    <string name="settings_category_tools_desc">自動化などのツール</string>
     <string name="settings_category_permissions">権限管理</string>
     <string name="settings_category_permissions_desc">自動起動、電池最適化、通知</string>
     <string name="settings_category_about">予念について</string>

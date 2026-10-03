@@ -349,12 +349,12 @@ class ChannelRegistryHostWiringTest {
     @Test
     fun `非 ADAPTER 类别的插件 id 注册适配器被拒绝`() {
         val (host, registry) = newWiredHost()
-        val toolPlugin = FakeToolPlugin("coffee.luckin")
+        val toolPlugin = FakeToolPlugin("automation.core")
         host.register(toolPlugin)
         assertEquals(PluginLoadResult.Loaded, host.load(toolPlugin.id, null))
 
         try {
-            registry.register(toolPlugin.id, FakeAdapter("luckin"))
+            registry.register(toolPlugin.id, FakeAdapter("automation"))
             fail("非 ADAPTER 插件的注册必须被拒绝")
         } catch (e: IllegalStateException) {
             assertTrue(

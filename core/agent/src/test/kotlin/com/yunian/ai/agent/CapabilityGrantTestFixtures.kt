@@ -83,11 +83,11 @@ internal class FakeTool(
 }
 
 /**
- * 生产侧 **7 个**静态 `requiresConfirmation = true` 的工具名（逐条对齐源码）。
+ * 生产侧 **6 个**静态 `requiresConfirmation = true` 的工具名（逐条对齐源码）。
  *
  * ⚠️ **这是手工维护的镜像，不是自动枚举。** 架构上不可能自动校验：`core:*` 不得依赖
- * `feature:*`（AGENTS.md），而其中 6 个工具住在 `feature:skills` / `feature:coffee` /
- * `feature:automation` 里，`core:agent` 的测试源集看不到它们。
+ * `feature:*`（AGENTS.md），而其中 5 个工具住在 `feature:skills` / `feature:automation`
+ * 里，`core:agent` 的测试源集看不到它们。
  * **因此新增一个 `requiresConfirmation = true` 的生产工具时，必须同步这里。**
  *
  * 另一类**动态**来源不在此列表：`feature/mcp/.../McpToolAdapter.kt:21`
@@ -98,14 +98,13 @@ internal val PRODUCTION_CONFIRM_TOOL_NAMES: List<String> = listOf(
     "screen_tap",                  // feature/skills/.../AccessibilityTools.kt:120
     "screen_swipe",                // feature/skills/.../AccessibilityTools.kt:141
     "screen_click_text",           // feature/skills/.../AccessibilityTools.kt:166
-    "luckin_create_order",         // feature/coffee/.../LuckinCoffeeTools.kt:101（get() = true）
     "automation_create",           // feature/automation/.../AutomationTools.kt:71（get() = true）
     "automation_create_workflow",  // feature/automation/.../AutomationTools.kt:146（get() = true）
-    // 第 7 个：通道主动发送工具（P4-2）。此前两处镜像都漏了它。
+    // 第 6 个：通道主动发送工具（P4-2）。此前两处镜像都漏了它。
     "send_channel_message",        // core/agent/.../tools/ChannelSendTool.kt:117
 )
 
-/** 7 个生产确认类假工具。 */
+/** 6 个生产确认类假工具。 */
 internal fun productionConfirmTools(): List<FakeTool> =
     PRODUCTION_CONFIRM_TOOL_NAMES.map { FakeTool(name = it, requiresConfirmation = true) }
 

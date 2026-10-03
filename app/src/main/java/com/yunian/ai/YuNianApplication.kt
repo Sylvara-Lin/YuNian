@@ -36,7 +36,6 @@ import com.yunian.ai.domain.AiServiceProvider
 import com.yunian.ai.domain.DialogueCoordinator
 import com.yunian.ai.domain.ToolRegistry
 import com.yunian.ai.domain.ImageGenerationProvider
-import com.yunian.ai.domain.CoffeeOrderProvider
 import com.yunian.ai.domain.BuiltinCloudAccessPolicy
 import com.yunian.ai.domain.CapabilityGrantStore
 import com.yunian.ai.domain.imagegen.ImageGenService
@@ -663,10 +662,6 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
                 )
             }
 
-            ServiceRegistry.registerSingleton(CoffeeOrderProvider::class.java) {
-                com.yunian.ai.feature.coffee.CoffeeOrderProviderImpl(app)
-            }
-
             // ── Cordis 双层插件模板：PluginHost（代码插件 builtin） ──
             // 通道注册中心（「通道即插件」的查询面）：先构造注册中心，再把它作为框架服务
             // 预置给宿主（插件才能 ctx.inject(CHANNELS)），最后 bindHost 完成双向接线。
@@ -685,13 +680,8 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
                 )
             )
             channelRegistry.bindHost(pluginHost)
-            // 注册首批代码插件：工具（瑞幸咖啡）、技能（内置聊天协议）、表情包偏好、
+            // 注册首批代码插件：技能（内置聊天协议）、表情包偏好、
             // 通道（QQ 机器人，kind = ADAPTER）
-            pluginHost.register(
-                com.yunian.ai.feature.coffee.CoffeePlugin(
-                    ServiceRegistry.getOrThrow(CoffeeOrderProvider::class.java)
-                )
-            )
             pluginHost.register(com.yunian.ai.agent.plugin.BuiltinChatSkillPlugin())
             pluginHost.register(com.yunian.ai.agent.plugin.StickerPreferencePlugin())
             // 通道插件（ADAPTER）：只包装既有 QQBotMessageRepository，装配期不启动任何会话。
@@ -750,7 +740,7 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
                 channelRegistry
             }
             // 插件装载由默认蓝图统一驱动（assets/blueprints/default.json，initBusiness 内执行）；
-            // 因此此处不再直接调用 LuckinCoffeeTools.registerAll（改由 coffee.luckin 插件装载）。
+            // 因此此处不再直接调用各工具集的 registerAll（一律改由蓝图插件装载）。
 
             com.yunian.ai.feature.memory.MemoryRecallTools.registerAll(
                 ServiceRegistry.getOrThrow(MemoryProvider::class.java)
@@ -764,6 +754,20 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
                 com.yunian.ai.feature.mcp.McpToolRegistrar(
                     ServiceRegistry.getOrThrow(McpManager::class.java)
                 ).syncTools()
+            }
+
+            // 瑞幸咖啡功能已下线（2026-10-03）：清除历史版本遗留在应用私有目录的 DataStore
+            // 凭据文件（luckin_coffee_prefs 曾存放 MCP Token）。幂等——文件不存在即静默返回；
+            // best-effort——失败只记日志，绝不阻断启动；后台执行——不占主线程，
+            // 独立 launch 而非并入上面的 syncTools，避免给既有启动时序增加耦合。
+            bgScope.launch {
+                runCatching {
+                    java.io.File(app.filesDir, "datastore/luckin_coffee_prefs.preferences_pb")
+                        .takeIf { it.exists() }
+                        ?.delete()
+                }.onFailure {
+                    SecureLog.e("YuNianApplication", "清理瑞幸咖啡残留凭据失败", it)
+                }
             }
 
             // ── Q6 技能体系收敛：把本地技能资产桥接给 Rust SkillSelector ──
@@ -798,7 +802,7 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
                 com.yunian.ai.feature.automation.data.AutomationStore(app)
             }
             // 5 个自动化工具改由 automation.core 插件装配（默认蓝图装载），
-            // 与 coffee.luckin 同一范式：逐工具注册 effect 注销副作用。
+            // 与 ui.assists 同一范式：逐工具注册 effect 注销副作用。
             // ⚠️ 调度层（AutomationScheduler / AutomationFireWorker）不在插件范围内。
             pluginHost.register(
                 com.yunian.ai.feature.automation.AutomationPlugin(

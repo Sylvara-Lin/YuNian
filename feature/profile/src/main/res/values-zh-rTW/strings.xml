@@ -27,7 +27,7 @@
     <string name="settings_category_general">通用</string>
     <string name="settings_category_general_desc">語言、幀率、思考、TTS、備份、平台與系統適配</string>
     <string name="settings_category_tools">工具設置</string>
-    <string name="settings_category_tools_desc">瑞幸咖啡等工具能力</string>
+    <string name="settings_category_tools_desc">自動化等工具能力</string>
     <string name="settings_category_permissions">權限管理</string>
     <string name="settings_category_permissions_desc">自啟動、電池白名單、通知</string>
     <string name="settings_category_about">關於予念</string>

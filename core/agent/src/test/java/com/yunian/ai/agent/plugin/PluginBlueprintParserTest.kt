@@ -50,7 +50,7 @@ class PluginBlueprintParserTest {
               "id": "default",
               "name": "默认蓝图",
               "plugins": [
-                { "id": "coffee.luckin" },
+                { "id": "automation.core" },
                 { "id": "channel.qqbot" },
                 { "id": "message.send" }
               ]
@@ -62,7 +62,7 @@ class PluginBlueprintParserTest {
         assertEquals("默认蓝图", blueprint.name)
         // 顺序即装载顺序（sticker 引擎依赖此顺序），必须逐字保留而不是按 id 排序
         assertEquals(
-            listOf("coffee.luckin", "channel.qqbot", "message.send"),
+            listOf("automation.core", "channel.qqbot", "message.send"),
             blueprint.plugins.map { it.id },
         )
     }
@@ -105,13 +105,13 @@ class PluginBlueprintParserTest {
                 "name": "默认蓝图",
                 "comment": "对应 cordis.yml 组合语义：plugins 基准列表 + patches 覆盖 + inserts 追加。",
                 "plugins": [
-                    { "id": "coffee.luckin" },
                     { "id": "skill.builtin_chat_protocol" },
                     { "id": "sticker.preference" },
                     { "id": "automation.core" },
                     { "id": "channel.qqbot" },
                     { "id": "channel.wechat" },
-                    { "id": "message.send" }
+                    { "id": "message.send" },
+                    { "id": "ui.assists" }
                 ],
                 "patches": [],
                 "inserts": []
@@ -123,13 +123,13 @@ class PluginBlueprintParserTest {
         assertEquals("默认蓝图", blueprint.name)
         assertEquals(
             listOf(
-                "coffee.luckin",
                 "skill.builtin_chat_protocol",
                 "sticker.preference",
                 "automation.core",
                 "channel.qqbot",
                 "channel.wechat",
                 "message.send",
+                "ui.assists",
             ),
             blueprint.plugins.map { it.id },
         )

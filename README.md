@@ -83,7 +83,6 @@
 |---|---|---|
 | **微信** | 扫码绑定，私聊收发、图片与表情包双向中转、消息转发到微信、**每个微信用户可分配不同伴侣** | 基于腾讯 iLink 官方协议，**仅私聊**；登录态有有效期，过期需重新扫码 |
 | **QQ 机器人** | 扫码或手填 AppID 绑定，群聊 / 私聊收发、富媒体图片 | 基于 QQ 官方 Bot 开放平台，AccessToken 自动刷新 |
-| **瑞幸咖啡** | 让 AI 帮你查门店、搜商品、**预览到手价与优惠券**、下单（生成支付二维码）、查单、取消 | 需在瑞幸开放平台登录取 Token |
 | **自动化** | 定时（单次 / 每日 / 每周）触发"伴侣发消息"或"发通知"；可视化工作流支持 `AI_GENERATE` 节点（由 Agent 生成内容） | 任务由 WorkManager 持有，AI 也能通过工具帮你创建 |
 
 ### 🎛 个性化与设置
@@ -100,7 +99,7 @@
 
 ## 🏗 技术架构
 
-### 模块划分（25 个 Gradle 模块）
+### 模块划分（24 个 Gradle 模块）
 
 ```
 :app                                  应用入口（壳 Application + 导航 + ServiceRegistry 绑定）
@@ -112,9 +111,9 @@
 ├── core:ui-common                    共享 Compose UI（主题、液态玻璃、图片查看/裁剪）
 ├── core:agent                        Rust Cordis Agent 门面 + UniFFI 绑定（文本回合主干）
 ├── core:wechat                       微信 iLink 协议客户端
-└── feature:*  （15 个）
+└── feature:*  （14 个）
     chat / companion / groupchat / memory / notification / profile / settings
-    wechat / qqbot / backup / coffee / automation / worldbook / mcp / skills
+    wechat / qqbot / backup / automation / worldbook / mcp / skills
 ```
 
 依赖方向严格单向：`feature → core`，`core` 之间按 `domain ← common ← database/network/security/ui-common/agent` 分层。feature 之间**不互相依赖**，跨模块协作通过 `ServiceRegistry` 的接口 + `app` 侧绑定完成。
@@ -275,7 +274,7 @@ YuNian/
 ## 🙏 致谢与声明
 
 - 本项目使用或参考了众多开源项目（Compose、OkHttp、Room、sherpa-onnx、Kyant Backdrop、Cordis、SillyTavern 世界书格式等），详见应用内「关于 → 开源致谢」
-- 仅供**学习与个人使用**；请遵守各第三方平台（微信、QQ、瑞幸等）的服务条款，勿用于商业或滥用用途
+- 仅供**学习与个人使用**；请遵守各第三方平台（微信、QQ 等）的服务条款，勿用于商业或滥用用途
 - 隐私：记忆、日记、聊天数据与统计均存储在**本机**，不上传服务器；网络请求仅发生在你自己配置的 AI 服务商与官方平台接口
 
 ---

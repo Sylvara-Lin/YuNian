@@ -27,7 +27,7 @@
     <string name="settings_category_general">General</string>
     <string name="settings_category_general_desc">Language, frame rate, thinking, TTS, backup, platforms</string>
     <string name="settings_category_tools">Tools</string>
-    <string name="settings_category_tools_desc">Luckin Coffee and other tools</string>
+    <string name="settings_category_tools_desc">Automation and other tools</string>
     <string name="settings_category_permissions">Permissions</string>
     <string name="settings_category_permissions_desc">Auto-start, battery whitelist, notifications</string>
     <string name="settings_category_about">About YuNian</string>

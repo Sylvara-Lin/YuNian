@@ -41,14 +41,14 @@ class PluginBlueprintStatusTest {
     fun `记录成功后 outcome 是 Applied 且保留 loaded skipped 明细`() {
         PluginBlueprintStatus.recordApplied(
             blueprintId = "default",
-            loaded = listOf("coffee.luckin", "channel.qqbot"),
+            loaded = listOf("automation.core", "channel.qqbot"),
             skipped = listOf("notfound:t.no.such"),
         )
 
         val outcome = PluginBlueprintStatus.outcome()
         assertTrue(outcome is Outcome.Applied)
         outcome as Outcome.Applied
-        assertEquals(listOf("coffee.luckin", "channel.qqbot"), outcome.loaded)
+        assertEquals(listOf("automation.core", "channel.qqbot"), outcome.loaded)
         assertEquals(listOf("notfound:t.no.such"), outcome.skipped)
         assertFalse(PluginBlueprintStatus.hasFailed())
         assertEquals(1L, PluginBlueprintStatus.attempts())
@@ -104,11 +104,11 @@ class PluginBlueprintStatusTest {
         PluginBlueprintStatus.recordFailure(
             reason = "第 3 条之后抛异常",
             blueprintId = "default",
-            loaded = listOf("coffee.luckin", "channel.qqbot"),
+            loaded = listOf("automation.core", "channel.qqbot"),
         )
 
         val outcome = PluginBlueprintStatus.outcome() as Outcome.Failed
-        assertEquals(listOf("coffee.luckin", "channel.qqbot"), outcome.loaded)
+        assertEquals(listOf("automation.core", "channel.qqbot"), outcome.loaded)
     }
 
     @Test

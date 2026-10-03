@@ -52,10 +52,10 @@ class AgentToolCategoryConfirmationTest {
         PRODUCTION_CONFIRM_TOOL_NAMES.map { FakeTool(name = it, requiresConfirmation = true) }
 
     @Test
-    fun `七个 requiresConfirmation = true 的生产工具全部映射为 COMMERCE`() {
+    fun `六个 requiresConfirmation = true 的生产工具全部映射为 COMMERCE`() {
         // 断言与唯一镜像一致：本用例不会因为「本地列表少写一个」而静默通过。
         assertEquals(PRODUCTION_CONFIRM_TOOL_NAMES.size, confirmationRequiredTools.size)
-        assertEquals(7, PRODUCTION_CONFIRM_TOOL_NAMES.size)
+        assertEquals(6, PRODUCTION_CONFIRM_TOOL_NAMES.size)
         for (tool in confirmationRequiredTools) {
             assertEquals(
                 "${tool.name} 声明了 requiresConfirmation = true，必须被门控拦下（COMMERCE）",
@@ -157,7 +157,7 @@ class AgentToolCategoryConfirmationTest {
             FakeTool(name = "screen_read") to ToolCategory.GENERAL,
             FakeTool(name = "accessibility_status") to ToolCategory.GENERAL,
             FakeTool(name = "automation_list") to ToolCategory.GENERAL,
-            FakeTool(name = "luckin_preview_order") to ToolCategory.GENERAL,
+            FakeTool(name = "automation_cancel") to ToolCategory.GENERAL,
             FakeTool(name = "earn_memory", toolsets = setOf("memory")) to ToolCategory.MEMORY,
             FakeTool(name = "bubble", toolsets = setOf("chat")) to ToolCategory.CHAT,
             FakeTool(name = "legacy_commerce", toolsets = setOf("commerce")) to ToolCategory.COMMERCE,

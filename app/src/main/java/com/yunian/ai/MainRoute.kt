@@ -54,18 +54,6 @@ sealed class MainRoute(val route: String) {
     object DataBackup : MainRoute("data_backup")
     object BackupExportSelect : MainRoute("backup_export_select")
 
-    object Coffee : MainRoute("coffee")
-
-    data class CoffeeProduct(val deptId: Long, val productId: Long) : MainRoute("coffee_product/$deptId/$productId")
-
-    object CoffeeSettings : MainRoute("coffee_settings")
-
-    object CoffeeToken : MainRoute("coffee_token")
-
-    object CoffeeOrderQuery : MainRoute("coffee_order")
-
-    data class CoffeeOrderQueryWithId(val orderId: String) : MainRoute("coffee_order/$orderId")
-
     object Automation : MainRoute("automation")
 
     object Worldbook : MainRoute("worldbook")
@@ -114,22 +102,11 @@ sealed class MainRoute(val route: String) {
             route == "originos_adaption" -> OriginOSAdaption
             route == "data_backup" -> DataBackup
             route == "backup_export_select" -> BackupExportSelect
-            route == "coffee" -> Coffee
-            route == "coffee_settings" -> CoffeeSettings
-            route == "coffee_token" -> CoffeeToken
-            route == "coffee_order" -> CoffeeOrderQuery
             route == "automation" -> Automation
             route == "worldbook" -> Worldbook
             route == "skills" -> Skills
             route == "mcp_settings" -> McpSettings
             route?.startsWith("worldbook_detail/") == true -> WorldbookDetail(route.removePrefix("worldbook_detail/").toLongOrNull() ?: 0L)
-            route?.startsWith("coffee_order/") == true -> {
-                CoffeeOrderQueryWithId(route.removePrefix("coffee_order/"))
-            }
-            route?.startsWith("coffee_product/") == true -> {
-                val parts = route.removePrefix("coffee_product/").split("/")
-                CoffeeProduct(parts.getOrNull(0)?.toLongOrNull() ?: 0L, parts.getOrNull(1)?.toLongOrNull() ?: 0L)
-            }
             route?.startsWith("chat/") == true -> Chat(route.removePrefix("chat/").toLongOrNull() ?: 0L)
             route?.startsWith("chat_detail_dnd/") == true -> DndSettings(route.removePrefix("chat_detail_dnd/").toLongOrNull() ?: 0L)
             route?.startsWith("chat_detail/") == true -> ChatDetail(route.removePrefix("chat_detail/").toLongOrNull() ?: 0L)

@@ -57,10 +57,6 @@
         </intent>
     </queries>
 
-    <!-- 瑞幸咖啡：定位附近门店 -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
     <!-- OPPO / vivo 厂商 Push 权限 -->
     <uses-permission android:name="com.coloros.mcs.permission.RECEIVE_MCS_MESSAGE" />
     <uses-permission android:name="com.heytap.mcs.permission.RECEIVE_MCS_MESSAGE" />

@@ -359,7 +359,6 @@ dependencies {
     implementation(project(":feature:wechat"))
     implementation(project(":feature:qqbot"))
     implementation(project(":feature:backup"))
-    implementation(project(":feature:coffee"))
     implementation(project(":feature:automation"))
     implementation(project(":feature:worldbook"))
     implementation(project(":feature:mcp"))

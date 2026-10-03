@@ -30,7 +30,7 @@ internal data class CapabilityGrantDecodeResult(
  *
  * 例：
  * ```
- * *|luckin_create_order|1
+ * *|automation_create|1
  * 42|screen_tap|0
  * ```
  *

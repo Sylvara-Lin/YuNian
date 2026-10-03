@@ -57,12 +57,12 @@ class CapabilityGrantBoardTest {
         val tools = listOf(
             confirmTool("screen_tap"),
             normalTool("device_get_time"),
-            confirmTool("luckin_create_order"),
+            confirmTool("screen_click_text"),
             normalTool("web_fetch"),
         )
 
         assertEquals(
-            listOf("device_get_time", "luckin_create_order", "screen_tap", "web_fetch"),
+            listOf("device_get_time", "screen_click_text", "screen_tap", "web_fetch"),
             CapabilityGrantBoard.grantableTools(tools).map { it.name },
         )
     }
@@ -215,7 +215,7 @@ class CapabilityGrantBoardTest {
             CapabilityGrant(null, "screen_tap", allowed = true),
             CapabilityGrant(42L, "screen_tap", allowed = false),
             CapabilityGrant(42L, "screen_swipe", allowed = true),
-            CapabilityGrant(43L, "luckin_create_order", allowed = false),
+            CapabilityGrant(43L, "screen_click_text", allowed = false),
         )
 
         assertEquals(
@@ -227,7 +227,7 @@ class CapabilityGrantBoardTest {
             CapabilityGrantBoard.effectiveDecisions(GrantScope.Companion(42L), decisions),
         )
         assertEquals(
-            mapOf("screen_tap" to true, "luckin_create_order" to false),
+            mapOf("screen_tap" to true, "screen_click_text" to false),
             CapabilityGrantBoard.effectiveDecisions(GrantScope.Companion(43L), decisions),
         )
     }

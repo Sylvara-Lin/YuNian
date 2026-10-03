@@ -78,7 +78,7 @@ class AgentConfirmGuardTest {
 
             val final = guard.drive(
                 tag = tag,
-                initial = confirmPending("luckin_create_order", """{"sku":"latte"}"""),
+                initial = confirmPending("screen_click_text", """{"sku":"latte"}"""),
                 rerunFailureMessage = rerunFailureMessage,
                 runTurn = {
                     runs += 1
@@ -90,13 +90,13 @@ class AgentConfirmGuardTest {
             assertEquals("重跑恰好一次", 1, runs)
             assertEquals(
                 "拒绝的参数必须是事件里的 text/extra（名称 + 参数 JSON，逐字一致）",
-                listOf("luckin_create_order" to """{"sku":"latte"}"""),
+                listOf("screen_click_text" to """{"sku":"latte"}"""),
                 rejected,
             )
             assertSame("返回的是重跑后的终局结果", completed, final)
             assertEquals(
                 "自动拒绝的日志 tag / 文案与抽取前逐字一致",
-                listOf("$tag|confirm gate on non-interactive channel, auto-reject: luckin_create_order"),
+                listOf("$tag|confirm gate on non-interactive channel, auto-reject: screen_click_text"),
                 log.warnings,
             )
             assertTrue("成功路径不得记错误日志", log.errors.isEmpty())
@@ -254,7 +254,7 @@ class AgentConfirmGuardTest {
             val guard = AgentConfirmGuard(log)
             var runs = 0
             var rejects = 0
-            val pending = confirmPending("luckin_create_order")
+            val pending = confirmPending("screen_click_text")
             val cancellation = CancellationException("scope cancelled")
 
             var thrown: Throwable? = null
@@ -288,7 +288,7 @@ class AgentConfirmGuardTest {
             )
             assertEquals(
                 "自动拒绝的告警日志仍然照旧",
-                listOf("$tag|confirm gate on non-interactive channel, auto-reject: luckin_create_order"),
+                listOf("$tag|confirm gate on non-interactive channel, auto-reject: screen_click_text"),
                 log.warnings,
             )
         }
@@ -340,9 +340,9 @@ class AgentConfirmGuardTest {
             // 且没有 bubble 事件、没有 finalText（Rust 确认门提前结束的形态）。
             val final = guard.drive(
                 tag = tag,
-                initial = confirmPending("luckin_create_order"),
+                initial = confirmPending("screen_click_text"),
                 rerunFailureMessage = rerunFailureMessage,
-                runTurn = { confirmPending("luckin_create_order") },
+                runTurn = { confirmPending("screen_click_text") },
                 rejectTool = { _, _ -> },
             )
 

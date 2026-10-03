@@ -27,7 +27,7 @@
     <string name="settings_category_general">일반</string>
     <string name="settings_category_general_desc">언어, 프레임, 사고, TTS, 백업, 플랫폼</string>
     <string name="settings_category_tools">도구 설정</string>
-    <string name="settings_category_tools_desc">루이싱 커피 등 도구</string>
+    <string name="settings_category_tools_desc">자동화 등 도구</string>
     <string name="settings_category_permissions">권한 관리</string>
     <string name="settings_category_permissions_desc">자동 시작, 배터리 화이트리스트, 알림</string>
     <string name="settings_category_about">予念 정보</string>

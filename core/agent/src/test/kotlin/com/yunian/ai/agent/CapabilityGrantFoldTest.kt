@@ -97,7 +97,7 @@ class CapabilityGrantFoldTest {
         assertEquals(
             "同一批里的其它工具不受影响",
             ToolCategory.COMMERCE,
-            categoryOf(companionA, tools, "luckin_create_order"),
+            categoryOf(companionA, tools, "automation_create"),
         )
         assertEquals(
             "恰好 1 个工具被放行（不能多）",
@@ -182,7 +182,7 @@ class CapabilityGrantFoldTest {
         val dao = FakeAppMetaDao()
         dao.putRaw(
             CapabilityGrantStoreImpl.KEY,
-            listOf("42|qqbot|screen_tap", "*|wechat|luckin_create_order").joinToString("\n"),
+            listOf("42|qqbot|screen_tap", "*|wechat|automation_create").joinToString("\n"),
         )
         install(grantStoreOn(dao))
         assertAllMatchBaseline(companionA, productionConfirmTools())
@@ -312,20 +312,20 @@ class CapabilityGrantFoldTest {
         install(store)
         val tools = productionConfirmTools()
 
-        assertEquals("初始无决定", ToolCategory.COMMERCE, categoryOf(companionA, tools, "luckin_create_order"))
-        store.decide(CapabilityGrant(companionA, "luckin_create_order", allowed = true))
-        assertEquals("显式允许后放行", ToolCategory.GENERAL, categoryOf(companionA, tools, "luckin_create_order"))
+        assertEquals("初始无决定", ToolCategory.COMMERCE, categoryOf(companionA, tools, "automation_create"))
+        store.decide(CapabilityGrant(companionA, "automation_create", allowed = true))
+        assertEquals("显式允许后放行", ToolCategory.GENERAL, categoryOf(companionA, tools, "automation_create"))
         assertEquals(
             "同一批里的其它工具不受影响",
             ToolCategory.COMMERCE,
             categoryOf(companionA, tools, "screen_tap"),
         )
 
-        store.clear(companionA, "luckin_create_order")
+        store.clear(companionA, "automation_create")
         assertEquals(
             "清除后回到确认门",
             ToolCategory.COMMERCE,
-            categoryOf(companionA, tools, "luckin_create_order"),
+            categoryOf(companionA, tools, "automation_create"),
         )
     }
 

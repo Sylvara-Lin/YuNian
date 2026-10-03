@@ -1264,7 +1264,6 @@ fun ChatScreen(
                 androidx.compose.material3.Text(
                     when (request.toolName) {
                         "automation_create" -> "AI 请求创建自动化"
-                        "luckin_create_order" -> "AI 请求确认下单"
                         else -> "AI 请求执行操作"
                     }
                 )

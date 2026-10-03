@@ -149,7 +149,7 @@ class DialogueTurnMapperTest {
                     bubble("在的"),
                     AgentEvent("reasoning", "SECRET_REASONING", ""),
                     AgentEvent("usage", "{\"prompt_tokens\":123,\"SECRET_USAGE\":\"x\"}", ""),
-                    AgentEvent("confirm_request", "luckin_create_order", "{\"SECRET_ARGS\":\"latte\"}"),
+                    AgentEvent("confirm_request", "automation_create", "{\"SECRET_ARGS\":\"latte\"}"),
                 ),
                 finalText = "在的",
             ),
@@ -172,7 +172,7 @@ class DialogueTurnMapperTest {
             "SECRET_USAGE",
             "prompt_tokens",
             "SECRET_ARGS",
-            "luckin_create_order",
+            "automation_create",
         )) {
             assertFalse(marker, all.contains(marker))
         }

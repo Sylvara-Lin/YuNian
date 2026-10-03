@@ -69,12 +69,12 @@ class PluginSettingsSectionsTest {
 
     @Test
     fun `all is sorted by pluginId ascending`() {
-        listOf("wechat", "coffee.luckin", "qqbot", "aaa").forEach {
+        listOf("wechat", "automation.core", "qqbot", "aaa").forEach {
             PluginSettingsSections.register(FakeSection(it))
         }
 
         assertEquals(
-            listOf("aaa", "coffee.luckin", "qqbot", "wechat"),
+            listOf("aaa", "automation.core", "qqbot", "wechat"),
             PluginSettingsSections.all().map { it.pluginId },
         )
     }
@@ -120,18 +120,18 @@ class PluginSettingsSectionsTest {
     @Test
     fun `category is carried through unchanged`() {
         PluginSettingsSections.register(FakeSection("qqbot", PluginSettingsCategory.CHANNEL))
-        PluginSettingsSections.register(FakeSection("coffee.luckin", PluginSettingsCategory.GENERAL))
+        PluginSettingsSections.register(FakeSection("automation.core", PluginSettingsCategory.GENERAL))
 
         val byId = PluginSettingsSections.all().associateBy { it.pluginId }
         assertEquals(PluginSettingsCategory.CHANNEL, byId.getValue("qqbot").category)
-        assertEquals(PluginSettingsCategory.GENERAL, byId.getValue("coffee.luckin").category)
+        assertEquals(PluginSettingsCategory.GENERAL, byId.getValue("automation.core").category)
     }
 
     @Test
     fun `pluginId is preserved verbatim`() {
-        PluginSettingsSections.register(FakeSection("coffee.luckin"))
-        assertTrue(PluginSettingsSections.forPlugin("coffee.luckin") != null)
-        assertNull("大小写与分隔符必须逐字匹配", PluginSettingsSections.forPlugin("Coffee.Luckin"))
+        PluginSettingsSections.register(FakeSection("automation.core"))
+        assertTrue(PluginSettingsSections.forPlugin("automation.core") != null)
+        assertNull("大小写与分隔符必须逐字匹配", PluginSettingsSections.forPlugin("Automation.Core"))
     }
 
     @Test
