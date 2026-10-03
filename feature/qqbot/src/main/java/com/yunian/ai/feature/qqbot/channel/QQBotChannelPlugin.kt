@@ -114,12 +114,21 @@ class QQBotChannelPlugin(
 
     override val configSchema: String? = null
 
+    /**
+     * 「插件设置」页展示的一句话说明，逐条对应 [setup] 实际做的事：
+     * 注册 [QQBotChannelAdapter]（收发消息的身份）、订阅
+     * [ChannelOutboundEvents.REQUEST]（认领本通道的主动发送请求）、挂 [QQBotSettingsSection]。
+     * 卸载即三件一起撤销（见类 KDoc「卸载即失效」），因此「停用后不再收发」是装配事实。
+     */
+    override val description: String = "通过 QQ 机器人收发消息，并支持按请求主动发送；停用后不再收发。"
+
     override val manifest: PluginManifest = PluginManifest(
         id = ID,
         name = "QQ 机器人通道",
         version = "1.0.0",
         kind = PluginKind.ADAPTER,
         requires = listOf(PluginServices.CHANNELS),
+        description = description,
         configSchema = null,
     )
 

@@ -26,12 +26,21 @@ class StickerPreferencePlugin : LianYuPlugin {
     override val requires: Set<String> = setOf(PluginServices.APP_CONTEXT)
     override val configSchema: String? = null
 
+    /**
+     * 「插件设置」页展示的一句话说明，对应 [setup] 实际做的事：
+     * [StickerPreferenceFacade.ensureInitialized] 接线表情包目录的文件系统变更钩子
+     * 并做首启全量同步（文件系统 → 库 → 偏好引擎），引擎据此挑选该发哪张表情包。
+     * 停用（未初始化）时引擎不再更新，AI 的表情包挑选随之失效。
+     */
+    override val description: String = "维护表情包库与使用偏好，决定 AI 选发哪张表情包。"
+
     override val manifest: PluginManifest = PluginManifest(
         id = ID,
         name = "表情包偏好引擎",
         version = "1.0.0",
         kind = PluginKind.STICKER,
         requires = requires.sorted(),
+        description = description,
         configSchema = null,
     )
 

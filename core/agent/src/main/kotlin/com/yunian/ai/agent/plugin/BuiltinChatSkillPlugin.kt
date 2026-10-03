@@ -27,12 +27,21 @@ class BuiltinChatSkillPlugin : LianYuPlugin {
     override val requires: Set<String> = setOf(PluginServices.APP_CONTEXT)
     override val configSchema: String? = null
 
+    /**
+     * 「插件设置」页展示的一句话说明，对应 [setup] 实际做的事：幂等写入内置技能
+     * builtin_chat_tool_protocol（见 [AgentFacade.seedBuiltinChatToolSkill]）。
+     * 该技能内容规定了 AI 何时改用工具输出（emit_bubble / emit_segmented / send_sticker），
+     * 因此它直接决定回复的气泡分段与节奏；停用（未写入）时 AI 退回普通文本回复。
+     */
+    override val description: String = "内置聊天规范技能，规定 AI 何时改用气泡与表情工具输出。"
+
     override val manifest: PluginManifest = PluginManifest(
         id = ID,
         name = "内置聊天工具协议技能",
         version = "1.0.0",
         kind = PluginKind.SKILL,
         requires = requires.sorted(),
+        description = description,
         configSchema = null,
     )
 

@@ -20,6 +20,17 @@ class ChatToolLifecyclePlugin(
     override val requires: Set<String> = emptySet()
     override val configSchema: String? = null
 
+    /**
+     * 「插件设置」页展示的一句话说明。本类不覆写 [com.yunian.ai.domain.plugin.LianYuPlugin.manifest]，
+     * 默认合成实现直接取本字段，因此它与清单 description 天然逐字一致。
+     *
+     * 后半句是**装配语义**而非话术：订阅经 [PluginContext.on] 登记为可逆副作用
+     * （见 PluginContextImpl「订阅即 effect：卸载/回滚时自动退订」），插件停用即退订，
+     * 工具卡片随之停止投影。
+     */
+    override val description: String =
+        "把工具执行状态投影成会话里的工具卡片；停用后不再显示。"
+
     override fun setup(ctx: PluginContext) {
         ctx.on(ToolLifecycleEvents.STARTED, subscriber::onStarted)
         ctx.on(ToolLifecycleEvents.FINISHED, subscriber::onFinished)

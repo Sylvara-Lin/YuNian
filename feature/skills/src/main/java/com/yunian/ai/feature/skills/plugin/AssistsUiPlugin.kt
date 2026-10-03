@@ -122,12 +122,28 @@ class AssistsUiPlugin(private val bridge: AccessibilityBridge) : LianYuPlugin {
 
     override val version: String = "1.0.0"
 
+    /**
+     * 「插件设置」页展示的一句话说明。
+     *
+     * 逐条对应 [setup] 装配的 9 个工具（见 [TOOL_NAMES]）：
+     * 读屏 = `screen_read` / `screen_dump_ui`，点击 = `screen_tap` / `screen_click_text`，
+     * 滑动 = `screen_swipe`，输入 = `screen_input_text`，其余三个是导航与状态
+     * （`accessibility_status` / `press_back` / `go_home`）。
+     *
+     * 后半句「停用后 AI 立即失去这些能力」不是营销话术，而是本插件的**装配语义**：
+     * 每个工具都配了一条 `ctx.effect` 注销副作用（见 [setup]），卸载即从注册表摘除，
+     * 不存在「插件停了、工具还挂着」的僵尸窗口。
+     */
+    override val description: String =
+        "让 AI 读屏、点击、滑动、输入并导出界面结构来控制手机；停用后立即失效。"
+
     override val manifest: PluginManifest = PluginManifest(
         id = ID,
         name = NAME,
         version = "1.0.0",
         kind = PluginKind.TOOL,
         requires = requires.sorted(),
+        description = description,
         configSchema = null,
     )
 

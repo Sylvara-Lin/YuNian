@@ -123,12 +123,23 @@ class WeChatChannelPlugin(
 
     override val configSchema: String? = null
 
+    /**
+     * 「插件设置」页展示的一句话说明，逐条对应 [setup] 实际做的事：
+     * 注册 [WeChatChannelAdapter]（收发消息的身份）、订阅
+     * [ChannelOutboundEvents.REQUEST]（认领本通道的主动发送请求）、挂 [WeChatSettingsSection]。
+     *
+     * 「绑定用户」是 ilink 协议的硬约束（见类 KDoc「W1（修正版）」）：本通道只能给绑定的
+     * 那个微信账号发消息，所以文案不说「群发」，也不说「发给任意联系人」。
+     */
+    override val description: String = "通过微信收发消息，并按请求主动发送给绑定用户；停用后不再收发。"
+
     override val manifest: PluginManifest = PluginManifest(
         id = ID,
         name = "微信通道",
         version = "1.0.0",
         kind = PluginKind.ADAPTER,
         requires = listOf(PluginServices.CHANNELS),
+        description = description,
         configSchema = null,
     )
 

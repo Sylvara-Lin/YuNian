@@ -24,7 +24,8 @@ import org.junit.Test
  * 1. **kind 分派**：五个 [PluginKind] 均可注册 / 装载 / 卸载，[PluginHostImpl.pluginsOf] 按类别分派；
  *    ADAPTER（消息通道适配器）与 PIPELINE（回合后处理管道）与 TOOL/SKILL/STICKER 走完全相同的
  *    装载 / 卸载 / 逆序回滚路径（用**测试替身插件**，P1 不实现任何真实通道或管道）。
- * 2. **manifest 校验**：manifest 与插件自描述不一致（id/name/kind/requires/configSchema）
+ * 2. **manifest 校验**：manifest 与插件自描述不一致
+ *    （id/name/kind/requires/configSchema/description）
  *    在 register 阶段即被拒绝（fail-closed，registry 不留半成品）。
  * 3. **requires 缺失 → fail-closed**：宿主未预置的依赖服务使装载被拒绝并给出明确原因，
  *    且 setup 从未执行（不留任何副作用）。
@@ -45,7 +46,7 @@ class PluginHostKindDispatchTest {
     }
 
     /**
-     * 通用插件替身：可指定 kind / requires / configSchema / 装配行为。
+     * 通用插件替身：可指定 kind / requires / configSchema / description / 装配行为。
      *
      * [manifest] 默认由插件自描述合成（与契约默认实现同构）；传入 [manifestOverride]
      * 可构造「清单与自描述不一致」的非法插件用于校验测试。
@@ -56,6 +57,8 @@ class PluginHostKindDispatchTest {
         override val name: String = "fake:$id",
         override val requires: Set<String> = emptySet(),
         override val configSchema: String? = null,
+        // 插件说明；默认空串 = 未声明说明（与契约默认值同向）。
+        override val description: String = "",
         private val manifestOverride: PluginManifest? = null,
         private val toolName: String? = null,
         private val onSetup: ((PluginContext) -> Unit)? = null,
@@ -71,6 +74,7 @@ class PluginHostKindDispatchTest {
                 version = "1.0.0",
                 kind = kind,
                 requires = requires.sorted(),
+                description = description,
                 configSchema = configSchema,
             )
 
@@ -162,6 +166,7 @@ class PluginHostKindDispatchTest {
         assertEquals(plugin.id, plugin.manifest.id)
         assertEquals("1.0.0", plugin.manifest.version)
         assertEquals(PluginKind.PIPELINE, plugin.manifest.kind)
+        assertEquals("默认合成清单必须带上自描述的说明", plugin.description, plugin.manifest.description)
     }
 
     @Test
@@ -245,6 +250,57 @@ class PluginHostKindDispatchTest {
         host.register(plugin)
 
         assertFalse(host.isRegistered(plugin.id))
+    }
+
+    @Test
+    fun `manifest 的 description 与插件 description 不一致时拒绝注册`() {
+        // description 是「插件设置」页直接展示给用户的一句话说明（行副标题）。
+        // 它和 id/name/kind/requires/configSchema 一样参与逐字一致性校验：
+        // 清单独说一套、代码另说一套，会让设置页显示给用户的内容与插件实际行为脱节。
+        val plugin = FakePlugin(
+            id = "t.bad.description",
+            kind = PluginKind.TOOL,
+            description = "插件自己声明的说明",
+            manifestOverride = PluginManifest(
+                id = "t.bad.description",
+                name = "fake:t.bad.description",
+                version = "1.0.0",
+                kind = PluginKind.TOOL,
+                requires = emptyList(),
+                description = "清单里另写的一套说明",
+            ),
+        )
+        val host = newHost()
+        host.register(plugin)
+
+        assertFalse("说明不一致必须拒绝注册（fail-closed）", host.isRegistered(plugin.id))
+        assertTrue(host.plugins().isEmpty())
+        assertEquals(PluginLoadResult.NotFound, host.load(plugin.id, null))
+
+        val reason = PluginHostImpl.manifestMatchesSelfDescription(plugin)
+        assertNotNull("说明不一致必须被定位", reason)
+        assertTrue("原因必须指明是 description 字段：$reason", reason!!.contains("description"))
+    }
+
+    @Test
+    fun `description 两边一致时照常注册（含两边都未声明的情形）`() {
+        // 校验是**逐字相等**，不是「必须非空」：两边都留空同样一致、同样合法，
+        // 这样既有实现方（未覆写 description）不会被这次契约扩展判成非法插件。
+        val host = newHost()
+        val silent = FakePlugin(id = "t.silent", kind = PluginKind.TOOL)
+        val spoken = FakePlugin(
+            id = "t.spoken",
+            kind = PluginKind.TOOL,
+            description = "让 AI 做某件事的一句话说明",
+        )
+        listOf(silent, spoken).forEach { host.register(it) }
+
+        assertTrue("两边都未声明说明也必须合法", host.isRegistered(silent.id))
+        assertTrue(host.isRegistered(spoken.id))
+        assertEquals("", silent.manifest.description)
+        assertEquals("让 AI 做某件事的一句话说明", spoken.manifest.description)
+        assertEquals(null, PluginHostImpl.manifestMatchesSelfDescription(silent))
+        assertEquals(null, PluginHostImpl.manifestMatchesSelfDescription(spoken))
     }
 
     @Test

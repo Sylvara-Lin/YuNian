@@ -6,7 +6,8 @@ import com.yunian.ai.uicommon.plugin.PluginSettingsCategory
 import com.yunian.ai.uicommon.plugin.PluginSettingsPresentation
 
 /**
- * 「插件设置」页的**纯逻辑**：分类规则 / 搜索匹配 / 列表行构造 / 呈现方式分流 / 开关状态推导。
+ * 「插件设置」页的**纯逻辑**：分类规则 / 搜索匹配 / 列表行构造 / 呈现方式分流 /
+ * 插件 id 可见性分流 / 开关状态推导。
  *
  * 为什么单独成类：本仓库没有 Robolectric，Compose 也不做仪器测试，页面逻辑若写在
  * Composable 里就等于零覆盖（与 `capability/CapabilityGrantBoard.kt` 同一套理由）。
@@ -41,9 +42,12 @@ import com.yunian.ai.uicommon.plugin.PluginSettingsPresentation
  * 可能需要切一次 Tab——但列表本身只有个位数条目（当前 7 个插件 + 1 个保留条目），
  * 且两个 Tab 各自都给出了空态提示（见 [EMPTY_SEARCH_HINT]），不会让人以为搜坏了。
  *
- * 匹配规则：对 [PluginSettingsRow.pluginId] **与** [PluginSettingsRow.title]
- * 做**不区分大小写**的包含匹配（[String.contains] + [ignoreCase]）；
- * 查询词 trim 后为空视为「未搜索」，全部通过。
+ * 匹配规则：对 [PluginSettingsRow.pluginId]、[PluginSettingsRow.title] **与**
+ * [PluginSettingsRow.description] 做**不区分大小写**的包含匹配
+ * （[String.contains] + [ignoreCase]）；查询词 trim 后为空视为「未搜索」，全部通过。
+ *
+ * 说明把 [PluginSettingsRow.description] 纳入匹配范围的理由：它是用户唯一能读到
+ * 「这个插件到底做什么」的字段，搜「无障碍」「定时任务」这类**行为词**比背插件 id 现实得多。
  *
  * ## 开关只表达运行态
  *
@@ -115,14 +119,19 @@ object PluginSettingsBoard {
         if (query.isBlank()) EMPTY_HINT else EMPTY_SEARCH_HINT
 
     /**
-     * 搜索匹配：对 id 与展示名做不区分大小写的包含匹配。
+     * 搜索匹配：对 id、展示名与**说明**做不区分大小写的包含匹配。
      *
      * 空白查询词（含只有空格）一律通过——用户在搜索框里敲了个空格不该看到空列表。
+     *
+     * @param description 插件的 [LianYuPlugin.description]；空串（未声明说明）时
+     *   它对匹配结果没有任何贡献，等价于「这一项不存在」，不会把行变成恒真命中。
      */
-    fun matches(id: String, title: String, query: String): Boolean {
+    fun matches(id: String, title: String, description: String, query: String): Boolean {
         val q = query.trim()
         if (q.isEmpty()) return true
-        return id.contains(q, ignoreCase = true) || title.contains(q, ignoreCase = true)
+        return id.contains(q, ignoreCase = true) ||
+            title.contains(q, ignoreCase = true) ||
+            description.contains(q, ignoreCase = true)
     }
 
     /**
@@ -133,9 +142,10 @@ object PluginSettingsBoard {
      * 2. 其余按 [PluginSettingsRow.pluginId] 升序，与 `PluginHost.plugins()` 的排序一致。
      *
      * @param plugins 全部已注册插件（含未装载的——列表**不因未装载而消失**，
-     *   否则用户没法把停用的插件重新打开）。
+     *   否则用户没法把停用的插件重新打开）。行副标题取 [LianYuPlugin.description]，
+     *   空串时回落为插件 id（见 [subtitleOf]）。
      * @param category 当前 Tab 的分类。
-     * @param query 搜索词；空白 = 不过滤。
+     * @param query 搜索词；空白 = 不过滤。命中范围 = id + 标题 + 说明。
      * ## 呈现方式在这里进入行模型
      *
      * 「点这一行会发生什么」由设置区的 [PluginSettingsPresentation] 决定，而这个判断
@@ -159,6 +169,10 @@ object PluginSettingsBoard {
             pluginId = TOOL_GRANT_ID,
             title = TOOL_GRANT_TITLE,
             subtitle = TOOL_GRANT_SUBTITLE,
+            // 保留条目不是插件，没有 LianYuPlugin.description 可言；它的副标题是用途说明，
+            // 由 PluginSettingsRows 用资源字符串渲染（**文案与行为一律不变**）。
+            // 空串同时让它不参与「按说明搜索」——保留条目仍由 id / 标题命中。
+            description = "",
             category = PluginSettingsCategory.GENERAL,
             isSynthetic = true,
             // 保留条目由设置页自己在 DisposableEffect 里注册（见 PluginSettingsScreen），
@@ -175,7 +189,10 @@ object PluginSettingsBoard {
                 PluginSettingsRow(
                     pluginId = plugin.id,
                     title = plugin.name,
-                    subtitle = plugin.id,
+                    // 副标题 = 面向用户的说明；**未声明说明（空串）时回落为插件 id**，
+                    // 绝不渲染出空副标题（回落规则见 subtitleOf）。
+                    subtitle = subtitleOf(plugin),
+                    description = plugin.description,
                     category = categoryOf(plugin.kind),
                     isSynthetic = false,
                     // 没注册设置区 → null：行仍可点开，展开区里给「无可配置项」的兜底提示。
@@ -190,9 +207,18 @@ object PluginSettingsBoard {
 
         val ordered = if (hasGrant) listOf(grantRow) + selected else selected
         return ordered
-            .filter { matches(it.pluginId, it.title, query) }
+            .filter { matches(it.pluginId, it.title, it.description, query) }
             .sortedWith(compareBy({ !it.isSynthetic }, { it.pluginId }))
     }
+
+    /**
+     * 行副标题：说明文案；**空串（未声明说明）时回落为插件 id**。
+     *
+     * 回落不是「顺手补一下」：副标题是行上唯一的次要文本，留空会让用户看到一行
+     * 「标题下面什么都没有」的条目，既不像插件、也失去了排障用的 id。
+     * 单独抽成函数是为了让回落规则**只有一处**，行构造与单测看到的是同一个判断。
+     */
+    fun subtitleOf(plugin: LianYuPlugin): String = plugin.description.ifEmpty { plugin.id }
 
     /** Runtime alone drives switches; disabledIds is retained for callers but never masks a running plugin. */
     @Suppress("UNUSED_PARAMETER")
@@ -231,6 +257,38 @@ enum class PluginRowAction {
 }
 
 /**
+ * 「插件 id 在页面上出现在哪里」——由 [PluginSettingsRow.pluginIdPlacement] 纯推导，
+ * Composable 只照着画。
+ *
+ * 为什么要有这条分流：行的**副标题**现在是说明文案（[LianYuPlugin.description]），
+ * 未声明说明时才回落成 id。id 是排障时最需要的信息，任何一行都不许把它弄丢，
+ * 但两种行的可用位置不同：
+ *
+ * | 取值 | 哪些行 | 画在哪 |
+ * |---|---|---|
+ * | [EXPANDED_SECTION] | 有展开区的行（[PluginRowAction.TOGGLE_INLINE]） | 展开区顶部一行 |
+ * | [INLINE] | 没有展开区的行（[PluginRowAction.OPEN_FULL_PAGE]） | 行内副标题下方小字 |
+ * | [HIDDEN] | 合成保留条目（[PluginSettingsBoard.TOOL_GRANT_ID]） | 不画 |
+ *
+ * [HIDDEN] 为什么是对的：保留条目**不是插件**，[PluginSettingsBoard.TOOL_GRANT_ID]
+ * 是设置页自己造的入口 id，把它当「插件 id」印在行上只会误导；它的副标题已经说明了用途。
+ * 这条同时保证保留条目的行内文案与行为**一处都没变**。
+ *
+ * 分流规则必须留在这里（纯逻辑、JVM 可测），不能写成 Composable 里的 if——
+ * 否则「id 到底还在不在页面上」就零覆盖了（与 [PluginRowAction] 同一套理由）。
+ */
+enum class PluginIdPlacement {
+    /** 展开区顶部一行（有展开区时才可达：收起时展开区整块不渲染）。 */
+    EXPANDED_SECTION,
+
+    /** 行内、副标题下方的小字。 */
+    INLINE,
+
+    /** 不画（合成保留条目没有插件 id 可言）。 */
+    HIDDEN,
+}
+
+/**
  * 列表里的一行。
  *
  * [isSynthetic] 区分「保留条目」与「真实插件」：合成条目没有 [PluginHost] 记录，
@@ -240,14 +298,34 @@ enum class PluginRowAction {
  *
  * [action] 是从 [presentation] 推导出来的纯属性，**不是**第二个可写字段——
  * 于是「行说自己有设置区」与「行知道该走哪条渲染路径」在结构上不可能不一致。
+ *
+ * ## 插件 id 去哪了：由 [pluginIdPlacement] 表达
+ *
+ * 副标题现在是**说明文案**（[description]），id 不再天然占着那一行。
+ * 但 id 是排障时最需要的信息，**任何一行都不许把它弄丢**——于是它按行型换个位置显示，
+ * 规则同样是一条纯推导属性（[pluginIdPlacement]），Composable 只照着画。
  */
 data class PluginSettingsRow(
     /** 插件 id；合成条目为 [PluginSettingsBoard.TOOL_GRANT_ID]。 */
     val pluginId: String,
     /** 主标题（插件展示名）。 */
     val title: String,
-    /** 副标题（真实插件显示 id；合成条目显示用途说明）。 */
+    /**
+     * 副标题：真实插件 = 说明文案（[LianYuPlugin.description]；空串时回落为插件 id，
+     * 见 [PluginSettingsBoard.subtitleOf]）；合成条目 = 用途说明。
+     *
+     * 渲染时**合成条目走资源字符串**（见 PluginSettingsRows），真实插件直接用本字段。
+     */
     val subtitle: String,
+    /**
+     * 插件的 [LianYuPlugin.description]（**逐字**带上来的原始值，不做回落）；
+     * 合成条目恒为空串（它不是插件）。
+     *
+     * 与 [subtitle] 的分工：本字段是「插件声明了什么」的原始事实，[subtitle] 是
+     * 「这一行该显示什么」的呈现结果。两者分开才能让「未声明说明」这一情形可断言，
+     * 也是搜索能按说明命中的依据（见 [PluginSettingsBoard.matches]）。
+     */
+    val description: String,
     /** 归属 Tab。 */
     val category: PluginSettingsCategory,
     /** true = 保留条目（工具授权），不是 [PluginHost] 里的插件。 */
@@ -264,6 +342,42 @@ data class PluginSettingsRow(
     /** 是否已注册设置区。由 [presentation] 推导，两者结构上不可能不一致。 */
     val hasSection: Boolean
         get() = presentation != null
+
+    /**
+     * 插件 id 画在哪（映射规则见 [PluginIdPlacement]）。
+     *
+     * 判据只有两条：**这一行有没有展开区**（由 [action] 表达）与**它是不是插件**
+     * （由 [isSynthetic] 表达）。刻意不去看 [subtitle] 是否恰好等于 [pluginId]——
+     * 那种「字符串相等即隐式隐藏」的写法会让将来某个插件的说明正好等于自己的 id 时
+     * 静默丢信息，而且无法在单测里表达意图。
+     */
+    val pluginIdPlacement: PluginIdPlacement
+        get() = when {
+            // 保留条目不是插件：它没有 LianYuPlugin.id，行的副标题已经说明用途。
+            isSynthetic -> PluginIdPlacement.HIDDEN
+            // 有展开区：id 放展开区顶部一行（收起时随展开区一起不渲染）。
+            action == PluginRowAction.TOGGLE_INLINE -> PluginIdPlacement.EXPANDED_SECTION
+            // 没有展开区（FULL_PAGE 走页内全屏浮层）：id 只能留在行内。
+            else -> PluginIdPlacement.INLINE
+        }
+
+    /** 插件 id 是否画在**展开区顶部一行**（有展开区，且是真实插件）。 */
+    val pluginIdInExpandedSection: Boolean
+        get() = pluginIdPlacement == PluginIdPlacement.EXPANDED_SECTION
+
+    /**
+     * 行内**此刻**要不要真的画那行 id 小字。
+     *
+     * 判据 = 落点是行内（[pluginIdPlacement] == [PluginIdPlacement.INLINE]）
+     * 且**行内还没有显示过 id**。
+     *
+     * 后一半为什么需要：插件未声明说明时 [subtitle] 回落成 [pluginId]，此时行内已经有 id 了，
+     * 再画一行小字只是重复。注意这里看的是「插件声明了什么」（[description] 是否为空），
+     * **不是**「副标题字符串是否恰好等于 id」——后者会把某个说明正好写成自己 id 的插件
+     * 判成「已经显示过 id」而静默丢信息（同 [pluginIdPlacement] 的判据说明）。
+     */
+    val pluginIdInlineVisible: Boolean
+        get() = pluginIdPlacement == PluginIdPlacement.INLINE && description.isNotEmpty()
 
     /**
      * 点这一行会发生什么（映射规则见 [PluginRowAction]）。

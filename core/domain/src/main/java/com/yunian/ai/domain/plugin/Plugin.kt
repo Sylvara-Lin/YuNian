@@ -41,8 +41,8 @@ enum class PluginKind { TOOL, SKILL, STICKER, ADAPTER, PIPELINE }
  * 插件清单（对应 Cordis package.json 的投影）。
  *
  * 清单是插件的**声明式身份**：宿主在注册（[PluginHost.register]）时用它校验插件自描述
- * 是否自洽（id / name / kind / requires / configSchema 必须与 [LianYuPlugin] 的同名成员一致），
- * 在装载（[PluginHost.load]）时用它判定依赖缺失并 **fail-closed** 拒绝装载。
+ * 是否自洽（id / name / kind / requires / configSchema / description 必须与 [LianYuPlugin]
+ * 的同名成员一致），在装载（[PluginHost.load]）时用它判定依赖缺失并 **fail-closed** 拒绝装载。
  * 清单不参与运行期行为：它不改变 [LianYuPlugin.setup] 的装配语义，也不参与版本解析。
  */
 data class PluginManifest(
@@ -60,6 +60,19 @@ data class PluginManifest(
     val requires: List<String>,
     /** 归属工具集（对齐 Hermes TOOLSETS / cordis toolsets）。 */
     val toolsets: List<String> = emptyList(),
+    /**
+     * 面向用户的**一句话说明**（「插件设置」页的行副标题就是它）。
+     *
+     * 与 [LianYuPlugin.description] **必须逐字一致**——宿主在 [PluginHost.register] 与
+     * [PluginHost.load] 两处都做逐字比对，不一致即 **fail-closed** 拒绝注册 / 装载
+     * （与 id / name / kind / requires / configSchema 同一套语义）。
+     * 空串 = 未声明说明；此时设置页把行副标题回落为插件 id，不显示空行。
+     *
+     * ⚠️ **参数位置**：它刻意排在 [toolsets] 与 [configSchema] 之间，且**带默认值**，
+     * 因此既有实现方无论用位置参数还是具名参数构造清单都**源码级兼容**
+     * （先例见 [PluginContext] 的契约扩展兼容性说明）。
+     */
+    val description: String = "",
     /** 配置 JSON Schema 文本；null = 无配置。校验失败拒绝加载（fail-closed）。 */
     val configSchema: String? = null,
 )
@@ -278,13 +291,13 @@ interface PluginContext {
  * 实现方（feature 模块）只依赖本契约；装配内的一切副作用必须经 [PluginContext.effect]
  * 注册，保证可逆（卸载/热更新安全）。
  *
- * 自描述一致性：宿主用 [manifest] 校验 [id]/[name]/[kind]/[requires]/[configSchema]；
- * 实现方必须让这五项与清单逐字一致，否则宿主拒绝注册（fail-closed）。
+ * 自描述一致性：宿主用 [manifest] 校验 [id]/[name]/[kind]/[requires]/[configSchema]/[description]；
+ * 实现方必须让这六项与清单逐字一致，否则宿主拒绝注册（fail-closed）。
  * 默认实现由本接口的同名成员合成清单，因此实现方通常只需覆写 [manifest] 以补充
  * [PluginManifest.version]/[PluginManifest.toolsets] 并显式声明依赖。
  */
 interface LianYuPlugin {
-    /** 全局唯一插件 id（如 `coffee.luckin`）。 */
+    /** 全局唯一插件 id（如 `ui.assists`）。 */
     val id: String
 
     /** 展示名。 */
@@ -308,10 +321,27 @@ interface LianYuPlugin {
     val configSchema: String?
 
     /**
+     * 面向用户的**一句话说明**：这个插件替用户做了什么。
+     *
+     * 它是「插件设置」页的行副标题（页面读取本字段；空串时回落为 [id]），
+     * 也是该页搜索的命中范围之一——写清「做了什么」比复述 id / 展示名有用得多。
+     *
+     * 约定：
+     * - **空串 = 未声明说明**（默认值）。此时设置页显示插件 id，不显示空行；
+     * - 必须与 [PluginManifest.description] **逐字一致**，否则宿主在 [PluginHost.register]
+     *   与 [PluginHost.load] 两处 fail-closed 拒绝该插件；
+     * - 用中文一句话，**与实际装配的工具 / 行为一致**，不复述 id 或展示名。
+     *
+     * 带默认实现：既有实现方**源码级兼容**（先例见 [PluginContext] 的契约扩展兼容性说明）。
+     */
+    val description: String get() = ""
+
+    /**
      * 插件清单（对应 Cordis package.json 的投影）。
      *
-     * 默认由本接口的同名成员合成；覆写时必须保持 id/name/kind/requires/configSchema 与本接口
-     * 一致，否则宿主在 [PluginHost.register] 阶段拒绝注册。
+     * 默认由本接口的同名成员合成；覆写时必须保持
+     * id/name/kind/requires/configSchema/description 与本接口一致，
+     * 否则宿主在 [PluginHost.register] 阶段拒绝注册。
      */
     val manifest: PluginManifest
         get() = PluginManifest(
@@ -320,6 +350,7 @@ interface LianYuPlugin {
             version = version,
             kind = kind,
             requires = requires.sorted(),
+            description = description,
             configSchema = configSchema,
         )
 

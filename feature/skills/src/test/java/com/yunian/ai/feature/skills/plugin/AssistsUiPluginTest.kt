@@ -143,6 +143,34 @@ class AssistsUiPluginTest {
         assertEquals(plugin.configSchema, manifest.configSchema)
     }
 
+    /**
+     * 「插件设置」页的一句话说明（[com.yunian.ai.domain.plugin.LianYuPlugin.description]）。
+     *
+     * 两个钉子：
+     * 1. **已落地**——空串 = 未声明说明，页面行副标题会回落成插件 id（见 LianYuPlugin.description
+     *    的约定），因此「说明非空白」本身必须可断言，而不是靠人肉记得写；
+     * 2. **与清单逐字一致**——[com.yunian.ai.agent.plugin.PluginHostImpl.manifestMatchesSelfDescription]
+     *    把 description 纳入 fail-closed 校验（不一致即拒绝注册），本用例在 JVM 侧独立复核同一约束。
+     */
+    @Test
+    fun pluginDescription_isDeclaredAndMatchesManifest() {
+        val plugin = AssistsUiPlugin(bridge)
+
+        assertTrue(
+            "ui.assists 的一句话说明不得为空（空串 = 未声明，设置页会退化成显示插件 id）",
+            plugin.description.isNotBlank(),
+        )
+        assertTrue(
+            "manifest.description 同样不得为空",
+            plugin.manifest.description.isNotBlank(),
+        )
+        assertEquals(
+            "manifest.description 必须与插件自描述逐字一致，否则宿主 fail-closed 拒绝注册",
+            plugin.description,
+            plugin.manifest.description,
+        )
+    }
+
     // ---------- 安全标记 ----------
 
     @Test

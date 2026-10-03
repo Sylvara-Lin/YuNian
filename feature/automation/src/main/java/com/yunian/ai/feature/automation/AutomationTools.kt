@@ -323,12 +323,21 @@ class AutomationPlugin(
     override val requires: Set<String> = setOf(PluginServices.TOOLS)
     override val configSchema: String? = null
 
+    /**
+     * 「插件设置」页展示的一句话说明，对应 [setup] 装配的 5 个工具：
+     * automation_create / automation_create_workflow（创建定时任务与工作流）、
+     * automation_fire（立即触发）、automation_list（列出）、automation_cancel（取消）。
+     * 卸载即逐工具注销（见 [setup] 的 ctx.effect），因此「停用后无法创建 / 触发」是装配事实。
+     */
+    override val description: String = "让 AI 创建定时任务与工作流、立即触发或取消；停用后无法创建。"
+
     override val manifest: PluginManifest = PluginManifest(
         id = ID,
         name = "自动化工具",
         version = "1.0.0",
         kind = PluginKind.TOOL,
         requires = requires.sorted(),
+        description = description,
         configSchema = null,
     )
 

@@ -62,12 +62,22 @@ class MessageSendPlugin : LianYuPlugin {
 
     override val configSchema: String? = null
 
+    /**
+     * 「插件设置」页展示的一句话说明，对应 [setup] 注册的唯一工具
+     * [ChannelSendTool]（名字见 [TOOL_NAME] = send_channel_message）。
+     *
+     * 「需确认」不是修饰语：该工具 requiresConfirmation = true，且 appLocalOnly = true
+     * （只在 App 内会话可见，见 [ChannelSendTool] 的「渠道隔离」）。
+     */
+    override val description: String = "让 AI 把一条消息经指定通道发出（需确认）；停用后 AI 无法主动发消息。"
+
     override val manifest: PluginManifest = PluginManifest(
         id = ID,
         name = "消息发送",
         version = "1.0.0",
         kind = PluginKind.TOOL,
         requires = requires.sorted(),
+        description = description,
         configSchema = null,
     )
 

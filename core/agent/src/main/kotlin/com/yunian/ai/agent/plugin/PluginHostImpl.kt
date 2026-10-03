@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentSkipListSet
  * [PluginHost] 实现：注册 / 装载 / 卸载 / 生命周期管理。
  *
  * 注册流程（fail-closed）：[manifestMatchesSelfDescription] 校验 [LianYuPlugin.manifest]
- * 与插件自描述（id/name/kind/requires/configSchema）逐字一致；不一致**拒绝注册**
+ * 与插件自描述（id/name/kind/requires/configSchema/description）逐字一致；不一致**拒绝注册**
  * （registry 保持原状并记录告警），使该插件永远无法被装载。
  *
  * 装载流程（fail-closed）：
@@ -193,15 +193,23 @@ class PluginHostImpl(
         /**
          * 校验插件清单与自描述是否一致；一致返回 null，否则返回差异说明（fail-closed 依据）。
          *
-         * 校验项：id / name / kind / requires（集合语义）/ configSchema / requires 无重复项。
+         * 校验项：id / name / kind / requires（集合语义）/ configSchema / description /
+         * requires 无重复项。
          * [PluginManifest.version] 与 [PluginManifest.toolsets] 属于清单独有的自描述信息，
          * 不参与一致性校验。
+         *
+         * [PluginManifest.description] 参与校验的理由与其余字段一致：它是「插件设置」页
+         * 直接展示给用户的一句话说明，清单独有而代码另说会让页面显示与插件实际行为脱节。
+         * 两处都必须逐字相同——包括「两边都留空」这一种情形（空串与空串一致，合法）。
          */
         internal fun manifestMatchesSelfDescription(plugin: LianYuPlugin): String? {
             val m = plugin.manifest
             if (m.id != plugin.id) return "manifest.id=${m.id} 与 plugin.id=${plugin.id} 不一致"
             if (m.name != plugin.name) return "manifest.name=${m.name} 与 plugin.name=${plugin.name} 不一致"
             if (m.kind != plugin.kind) return "manifest.kind=${m.kind} 与 plugin.kind=${plugin.kind} 不一致"
+            if (m.description != plugin.description) {
+                return "manifest.description=${m.description} 与 plugin.description=${plugin.description} 不一致"
+            }
             if (m.requires.toSet() != plugin.requires) {
                 return "manifest.requires=${m.requires.sorted()} 与 plugin.requires=${plugin.requires.sorted()} 不一致"
             }

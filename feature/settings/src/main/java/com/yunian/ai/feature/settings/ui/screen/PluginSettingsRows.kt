@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yunian.ai.feature.settings.R
+import com.yunian.ai.feature.settings.plugin.PluginIdPlacement
 import com.yunian.ai.feature.settings.plugin.PluginRowAction
 import com.yunian.ai.feature.settings.plugin.PluginSettingsBoard
 import com.yunian.ai.feature.settings.plugin.PluginSettingsRow
@@ -63,6 +64,11 @@ private val RowCardShape = RoundedCornerShape(20.dp)
  * 展开区**不留白**：没有注册设置区时显示一行「此插件无可配置项」，
  * 否则用户会以为点了没反应（[PluginSettingsBoard] 只在有设置区时才显示动作提示，
  * 这条提示是给「注册表变化但行未及时刷新」的兜底）。
+ *
+ * **插件 id 画在哪也由纯逻辑决定**（[PluginSettingsRow.pluginIdPlacement]，规则见
+ * [PluginIdPlacement]）：有展开区的行把 id 画在展开区顶部一行，没有展开区的行
+ * （`FULL_PAGE` 走页内全屏浮层）把 id 留在行内副标题下方的小字里。
+ * 本文件只做 when 分支渲染，不做任何「该不该显示」的判断。
  */
 @Composable
 internal fun PluginSettingsRowItem(
@@ -124,7 +130,8 @@ internal fun PluginSettingsRowItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    // 副标题走资源：保留条目显示用途说明，真实插件显示 id（排障时最需要的信息）。
+                    // 副标题走资源：保留条目显示用途说明，真实插件显示说明文案
+                    // （未声明说明时 PluginSettingsBoard 已回落为插件 id，不会是空串）。
                     text = if (row.isSynthetic) {
                         stringResource(R.string.plugin_settings_tool_grant_subtitle)
                     } else {
@@ -135,6 +142,18 @@ internal fun PluginSettingsRowItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // 没有展开区的行（FULL_PAGE）把插件 id 留在行内：副标题被说明文案占住后，
+                // 这里是该行唯一能承载排障 id 的位置（副标题本身就是 id 时不重复画）。
+                // 要不要画由 PluginSettingsRow.pluginIdInlineVisible 给出，本文件不判断。
+                if (row.pluginIdInlineVisible) {
+                    Text(
+                        text = row.pluginId,
+                        fontSize = 11.sp,
+                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             if (row.isSynthetic) {
@@ -207,6 +226,20 @@ internal fun PluginSettingsRowItem(
                 Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.3f))
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // 展开区**顶部一行**：插件 id。副标题换成说明文案后，这里是排障 id 的落点
+                // （要不要画由 PluginSettingsRow.pluginIdPlacement 决定，本文件不判断）。
+                // 与下面的「此插件无可配置项」提示同处一块展开区，两种情形都能看到 id。
+                if (row.pluginIdInExpandedSection) {
+                    Text(
+                        text = "插件 id：" + row.pluginId,
+                        fontSize = 11.sp,
+                        color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 val section = remember(row.pluginId) {
                     PluginSettingsSections.forPlugin(row.pluginId)
