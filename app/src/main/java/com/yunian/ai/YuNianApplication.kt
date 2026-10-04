@@ -734,6 +734,8 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
             // 它**不认识任何具体通道**，因此通道插件卸载后工具仍在（派发得到「该通道未启用」），
             // 而不是随通道一起消失——这正是「可自由启用/停用通道」的正确语义。
             pluginHost.register(com.yunian.ai.agent.plugin.MessageSendPlugin())
+            // 第一人称思考（PIPELINE，纯提示词注入，不改 Rust）：开关驱动 _agent_preserve_system 底部注入。
+            pluginHost.register(com.yunian.ai.feature.chat.plugin.FirstPersonReasoningPlugin())
             ServiceRegistry.registerSingleton(com.yunian.ai.domain.plugin.PluginHost::class.java) { pluginHost }
             // 通道注册中心同时作为跨模块可查询服务（feature 模块按 ChannelRegistry 契约取用）。
             ServiceRegistry.registerSingleton(com.yunian.ai.domain.channel.ChannelRegistry::class.java) {

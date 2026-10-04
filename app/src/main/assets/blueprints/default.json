@@ -23,6 +23,9 @@
         },
         {
             "id": "ui.assists"
+        },
+        {
+            "id": "chat.first_person_reasoning"
         }
     ],
     "patches": [],

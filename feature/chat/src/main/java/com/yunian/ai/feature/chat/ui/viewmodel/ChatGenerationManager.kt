@@ -643,6 +643,33 @@ class ChatGenerationManager private constructor(
             }
             arr.put(m)
         }
+        // 第一人称思考（PIPELINE 插件，不改 Rust）：经仓库原版的 _agent_preserve_system
+        // 通道（世界书同一条）在底部、紧贴当前 user 消息前注入。插件关闭时 systemRules()
+        // 返回空串 → 不注入，messages 与没有该插件时逐字节一致。
+        val firstPersonRules = com.yunian.ai.feature.chat.plugin.FirstPersonReasoningRules.systemRules()
+        if (firstPersonRules.isNotEmpty()) {
+            val inject = JSONObject().apply {
+                put("role", "system")
+                put("content", firstPersonRules)
+                put("_agent_preserve_system", true)
+            }
+            // 插到当前 user 消息前：最后一条 user 消息是当前输入，规则贴它前面权重最高。
+            val lastUserIdx = (arr.length() - 1 downTo 0).firstOrNull { i ->
+                arr.optJSONObject(i)?.optString("role") == "user"
+            }
+            if (lastUserIdx != null) {
+                // JSONArray 无 insert：尾部暂存 → 放规则 → 尾部放回。
+                val tail = mutableListOf<JSONObject>()
+                for (i in arr.length() - 1 downTo lastUserIdx) {
+                    tail.add(0, arr.getJSONObject(i))
+                    arr.remove(i)
+                }
+                arr.put(inject)
+                tail.forEach { arr.put(it) }
+            } else {
+                arr.put(inject)
+            }
+        }
         return arr.toString()
     }
 
