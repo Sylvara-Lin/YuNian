@@ -1,12 +1,10 @@
 package com.yunian.ai.feature.wechat.service
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,8 +20,10 @@ import org.junit.Test
  *
  * 注：本测试验证 mutex 互斥语义本身，不启动真实 Service / WorkManager；
  * WeChatPollingService.start/stop 与 WorkManager 排程由真机验证（见 bug-report.html《需我人工验证清单》）。
+ *
+ * 实现说明：不依赖 kotlinx-coroutines-test（全工程未声明该依赖，不新增第三方库），
+ * 用 runBlocking + async + 真实 Mutex 验证互斥语义。
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 class WeChatChannelKeeperStopMutexTest {
 
     /** 模拟 WeChatChannelKeeper 的 mutex 互斥语义（与 WeChatChannelKeeper.mutex 同构）。 */
@@ -33,13 +33,13 @@ class WeChatChannelKeeperStopMutexTest {
 
         suspend fun ensureRunning(): Unit = mutex.withLock {
             executionLog.add("ensureRunning:start")
-            delay(100) // 模拟持锁期间的 IO
+            delay(50) // 模拟持锁期间的 IO
             executionLog.add("ensureRunning:end")
         }
 
         suspend fun healIfNeeded(): Unit = mutex.withLock {
             executionLog.add("healIfNeeded:start")
-            delay(100)
+            delay(50)
             executionLog.add("healIfNeeded:end")
         }
 
@@ -50,12 +50,12 @@ class WeChatChannelKeeperStopMutexTest {
     }
 
     @Test
-    fun `stop serializes with ensureRunning`() = runTest {
+    fun `stop serializes with ensureRunning`() = runBlocking {
         val keeper = KeeperSimulator()
-        val job1 = launch { keeper.ensureRunning() }
-        val job2 = launch { keeper.stop() }
-        job1.join()
-        job2.join()
+        val job1 = async { keeper.ensureRunning() }
+        val job2 = async { keeper.stop() }
+        job1.await()
+        job2.await()
 
         // 串行执行：ensureRunning 完整结束后 stop 才执行（或反之），不会交错
         val log = keeper.executionLog
@@ -71,12 +71,12 @@ class WeChatChannelKeeperStopMutexTest {
     }
 
     @Test
-    fun `stop serializes with healIfNeeded`() = runTest {
+    fun `stop serializes with healIfNeeded`() = runBlocking {
         val keeper = KeeperSimulator()
-        val job1 = launch { keeper.healIfNeeded() }
-        val job2 = launch { keeper.stop() }
-        job1.join()
-        job2.join()
+        val job1 = async { keeper.healIfNeeded() }
+        val job2 = async { keeper.stop() }
+        job1.await()
+        job2.await()
 
         val log = keeper.executionLog
         assertEquals(4, log.size)
@@ -90,16 +90,16 @@ class WeChatChannelKeeperStopMutexTest {
     }
 
     @Test
-    fun `stop waits for healIfNeeded lock release`() = runTest {
+    fun `stop waits for healIfNeeded lock release`() = runBlocking {
         val keeper = KeeperSimulator()
         // healIfNeeded 先持锁
-        val healJob = launch { keeper.healIfNeeded() }
-        // 等 healIfNeeded 已经开始
-        advanceTimeBy(50)
+        val healJob = async { keeper.healIfNeeded() }
+        // 等 healIfNeeded 已经开始（delay 10ms < healIfNeeded 持锁 50ms）
+        delay(10)
         // stop 在 healIfNeeded 持锁期间发起
-        val stopJob = launch { keeper.stop() }
-        healJob.join()
-        stopJob.join()
+        val stopJob = async { keeper.stop() }
+        healJob.await()
+        stopJob.await()
 
         val log = keeper.executionLog
         // healIfNeeded 必须先完整结束，stop 才开始
@@ -109,14 +109,14 @@ class WeChatChannelKeeperStopMutexTest {
     }
 
     @Test
-    fun `healIfNeeded waits for stop lock release`() = runTest {
+    fun `healIfNeeded waits for stop lock release`() = runBlocking {
         val keeper = KeeperSimulator()
         // stop 先持锁
-        val stopJob = launch { keeper.stop() }
-        // healIfNeeded 在 stop 持锁期间发起
-        val healJob = launch { keeper.healIfNeeded() }
-        stopJob.join()
-        healJob.join()
+        val stopJob = async { keeper.stop() }
+        // healIfNeeded 在 stop 持锁期间发起（stop 无 delay，立即完成；healIfNeeded 排队等锁）
+        val healJob = async { keeper.healIfNeeded() }
+        stopJob.await()
+        healJob.await()
 
         val log = keeper.executionLog
         val stopEnd = log.indexOf("stop:end")
@@ -125,14 +125,14 @@ class WeChatChannelKeeperStopMutexTest {
     }
 
     @Test
-    fun `concurrent stop and heal and ensure all serialize`() = runTest {
+    fun `concurrent stop and heal and ensure all serialize`() = runBlocking {
         val keeper = KeeperSimulator()
         val jobs = listOf(
-            launch { keeper.ensureRunning() },
-            launch { keeper.healIfNeeded() },
-            launch { keeper.stop() },
+            async { keeper.ensureRunning() },
+            async { keeper.healIfNeeded() },
+            async { keeper.stop() },
         )
-        jobs.forEach { it.join() }
+        jobs.forEach { it.await() }
 
         val log = keeper.executionLog
         assertEquals(6, log.size)
