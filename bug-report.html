@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>予念 YuNian · Bug 错误内容报告</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background: #0f1115; color: #d6d9e0; line-height: 1.6; }
+  body { padding: 16px; max-width: 1280px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 8px 0 4px; color: #fff; }
+  h2 { font-size: 18px; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #2a2f3a; color: #fff; }
+  h3 { font-size: 15px; margin: 18px 0 8px; color: #e5e9f0; }
+  h4 { font-size: 13px; margin: 12px 0 6px; color: #b8bfcc; text-transform: uppercase; letter-spacing: 0.5px; }
+  p { margin: 6px 0; }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace; font-size: 12px; }
+  pre { background: #161a22; border: 1px solid #2a2f3a; border-radius: 6px; padding: 10px 12px; overflow-x: auto; line-height: 1.55; color: #d6d9e0; }
+  pre .ln { color: #5b6474; user-select: none; display: inline-block; width: 36px; text-align: right; padding-right: 10px; }
+  pre .kw { color: #c792ea; }
+  pre .str { color: #c3e88d; }
+  pre .num { color: #f78c6c; }
+  pre .cm { color: #5b6474; font-style: italic; }
+  pre .fn { color: #82aaff; }
+  pre .tp { color: #ffcb6b; }
+  pre .op { color: #89ddff; }
+  .header { background: linear-gradient(135deg, #1c2230 0%, #161a22 100%); border: 1px solid #2a2f3a; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .header .meta { color: #8a93a6; font-size: 12px; margin-top: 4px; }
+  .header .meta span { margin-right: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 14px 0; }
+  .stat { background: #161a22; border: 1px solid #2a2f3a; border-radius: 8px; padding: 10px 12px; }
+  .stat .num { font-size: 22px; font-weight: 700; color: #fff; }
+  .stat .lbl { font-size: 11px; color: #8a93a6; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .stat.critical .num { color: #ff6b81; }
+  .stat.high .num { color: #ffa94d; }
+  .stat.medium .num { color: #ffd43b; }
+  .stat.low .num { color: #69db7c; }
+  .stat.pending .num { color: #a5b4fc; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; align-items: center; }
+  .filters label { font-size: 12px; color: #8a93a6; }
+  .filters input, .filters select { background: #161a22; border: 1px solid #2a2f3a; color: #d6d9e0; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+  .filters input { flex: 1; min-width: 180px; }
+  .filters button { background: #2a2f3a; border: 1px solid #3a4152; color: #d6d9e0; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  .filters button:hover { background: #3a4152; }
+  .filters button.active { background: #4f6ef7; border-color: #4f6ef7; color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: #161a22; border: 1px solid #2a2f3a; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #232936; vertical-align: top; }
+  th { background: #1c2230; color: #b8bfcc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1a1f2a; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge.critical { background: #ff6b8122; color: #ff6b81; border: 1px solid #ff6b8155; }
+  .badge.high { background: #ffa94d22; color: #ffa94d; border: 1px solid #ffa94d55; }
+  .badge.medium { background: #ffd43b22; color: #ffd43b; border: 1px solid #ffd43b55; }
+  .badge.low { background: #69db7c22; color: #69db7c; border: 1px solid #69db7c55; }
+  .badge.pending { background: #a5b4fc22; color: #a5b4fc; border: 1px solid #a5b4fc55; }
+  .badge.status-pending { background: #ffd43b22; color: #ffd43b; border: 1px solid #ffd43b55; }
+  .badge.status-fix { background: #69db7c22; color: #69db7c; border: 1px solid #69db7c55; }
+  .badge.status-verify { background: #4f6ef722; color: #4f6ef7; border: 1px solid #4f6ef755; }
+  .card { background: #161a22; border: 1px solid #2a2f3a; border-radius: 8px; margin: 10px 0; overflow: hidden; }
+  .card-head { padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; user-select: none; }
+  .card-head:hover { background: #1a1f2a; }
+  .card-head .id { font-family: monospace; color: #8a93a6; font-size: 12px; min-width: 36px; }
+  .card-head .title { flex: 1; font-size: 14px; color: #e5e9f0; }
+  .card-head .toggle { color: #8a93a6; font-size: 12px; }
+  .card-body { display: none; padding: 4px 16px 16px; border-top: 1px solid #232936; }
+  .card.open .card-body { display: block; }
+  .card.open .card-head .toggle::before { content: "▾ "; }
+  .card:not(.open) .card-head .toggle::before { content: "▸ "; }
+  .flow { background: #161a22; border: 1px solid #2a2f3a; border-radius: 8px; padding: 12px 16px; margin: 10px 0; font-size: 13px; }
+  .flow ol, .flow ul { margin: 6px 0 6px 20px; padding: 0; }
+  .flow li { margin: 3px 0; }
+  .box-diagram { display: grid; gap: 8px; margin: 10px 0; }
+  .box { background: #1c2230; border: 1px solid #3a4152; border-radius: 6px; padding: 8px 12px; font-size: 12px; }
+  .box .bt { color: #82aaff; font-weight: 600; }
+  .box .bd { color: #8a93a6; font-size: 11px; margin-top: 2px; }
+  .arrow { color: #5b6474; text-align: center; font-size: 14px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 720px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .kv { display: grid; grid-template-columns: 160px 1fr; gap: 4px 12px; font-size: 13px; margin: 8px 0; }
+  .kv dt { color: #8a93a6; }
+  .kv dd { margin: 0; }
+  a { color: #82aaff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .footer { color: #8a93a6; font-size: 12px; margin: 30px 0 12px; padding-top: 16px; border-top: 1px solid #2a2f3a; }
+  .toc { background: #161a22; border: 1px solid #2a2f3a; border-radius: 8px; padding: 12px 16px; font-size: 13px; }
+  .toc a { display: block; padding: 2px 0; }
+  .hidden { display: none !important; }
+  .mark { background: #ffd43b33; padding: 0 2px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>予念 YuNian · Bug 错误内容报告 <span style="font-size:14px;color:#4f6ef7;font-weight:600;">v2 复审版</span></h1>
+  <div class="meta">
+    <span>v1 生成时间：2026-10-05 14:38 UTC</span>
+    <span>v2 复审时间：2026-10-05 16:20 UTC</span>
+    <span>扫描范围：24 Gradle 模块（:app + 14 feature:* + 8 core:*）+ agent-native（Rust crate）+ core/security（C++）</span>
+    <span>版本基线：Kotlin 2.2.10 / AGP 9.2.1 / Gradle 9.4.1 / NDK 30.0.14904198 / Room v45 / targetSdk 35 / minSdk 26</span>
+  </div>
+  <div style="margin-top:12px;padding:10px 12px;background:#1c2230;border-left:3px solid #4f6ef7;border-radius:4px;font-size:13px;">
+    <strong>复审依据</strong>：DeepSeek Harness v0.2.1-alpha.1（"Every part of the product is a plugin... There is no privileged core to patch"）+ Cordis 内核 0.6.2（插件 / Context / inject / 5 种事件模式 / 可逆副作用）+ 本项目 Plugin.kt / PluginHostImpl.kt / PluginEventBus.kt / ChannelRegistryImpl.kt 插件契约。
+  </div>
+  <div style="margin-top:8px;padding:10px 12px;background:#161a22;border:1px solid #2a2f3a;border-radius:6px;font-size:13px;">
+    <strong>变更统计</strong>：
+    <span style="color:#69db7c;font-weight:600;">维持 11</span> ·
+    <span style="color:#8a93a6;">降级 0</span> ·
+    <span style="color:#a5b4fc;font-weight:600;">撤销（非 bug）2</span> ·
+    <span style="color:#8a93a6;">升级 0</span> ·
+    <span style="color:#8a93a6;">新增 0</span> ·
+    <span style="color:#8a93a6;">待确认 0</span>
+    <div style="color:#8a93a6;font-size:12px;margin-top:4px;">v2 复审结论：上一轮 13 个根因<u>没有任何一条是建立在"违反单向依赖"的判定上</u>，全部是 Android 生命周期 / 协议时序 / 并发互斥 / 跨语言 FFI / 死代码 / manifest 配置 / 测试技术债的真实问题；与插件契约兼容，无需降级或撤销。v2.1 确认：R11（MemoryStoreImpl FFI 死锁）与 R13（turn_lock 跨 FFI 持锁）经逐项追踪确认<strong>不存在闭环调用链</strong>，标"非 bug，关闭"；R12（thread::sleep 不响应取消）确认存在但 max_backoff=8s / total_budget=30s 在可接受阈值内，标"不修"。</div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="num" id="s-total">11</div><div class="lbl">有效问题总数</div></div>
+  <div class="stat critical"><div class="num" id="s-crit">1</div><div class="lbl">致命</div></div>
+  <div class="stat high"><div class="num" id="s-high">4</div><div class="lbl">严重</div></div>
+  <div class="stat medium"><div class="num" id="s-med">4</div><div class="lbl">一般</div></div>
+  <div class="stat low"><div class="num" id="s-low">3</div><div class="lbl">建议 / 技术债 / 不修</div></div>
+  <div class="stat pending"><div class="num" id="s-pend">0</div><div class="lbl">待确认</div></div>
+</div>
+
+<div class="filters">
+  <label>级别：</label>
+  <button data-level="all" class="active">全部</button>
+  <button data-level="critical">致命</button>
+  <button data-level="high">严重</button>
+  <button data-level="medium">一般</button>
+  <button data-level="low">建议</button>
+  <button data-level="pending">待确认</button>
+  <label style="margin-left:12px;">复审判定：</label>
+  <select id="verdictFilter">
+    <option value="all">全部</option>
+    <option value="maintain">维持</option>
+    <option value="downgrade">降级</option>
+    <option value="false-positive">误报</option>
+    <option value="new">新增</option>
+    <option value="pending">待确认</option>
+  </select>
+  <label style="margin-left:12px;">模块：</label>
+  <select id="moduleFilter">
+    <option value="all">全部</option>
+    <option value="feature/qqbot">feature/qqbot</option>
+    <option value="feature/wechat">feature/wechat</option>
+    <option value="feature/notification">feature/notification</option>
+    <option value="core/security">core/security</option>
+    <option value="core/agent">core/agent</option>
+    <option value="agent-native">agent-native</option>
+    <option value="shell">shell</option>
+    <option value="app">app</option>
+  </select>
+  <input id="searchInput" type="search" placeholder="搜索：编号 / 文件 / 关键词">
+</div>
+
+<div class="toc">
+  <strong>目录</strong>
+  <a href="#mind">第一区 · 项目心智模型</a>
+  <a href="#summary">第二区 · 问题汇总</a>
+  <a href="#details">第三区 · 问题详情</a>
+  <a href="#conclusion">结尾 · 总体结论 / 残留风险 / 待确认清单</a>
+</div>
+
+<h2 id="mind">第一区 · 项目心智模型（v2 插件架构视角）</h2>
+
+<h3>0. 架构范式：万物皆插件（Agent = Model + Harness）</h3>
+<div class="flow">
+  <p>本项目已演进为<strong>「万物皆插件」</strong>架构，参考 DeepSeek Harness（dsh）工程范式：底层是 Cordis 插件/服务内核，<strong>插件/服务经内核注册、通过声明的契约（接口/扩展点）与依赖注入被发现和调用，可通过服务注册表、事件总线/钩子横向协作</strong>。这种"由容器管理的服务依赖"是解耦的正常设计，<strong>不等于旧报告所说的"违反单向依赖"</strong>。</p>
+  <p>关键论断（DeepSeek Harness 官方）："Every part of the product is a plugin, including the model adapter, the tool registry, the session log, and the agent loop itself. <strong>There is no privileged core to patch</strong>."</p>
+</div>
+
+<h3>1. 插件内核架构图（Cordis 投影）</h3>
+<div class="box-diagram">
+  <div class="box" style="border-color:#4f6ef7;background:#1a2340;">
+    <span class="bt" style="color:#82aaff;">YuNianApplication（装配者）</span>
+    <div class="bd">initBusiness → registerServiceProviders（绑定 30+ ServiceRegistry 单例）→ 构造 PluginHostImpl（预置 4 个框架服务）→ channelRegistry.bindHost → 注册 8 个代码插件 → loadDefaultBlueprint → applyDisabledPluginOverlay → markInitialized</div>
+  </div>
+  <div class="arrow">↓ 构造 + 预置 4 个框架服务（APP_CONTEXT / TOOLS / CHANNELS / AGENT）</div>
+  <div class="box" style="border-color:#c792ea;background:#2a1a40;">
+    <span class="bt" style="color:#c792ea;">PluginHostImpl（Cordis 宿主）</span>
+    <div class="bd">register（清单校验 fail-closed）/ load（依赖校验 + schema 校验 + setup + 回滚）/ unload（逆序执行 effects）/ loadBlueprint（幂等，配置变化先卸载再装载）/ pluginsOf(kind) 分派视图</div>
+  </div>
+  <div class="arrow">↓ 持有（共享）</div>
+  <div class="grid2">
+    <div class="box" style="border-color:#69db7c;">
+      <span class="bt" style="color:#69db7c;">PluginEventBus（宿主级共享事件总线）</span>
+      <div class="bd">ConcurrentHashMap + CopyOnWriteArrayList 无锁快照遍历；5 种派发模式（emit / parallel / serial / bail / waterfall）；监听器在回调里 emit 不重入死锁；disposeContexts 兜底清理</div>
+    </div>
+    <div class="box" style="border-color:#69db7c;">
+      <span class="bt" style="color:#69db7c;">ChannelRegistryImpl（通道注册中心）</span>
+      <div class="bd">register/unregister 回查 PluginHost.pluginsOf(ADAPTER) + isLoaded；查询期活性兜底（loadedAdapterPluginIds）；防"绕过插件宿主直接塞适配器"</div>
+    </div>
+  </div>
+  <div class="arrow">↓ load 时为每个插件新建（隔离上下文 + 共享总线）</div>
+  <div class="grid3">
+    <div class="box"><span class="bt">PluginContextImpl #1</span><div class="bd">BuiltinChatSkillPlugin（SKILL）</div></div>
+    <div class="box"><span class="bt">PluginContextImpl #2</span><div class="bd">StickerPreferencePlugin（STICKER）</div></div>
+    <div class="box"><span class="bt">PluginContextImpl #3</span><div class="bd">QQBotChannelPlugin（ADAPTER）</div></div>
+    <div class="box"><span class="bt">PluginContextImpl #4</span><div class="bd">WeChatChannelPlugin（ADAPTER）</div></div>
+    <div class="box"><span class="bt">PluginContextImpl #5</span><div class="bd">MessageSendPlugin（TOOL）</div></div>
+    <div class="box"><span class="bt">PluginContextImpl #6</span><div class="bd">FirstPersonReasoningPlugin（PIPELINE）</div></div>
+    <div class="box"><span class="bt">PluginContextImpl #7</span><div class="bd">AutomationPlugin（TOOL）</div></div>
+    <div class="box"><span class="bt">PluginContextImpl #8</span><div class="bd">AssistsUiPlugin（TOOL）</div></div>
+  </div>
+  <div class="arrow">↓ 每个插件经 ctx 调用</div>
+  <div class="grid2">
+    <div class="box"><span class="bt">ctx.provide / inject</span><div class="bd">服务注入（框架服务快照 + 插件运行期 provide）</div></div>
+    <div class="box"><span class="bt">ctx.effect(disposer, label)</span><div class="bd">可逆副作用（LIFO 逆序 dispose）</div></div>
+    <div class="box"><span class="bt">ctx.on / onBail / onWaterfall</span><div class="bd">事件订阅（自动登记为 effect，卸载即退订）</div></div>
+    <div class="box"><span class="bt">ctx.emit / parallel / serial / bail / waterfall</span><div class="bd">5 种事件派发（转发到宿主级共享总线）</div></div>
+  </div>
+</div>
+
+<h3>2. 插件契约与"为什么横向协作不违反解耦原则"</h3>
+<div class="flow">
+  <p><strong>Cordis 核心机制</strong>（已在本项目完整落地）：</p>
+  <ul>
+    <li><strong>服务依赖声明（inject / requires）</strong>：插件在 <code>LianYuPlugin.requires</code> 声明需要的框架服务键（如 <code>PluginServices.AGENT</code>），PluginHostImpl.load 在 setup 之前 fail-closed 校验。<strong>load order 由依赖图算出，不需要手动编排启动顺序</strong>。</li>
+    <li><strong>服务注入（ctx.provide / inject）</strong>：每个服务在 Context 上占据稳定键位（如 <code>ctx.tools</code> / <code>ctx.channels</code> / <code>ctx.agent</code>），插件按 key 找服务而<strong>不 import 具体实现</strong>。消费方代码一行不用改，提供方可以热替换。</li>
+    <li><strong>类型化事件（5 种派发模式）</strong>：emit（同步广播）/ parallel（并发等待）/ serial（顺序 bail）/ bail（同步 serial）/ waterfall（中间件链）。多个互不相识的插件组成一条决策链，<strong>不共享服务也能通信</strong>。</li>
+    <li><strong>可逆副作用（ctx.effect）</strong>：每个注册返回 disposer，插件卸载时按 LIFO 回滚。<strong>服务消失时依赖它的插件自动卸载</strong>（Cordis「卸载不留鸡毛」）。</li>
+    <li><strong>宿主级共享事件总线</strong>：同一宿主装载的全部插件共用一张监听表，A 的 emit 能被 B 的 on 收到；查询期活性兜底（卸载后适配器随之消失）。</li>
+  </ul>
+  <p><strong>结论</strong>：插件经内核注册、通过声明的契约与依赖注入被发现和调用、通过服务注册表/事件总线横向协作，<strong>这是解耦的正常设计，不是"违反单向依赖"</strong>。任何 feature 模块代码出现在 core:agent 的引用列表（如 <code>AgentDialogueCoordinator</code> 调 <code>ToolRegistry.availableTools()</code>），都是 Service Registry 模式而非反向依赖违规。</p>
+</div>
+
+<h3>3. 模块依赖图（feature → core 单向 + 插件内核横向协作）</h3>
+<div class="box-diagram">
+  <div class="box"><span class="bt">:app</span><div class="bd">YuNianApplication + MainActivity + Compose 导航 + ServiceRegistry 绑定（不放业务逻辑）</div></div>
+  <div class="arrow">↓ 依赖 14 个 feature:* + 8 个 core:*</div>
+  <div class="grid3">
+    <div class="box"><span class="bt">feature:chat / groupchat</span><div class="bd">聊天 / 群聊 UI + ViewModel + ChatGenerationManager</div></div>
+    <div class="box"><span class="bt">feature:wechat / qqbot</span><div class="bd">iLink / QQ Bot 通道 + FGS + WebSocket</div></div>
+    <div class="box"><span class="bt">feature:notification</span><div class="bd">主动陪伴 + 保活 FGS + BootReceiver</div></div>
+    <div class="box"><span class="bt">feature:companion / profile / settings</span><div class="bd">伴侣管理 / 用户资料 / 设置</div></div>
+    <div class="box"><span class="bt">feature:memory / worldbook / skills / mcp</span><div class="bd">记忆 / 世界书 / 技能 / MCP</div></div>
+    <div class="box"><span class="bt">feature:backup / automation</span><div class="bd">备份恢复 / WorkManager 自动化</div></div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="grid3">
+    <div class="box" style="border-color:#c792ea;"><span class="bt">core:agent</span><div class="bd"><strong>插件内核</strong>：AgentFacade（UniFFI 门面）+ AgentDialogueCoordinator + AgentToolHost + PluginHostImpl + PluginEventBus + ChannelRegistryImpl + MemoryStoreImpl</div></div>
+    <div class="box"><span class="bt">core:network</span><div class="bd">AiService / SSE / TTS / ASR / 生图</div></div>
+    <div class="box"><span class="bt">core:database</span><div class="bd">Room v45（31 实体）+ Repository + 逐字段加密</div></div>
+    <div class="box"><span class="bt">core:security</span><div class="bd">C++ native 安全引擎 + Kotlin 编排</div></div>
+    <div class="box"><span class="bt">core:wechat</span><div class="bd">iLink 协议客户端</div></div>
+    <div class="box"><span class="bt">core:ui-common</span><div class="bd">共享 Compose 主题 / 液态玻璃</div></div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="grid2">
+    <div class="box"><span class="bt">core:common</span><div class="bd">工具类 / ContentFilter / SecureLog / HardwareInfo</div></div>
+    <div class="box" style="border-color:#c792ea;"><span class="bt">core:domain</span><div class="bd"><strong>插件契约层</strong>：Plugin.kt（LianYuPlugin / PluginContext / PluginHost / PluginServices / PluginKind）+ ChannelAdapter.kt + ToolRegistry + ServiceRegistry + AiTool</div></div>
+  </div>
+  <div class="arrow">+ 旁路</div>
+  <div class="box"><span class="bt">agent-native（Rust crate：lianyu-agent）</span><div class="bd">经 UniFFI 暴露为 liblianyu_agent.so，文本回合主干；直读 SQLite + 直发 HTTP/SSE</div></div>
+  <div class="box"><span class="bt">:shell（JVM 模块）</span><div class="bd">不编 Android，仅类结构参考；sourceSets.kotlin.exclude("com/stub/**", "com/yunian/ai/security/**")</div></div>
+</div>
+
+<h3>4. ServiceRegistry 绑定（接口 → 实现 → 消费方）</h3>
+<table>
+  <thead><tr><th>接口（core:domain）</th><th>实现模块</th><th>主要消费方</th></tr></thead>
+  <tbody>
+    <tr><td>CompanionRepository / ChatRepository / GroupMessageRepository / ApiConfigRepository / MessageWriteCoordinator</td><td>core:database</td><td>feature:chat / groupchat / notification / wechat / qqbot</td></tr>
+    <tr><td>AiServiceProvider / EmbeddingProvider / SummaryProvider / DiaryProvider / ImageGenerationProvider</td><td>core:network</td><td>feature:chat / companion / memory</td></tr>
+    <tr><td>DialogueCoordinator</td><td>core:agent（AgentDialogueCoordinator）</td><td>feature:chat / qqbot / wechat</td></tr>
+    <tr><td>UserProfileProvider</td><td>feature:profile</td><td>core:agent</td></tr>
+    <tr><td>CompanionProvider</td><td>feature:companion</td><td>feature:chat / groupchat</td></tr>
+    <tr><td>MemoryProvider</td><td>feature:memory（UnifiedMemoryProvider）</td><td>core:agent</td></tr>
+    <tr><td>LorebookProvider</td><td>feature:worldbook</td><td>feature:chat</td></tr>
+    <tr><td>SkillManager / McpManager</td><td>feature:skills / feature:mcp</td><td>feature:chat / skills</td></tr>
+    <tr><td>WeChatDialoguePort / WeChatIdentityMapPort / WeChatOutboundPort</td><td>feature:wechat</td><td>feature:wechat / core:agent</td></tr>
+    <tr><td>AutomationStore / AutomationTickProvider</td><td>feature:automation</td><td>feature:notification（KeepAliveService）</td></tr>
+    <tr><td>PluginHost / ChannelRegistry</td><td>core:agent</td><td>feature:settings / core:agent</td></tr>
+    <tr><td>CapabilityGrantStore / PluginEnablementStore / AppMetaStore</td><td>core:agent / app</td><td>core:agent / feature:settings</td></tr>
+  </tbody>
+</table>
+<p style="color:#8a93a6;font-size:12px;">注：这是 Service Registry 模式（接口在 core:domain，实现在各 feature，app 侧绑定），与插件内核（PluginHost + LianYuPlugin）是两套并行机制：ServiceRegistry 服务于跨模块接口注入，PluginHost 服务于运行期可插拔的功能单元。</p>
+
+<h3>5. 数据模型与流向（Room v45，31 实体，schema 冻结红线：v41 起禁止加表/字段/索引）</h3>
+<div class="flow">
+  <ul>
+    <li><strong>聊天消息</strong>：Message / MessageBody（正文分离）+ ArchivedMessage / ArchivedMessageBody（归档）+ MessageSearchIndex；正文 <code>enc:v1:</code> AES/GCM（AndroidKeyStore），<code>searchContent</code> 明文副本（用于搜索）</li>
+    <li><strong>伴侣</strong>：CompanionEntity + ApiConfig + ApiProviderPreset；API Key 走 Tink/KMS 分级前缀</li>
+    <li><strong>记忆</strong>：MemoryEntry（旧）/ MemoryRecord（新，unified）/ TempMemory；<code>mem:v1:</code> 前缀加密</li>
+    <li><strong>世界书</strong>：Lorebook / LorebookEntry / Worldbook（v45 新增）</li>
+    <li><strong>技能 / 审计 / 事件账本</strong>：AgentSkill / PromptAudit / AgentDispatchLog / EventLedger / EventLedgerSnapshot（v45 新增 10 张表）</li>
+    <li><strong>表情包</strong>：StickerEntry / StickerTag / StickerUsageLog（v45 新增）</li>
+    <li><strong>微信</strong>：WeChatOutbox（发件箱）/ WeChatInboxDedupe（收件去重）</li>
+    <li><strong>委派</strong>：DelegationRecord（多 Agent 编排）</li>
+  </ul>
+  <p><strong>Rust 直读路径</strong>：Rust（rusqlite bundled）经 <code>SQLITE_OPEN_READ_ONLY | SQLITE_OPEN_NO_MUTEX</code> 打开 <code>yunian_database</code>，<code>Mutex&lt;Option&lt;Connection&gt;&gt;</code> 外层保护；只读两张表 —— <code>api_configs</code>（激活的 API 配置）与 <code>companions</code>（伴侣人设），均不涉加密字段；Room 启用 WAL，并发读写不冲突。</p>
+</div>
+
+<h3>6. 跨语言边界</h3>
+<table>
+  <thead><tr><th>边界</th><th>方向</th><th>接口</th><th>同步/线程</th><th>内存/所有权</th></tr></thead>
+  <tbody>
+    <tr><td rowspan="2">Kotlin ↔ Rust（UniFFI）</td><td>KT → RS</td><td>AgentRuntime.runTurn / runTurnStream / approveTool / updateSettings / setWorldbook / setSignatureProvider / registerGlobalTools / parse_character_card_*</td><td>同步阻塞，KT 调用线程（通常 Dispatchers.IO）</td><td>String/Vec&lt;u8&gt; 经 UniFFI 拷贝，所有权转移</td></tr>
+    <tr><td>RS → KT</td><td>ToolHost.execute / StreamSink.on_* / RequestSignatureProvider.sign_headers / TurnStateController.on_round / MemoryStore.* / SkillStore.* / StickerPreferenceStore.*</td><td>同步，Rust 调用线程（与 runTurn 同物理线程）</td><td>String 参数跨 FFI 拷贝；Kotlin 端 runBlocking / runBlockingOnIo 等待结果</td></tr>
+    <tr><td>Kotlin ↔ C++（JNI）</td><td>KT → C++</td><td>NativeBridge.*（签名验证 / 反调试 / VMP / 白盒 AES / KMS / 零信任 / SM2/3/4 / 完整性）</td><td>同步，KT 调用线程</td><td>JNIEnv* 局部引用；C++ 不持有 Kotlin 对象</td></tr>
+  </tbody>
+</table>
+
+<h3>7. 端到端时序（插件架构下的真实加载/注入顺序）</h3>
+
+<h4>7.a App 冷启动</h4>
+<div class="flow"><ol>
+  <li><code>YuNianApplication.attachBaseContext</code> → CrashReporter.install（薄壳路径下，本类由 StaticApkShell 反射创建）</li>
+  <li><code>onCreate</code> → SaltStore / SecureLog / PerfBoost / 语言 / AiService.initialize / NtpTimeProvider.initialize</li>
+  <li><code>initBusiness</code> → <code>bgScope.launch { ... }</code>（AppDispatchers.io）：
+    <ol>
+      <li><strong>放行屏障</strong>：
+        <ol>
+          <li><code>registerServiceProviders</code>：绑定 30+ ServiceRegistry 单例（database / network / profile / companion / memory / worldbook / skills / mcp / wechat / automation）</li>
+          <li>构造 <code>AgentDialogueCoordinator</code>（core:agent，AI 对话中间层）</li>
+          <li>构造 <code>ChannelRegistryImpl</code>（通道注册中心）</li>
+          <li>构造 <code>PluginHostImpl</code>（预置 4 个框架服务：APP_CONTEXT / TOOLS / CHANNELS / AGENT）</li>
+          <li><code>channelRegistry.bindHost(pluginHost)</code>（互相需要，先构造后绑定）</li>
+          <li>注册 8 个代码插件（BuiltinChatSkill / StickerPreference / QQBotChannel / WeChatChannel / MessageSend / FirstPersonReasoning / Automation / AssistsUi）</li>
+          <li><code>initAgentRuntime</code>（预热 Rust）</li>
+          <li><code>loadDefaultBlueprint</code>（按 assets/blueprints/default.json 装载插件）</li>
+          <li><code>applyDisabledPluginOverlay</code>（用户停用记录做减法）</li>
+          <li><code>ServiceRegistry.markInitialized()</code></li>
+        </ol>
+      </li>
+      <li><strong>放行后并行</strong>：<code>initWorldbookAgent</code> / Automation reschedule / repairUserAvatar / verifyAndRecover / seed / warm / hydrateRecent</li>
+    </ol>
+  </li>
+  <li><code>MainActivity.onCreate</code> → setContent → Compose 导航 → 首页</li>
+</ol></div>
+
+<h4>7.b 一次聊天回合</h4>
+<div class="flow"><ol>
+  <li>用户输入 → <code>ChatViewModel.sendText(content)</code></li>
+  <li><code>ChatGenerationManager.sendText</code>：duplicateSendGuard 去重 → startMessageConsumer → 清空上轮工具气泡 → <code>scope.launch(Dispatchers.IO)</code>：
+    <ol>
+      <li><code>messageWriter.enqueueChat(userMessage)</code> 落库（MessageWriteCoordinator 批量合并 200ms 窗口）</li>
+      <li><code>broadcastWeChatMessage</code> 转发到微信（如绑定）</li>
+      <li>检查 API 配置 → <code>messageQueue.trySend(content)</code> 入队 → <code>typingState.startTyping()</code> 乐观显示（入队即置）</li>
+    </ol>
+  </li>
+  <li>MessageConsumer 协程：从 messageQueue 取消息 → <code>startAiResponse</code> → 组装 history/settings/stickerProbability → <code>runTurnWithConfirmation</code></li>
+  <li><code>runInterruptibleSafe(timeoutMs * 3)</code> → <code>AgentFacade.runTurn(turnRequest, application, companionId, toolHost)</code>（同步阻塞，FFI 到 Rust）</li>
+  <li>Rust <code>AgentRuntime.run_turn_inner</code>：
+    <ol>
+      <li>拿 <code>turn_lock</code>（回合互斥，整个回合期间持有）</li>
+      <li>每轮组装 system prompt（L0 环境 / L1 身份 / L2 安全 / L3 工具 / L4 技能目录 / L5 记忆 + 世界书 + 核心插件片段 + 生图协议）</li>
+      <li><code>NativeGateway::send_stream</code> 直发 HTTP/SSE（ureq 阻塞读，rustls TLS）</li>
+      <li>SSE 逐行 → <code>StreamSink.on_text_delta</code>（FFI 回 KT）</li>
+      <li>模型调工具 → 评估确认门控（Commerce 默认 RequireConfirm）→ <code>ToolHost.execute</code>（FFI 回 KT 执行副作用，runBlocking 20s 超时）</li>
+      <li>多轮直到 max_rounds / finish_reason=stop / max_tool_calls 上限</li>
+    </ol>
+  </li>
+  <li>KT StreamSink 实现 → 增量投递到消息管线（typing 气泡 / 流式落盘）</li>
+  <li>完成 → <code>AgentFacade.runTurn</code> 返回 <code>AgentTurnResult</code> → KT 落库 AI 消息 → typing 关闭</li>
+</ol></div>
+
+<h4>7.c 工具多轮调用与确认门控</h4>
+<div class="flow"><ol>
+  <li>模型输出 tool_calls → Rust 检查工具是否在 <code>available_tools</code> 白名单（builtin/global/session/core）</li>
+  <li>Commerce 类工具：查 <code>approved_tools</code> / <code>rejected_tools</code> 集合 → 都未命中 → 发 <code>confirm_request</code> 事件 + finished_reason="confirm_pending" 返回</li>
+  <li>KT 弹确认 UI → 用户批准 → <code>AgentFacade.approveTool(name, args)</code>（写入 Rust 集合）→ 重跑回合 → 匹配命中 → 执行 → 一次性删除</li>
+  <li>拒绝：写入 <code>rejected_tools</code> → 重跑回合 → 命中 → 回灌"用户拒绝"模型 → 一次性删除</li>
+  <li>同轮 tool_calls 数达 <code>MAX_TOOL_CALLS_PER_TURN</code> 立即终止（防失控）</li>
+</ol></div>
+
+<h4>7.d 主动陪伴</h4>
+<div class="flow"><ol>
+  <li><code>CompanionKeepAliveService</code>（FGS specialUse）每 60min 心跳 <code>CompanionMessageWorker.schedule(context)</code></li>
+  <li><code>CompanionMessageWorker.doWork</code>（OneTimeWorkRequest，Dispatchers.IO）：
+    <ol>
+      <li>读所有 companions → 过滤 proactiveEnabled / !blocked</li>
+      <li>每个 companion：DND / 频控 / 冷却 / 计数判定</li>
+      <li>通过 → <code>generateWithAgent</code> → <code>AgentFacade.runTurn</code>（单轮、无工具、maxRounds=1）</li>
+      <li>模型返回文本（含 <code>NO_PROACTIVE_MARKER</code> 表示不发言）</li>
+      <li>落库 + 发通知 + <code>broadcastProactiveWeChatMessage</code> 转发到微信</li>
+      <li><code>scheduleNext</code> 排下一轮（亲密度调整间隔）</li>
+    </ol>
+  </li>
+  <li>开机：<code>BootReceiver</code> 收 BOOT_COMPLETED → <code>CompanionKeepAliveService.start</code> + <code>CompanionMessageWorker.schedule</code>（详见 R4 / R6 / R5 问题）</li>
+</ol></div>
+
+<h4>7.e 微信 iLink（通道插件路径）</h4>
+<div class="flow"><ol>
+  <li>登录：<code>IlinkClientManager.startLogin</code> → 扫码 → <code>pollLoginStatus</code> → TokenStore 持久化</li>
+  <li>轮询：<code>WeChatPollingService</code>（FGS dataSync —— <strong>R5 问题点</strong>）→ <code>startPolling</code> → <code>repository.pollMessages(30s timeout)</code> 长轮询</li>
+  <li>收到消息 → 落库（WeChatInboxDedupe 去重）→ <code>WeChatChatBridge</code> 调 <code>DialogueCoordinator.generateReply</code> → AI 回复 → <code>WeChatOutboundPort</code> 发回</li>
+  <li>心跳：iLink 长轮询自带；失败 → <code>WeChatChannelRuntime.onPollFailure</code> 指数退避；watchdog 30s 周期 → <code>WeChatChannelKeeper.healIfNeeded</code> → 必要时 <code>requestForceRebuild</code></li>
+  <li>保活：<code>onDestroy</code> 已登录 → <code>scheduleRestartWithDebounce</code> → FGS 自重启 + Worker 兜底（<strong>这是 R1 修复的对照参考</strong>）</li>
+  <li><strong>通道插件</strong>：<code>WeChatChannelPlugin</code>（ADAPTER）在 setup 里 <code>ctx.inject(CHANNELS)</code> 拿到 ChannelRegistry → 注册适配器 + 订阅 <code>ChannelOutboundEvents.REQUEST</code> 出站事件；<strong>setup 不启动轮询/不发心跳/不碰重连</strong>，FGS / WakeLock / watchdog 时序一行未动</li>
+</ol></div>
+
+<h4>7.f QQ Bot（通道插件路径）</h4>
+<div class="flow"><ol>
+  <li>登录：扫码 / AppID 绑定 → <code>QQBotApiClient.getOrRefreshToken</code> → access token 缓存</li>
+  <li>连接：<code>QQBotWebSocketClient.connect</code>（connectMutex 互斥）→ getGateway → newWebSocket → 收 op=10 Hello → 发 op=2 Identify / op=6 Resume → 收 op=0 READY / RESUMED</li>
+  <li>心跳：<code>startHeartbeat(heartbeatIntervalMs)</code>（<strong>R2 问题点：当前延迟 33s 才首发；修复后 Hello 后立即首发</strong>）→ 周期 op=1 → 收 op=11 ACK；连续 2 次未 ACK → 强制重连</li>
+  <li>收消息：op=0 Dispatch → handleMessage → <code>QQBotChatBridge</code> → 调 AI → <code>QQBotRestApi</code> 发回</li>
+  <li>重连：<code>onClosing / onClosed / onFailure</code> → <code>cleanupConnectionState</code> → <code>scheduleReconnect</code>（指数退避，max 10 次后 AUTH_FAILED 终态）</li>
+  <li>保活：<code>onDestroy</code> 当前<strong>无自重启</strong>（<strong>R1 问题点</strong>，与微信侧不对称）</li>
+  <li><strong>通道插件</strong>：<code>QQBotChannelPlugin</code>（ADAPTER）在 setup 里注册适配器 + 订阅出站事件；构造仓库不发起连接、不启动心跳/重连、不收发消息</li>
+</ol></div>
+
+<h4>7.g 备份恢复 + 应用内更新</h4>
+<div class="flow">
+  <p><strong>备份（.lybk）</strong>：导出 → 选 companions → 读 Room → JSON → AES-256-GCM + PBKDF2(10w) → 写文件；导入反向。</p>
+  <p><strong>更新</strong>：<code>UpdateManager</code> → 定期/手动 → 检查更新 API（设备签名 ES256）→ 下载 APK（断点续传）→ SHA-256 校验 → 触发安装；服务端 <code>_server_update/</code>（Node.js + nginx，客户端密钥 + 时间窗 + nonce 防重放 + AES-GCM 加密清单 + 短时签名下载地址）。</p>
+</div>
+
+<h3>8. 疑点清单</h3>
+<div class="flow">
+  <p><strong>已追查到答案的疑点（见各问题详情）</strong>：OnePieceShellGate 路径 / verifyRequestIntegrity 实际行为 / Rust 直读与 Kotlin 写冲突 / turn_lock 与 ToolHost 死锁 / 微信 BOOT_COMPLETED 在 Android 15 / QQ Bot manifest 重复声明 / CompanionKeepAliveService.stop 无效。</p>
+  <p><strong>仍需用户确认的疑点</strong>：MemoryStoreImpl 下游 Flow collector 是否调 Rust（R11）；run_with_retry 实际最大退避时长（R12）；项目方是否有意保留 shell/ 目录（R7 选项 a/b）。</p>
+</div>
+
+<h2 id="summary">第二区 · 问题汇总</h2>
+<table id="summaryTable">
+  <thead><tr><th>编号</th><th>级别</th><th>模块</th><th>代表位置</th><th>同类实例</th><th>一句话问题</th><th>状态</th></tr></thead>
+  <tbody>
+    <tr data-level="critical" data-module="feature/qqbot" data-verdict="maintain"><td>R1</td><td><span class="badge critical">致命</span></td><td>feature/qqbot</td><td>QQBotForegroundService.kt:104</td><td>1</td><td>FGS onDestroy 缺自重启（与微信侧不对称，违反 AGENTS.md 现状声明）</td><td><span class="badge status-pending">待修复</span></td></tr>
+    <tr data-level="high" data-module="feature/qqbot" data-verdict="maintain"><td>R2</td><td><span class="badge high">严重</span></td><td>feature/qqbot</td><td>QQBotWebSocketClient.kt:409</td><td>1</td><td>QQ Bot 心跳首发延迟 33s（违反 AGENTS.md 教训 #1「Hello 后立即发」）</td><td><span class="badge status-pending">待修复</span></td></tr>
+    <tr data-level="high" data-module="feature/wechat" data-verdict="maintain"><td>R3</td><td><span class="badge high">严重</span></td><td>feature/wechat</td><td>WeChatChannelKeeper.kt:46</td><td>1</td><td>stop() 未持 mutex，与 ensureRunning/healIfNeeded 竞态：stop 后被立即重新拉活</td><td><span class="badge status-pending">待修复</span></td></tr>
+    <tr data-level="high" data-module="feature/wechat" data-verdict="maintain"><td>R5</td><td><span class="badge high">严重</span></td><td>feature/wechat</td><td>AndroidManifest.xml:8</td><td>1</td><td>SWechatPollingService 类型为 dataSync，Android 15+ BOOT_COMPLETED 启动被拒</td><td><span class="badge status-pending">待修复</span></td></tr>
+    <tr data-level="high" data-module="feature/notification" data-verdict="maintain"><td>R6</td><td><span class="badge high">严重</span></td><td>feature/notification</td><td>CompanionKeepAliveService.kt:209</td><td>1</td><td>stop() 的 EXTRA_STOP_REQUESTED 经 stopService 传递，但 stopService 不触发 onStartCommand，extra 永远读不到</td><td><span class="badge status-pending">待修复（潜在地雷，当前零调用）</span></td></tr>
+    <tr data-level="medium" data-module="feature/notification" data-verdict="maintain"><td>R4</td><td><span class="badge medium">一般</span></td><td>feature/notification</td><td>BootReceiver.kt:9</td><td>1</td><td>BOOT_COMPLETED 后 FGS 启动失败无 Worker 兜底（Android 12+ OEM 收紧场景）</td><td><span class="badge status-pending">待修复</span></td></tr>
+    <tr data-level="medium" data-module="shell" data-verdict="maintain"><td>R7</td><td><span class="badge medium">一般</span></td><td>shell</td><td>shell/src/main/kotlin/.../OnePieceShellGate.kt:79</td><td>5</td><td>shell/ 目录死代码（不参与编译；OnePieceShellGate 内含 ByteBuffer wipe bug）</td><td><span class="badge status-pending">待修复（选项 a 删 / b 加注释）</span></td></tr>
+    <tr data-level="medium" data-module="core/security" data-verdict="maintain"><td>R8</td><td><span class="badge medium">一般</span></td><td>core/security</td><td>native-bridge.cpp:1701</td><td>3</td><td>verify_request_integrity 死代码 + 硬编码 "api.github.com" + Kotlin external 零调用</td><td><span class="badge status-pending">待修复</span></td></tr>
+    <tr data-level="medium" data-module="feature/qqbot" data-verdict="maintain"><td>R9</td><td><span class="badge medium">一般</span></td><td>feature/qqbot</td><td>AndroidManifest.xml:8</td><td>1</td><td>library manifest 与 app manifest 重复声明 QQBotForegroundService，类型冲突（app wins，library 无效）</td><td><span class="badge status-pending">待修复（清理）</span></td></tr>
+    <tr data-level="low" data-module="app" data-verdict="maintain"><td>R10</td><td><span class="badge low">技术债</span></td><td>app/test</td><td>OnePieceShellPlanTest.kt 等</td><td>多</td><td>测试断言与代码漂移（OnePieceShellPlanTest / ReleaseConfigurationTest 当前已失败）</td><td><span class="badge status-pending">待修复（另开任务）</span></td></tr>
+    <tr data-level="low" data-module="core/agent" data-verdict="false-positive"><td>R11</td><td><span class="badge low">非 bug</span></td><td>core/agent</td><td>MemoryStoreImpl.kt:240</td><td>1</td><td>runBlockingOnIo 在 Rust FFI 线程上的死锁风险（已确认不存在闭环调用链）</td><td><span class="badge status-fix">已确认·关闭</span></td></tr>
+    <tr data-level="low" data-module="agent-native" data-verdict="maintain"><td>R12</td><td><span class="badge low">确认存在·不修</span></td><td>agent-native</td><td>retry.rs:250</td><td>1</td><td>run_with_retry 的 thread::sleep 不响应 Kotlin 协程取消（max_backoff=8s / total_budget=30s 在可接受阈值内）</td><td><span class="badge status-fix">已确认·不修</span></td></tr>
+    <tr data-level="low" data-module="agent-native" data-verdict="false-positive"><td>R13</td><td><span class="badge low">非 bug</span></td><td>agent-native</td><td>agent.rs:1035</td><td>1</td><td>turn_lock 持锁期间跨 FFI 同步调用 ToolHost（已确认当前不可触发）</td><td><span class="badge status-fix">已确认·关闭</span></td></tr>
+  </tbody>
+</table>
+
+<h2 id="details">第三区 · 问题详情</h2>
+
+<!-- ========== R1 ========== -->
+<div class="card" data-level="critical" data-module="feature/qqbot" data-verdict="maintain" id="R1">
+  <div class="card-head"><span class="id">R1</span><span class="badge critical">致命</span><span class="badge status-fix">维持</span><span class="title">QQ Bot FGS onDestroy 缺自重启（与微信侧不对称）</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（致命）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：本问题与"分层 / 依赖方向 / 插件架构"<strong>完全无关</strong>，是 Android Service 生命周期的真实缺陷：<code>onDestroy</code> 仅清理资源，无自重启调用；与微信侧 <code>WeChatPollingService.onDestroy</code> 三段式自重启（scheduleRestartWithDebounce + Worker.schedule + scheduleImmediate）不对称；违反 AGENTS.md「FGS 被杀后立即自重启」现状声明。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：feature/qqbot/.../QQBotForegroundService.kt:104-115（onDestroy 仅 8 行清理，无 start() 调用）。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：QQ Bot 通道插件（QQBotChannelPlugin，ADAPTER）与本服务是<strong>两个独立维度</strong>：插件负责"装配期注册适配器 + 订阅出站事件"（PluginKind.ADAPTER 语义），本服务负责"运行期 WebSocket 长连接保活"（Android Service 生命周期）。两者通过 QQBotServiceLocator 共享同一个 QQBotMessageRepository 实例，不存在依赖违规。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>feature/qqbot/src/main/java/com/yunian/ai/feature/qqbot/service/QQBotForegroundService.kt:104-115</code></p>
+<pre><span class="ln">104</span>    <span class="kw">override fun</span> <span class="fn">onDestroy</span>() {
+<span class="ln">105</span>        <span class="kw">super</span>.onDestroy()
+<span class="ln">106</span>        <span class="fn">releaseWakeLock</span>()
+<span class="ln">107</span>        wakeLockJob?.cancel()
+<span class="ln">108</span>        watchdogJob?.cancel()
+<span class="ln">109</span>        watchdogJob = <span class="kw">null</span>
+<span class="ln">110</span>        <span class="fn">runCatching</span> {
+<span class="ln">111</span>            QQBotServiceLocator.<span class="fn">chatBridge</span>(<span class="kw">this</span>).stop()
+<span class="ln">112</span>            QQBotServiceLocator.<span class="fn">messageRepository</span>(<span class="kw">this</span>).disconnect()
+<span class="ln">113</span>        }
+<span class="ln">114</span>        serviceScope.cancel()
+<span class="ln">115</span>    }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L105</strong>：先调 <code>super.onDestroy()</code>（与微信侧最后调的顺序不同，但 Android Service.onDestroy 是空实现，顺序差异不致命）。</li>
+  <li><strong>L106-109</strong>：释放 WakeLock、取消 wakelock 续租协程与连接看门狗协程。</li>
+  <li><strong>L110-113</strong>：停掉 QQBotChatBridge（消息桥接）与 QQBotMessageRepository（WebSocket 断开）。</li>
+  <li><strong>L114</strong>：取消 serviceScope（FGS 内所有协程）。</li>
+  <li><strong>缺失</strong>：没有调用 <code>QQBotForegroundService.start(this)</code> 自重启，也没有 <code>onTaskRemoved</code> 钩子。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>AGENTS.md「已修复回归记录（2026-08-07）」明确："现状：<strong>FGS 立即自重启 + Worker 仅作兜底，不可依赖</strong>"。微信侧 <code>WeChatPollingService.onDestroy</code>（feature/wechat/.../WeChatPollingService.kt:88-106）有完整三段式自重启（scheduleRestartWithDebounce + Worker.schedule + scheduleImmediate）。<strong>QQ Bot 侧完全缺失</strong>。仅依赖 <code>START_STICKY</code>（onStartCommand 返回，line 54）—— STICKY 仅在系统内存压力杀死进程时由系统重启；用户从最近任务划掉、OEM 一刀切清理（小米/OPPO/vivo/荣耀）、Force Stop 等路径均不触发 STICKY 重启。兜底 <code>QQBotRestartWorker</code> 仅在 <code>start()</code> 抛 IllegalStateException 时通过 <code>scheduleBackgroundRetry</code> 排程，对强杀场景完全无覆盖。</p>
+
+<h4>4) 端到端触发链</h4>
+<div class="flow"><ol>
+  <li>用户在 QQ Bot 设置页绑定账号 → QQBotForegroundService 启动（onStartCommand → startForeground → ensureConnected → QQBotWebSocketClient.connect）</li>
+  <li>WebSocket 正常心跳，QQ 群消息正常推送到 App</li>
+  <li>用户从最近任务列表划掉 App（或 OEM 清理器触发）→ 进程被杀 → FGS onDestroy 触发</li>
+  <li>onDestroy 只清理资源，<strong>没有自重启</strong>；START_STICKY 对强杀路径无效；QQBotRestartWorker 也未被排程</li>
+  <li>结果：QQ Bot WebSocket 永久断开，QQ 群消息不再推送到 App，直到用户手动打开 App</li>
+</ol></div>
+
+<h4>5) 影响</h4>
+<p>功能性 bug：QQ 机器人消息通道在用户常规操作下永久掉线。与微信侧行为不一致，违反 AGENTS.md 已声明的"现状"。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li><strong>调用方</strong>：QQBotViewModel（accountFlow collect → start/stop）、KeepAliveAlarmReceiver（line 87）、IqooKeepAliveJobService（line 67）、QQBotRestartWorker（line 10）。这些都不依赖 onDestroy 是否自重启，行为不变。</li>
+  <li><strong>共享状态</strong>：QQBotTokenStore.accountState（新增自重启需读 hasAccount() 判定登录态）。hasAccount() 已存在（QQBotTokenStore.kt:97），与微信侧 isLoggedInSync() 同语义。</li>
+  <li><strong>时序链路</strong>：onDestroy 与 onTaskRemoved 互斥触发（manifest stopWithTask="false"），不会同帧双调；debounce 10s 拦截二次调用。</li>
+  <li><strong>线程</strong>：onDestroy/onTaskRemoved 都在主线程，scheduleRestartWithDebounce 内 start(applicationContext) 同步执行，WorkManager enqueue 异步。</li>
+  <li><strong>不破坏测试</strong>：ReleaseConfigurationTest 对 QQ Bot 路由无约束（QQ Bot 直声明 manifest，不走壳路由）。</li>
+</ul></div>
+
+<h4>7) 修复方案（与微信侧 WeChatPollingService.onDestroy 完全对齐）</h4>
+<pre><span class="cm">// 类内新增字段（顶部）</span>
+<span class="kw">@Volatile</span> <span class="kw">private var</span> lastRestartAtMs = 0L
+
+<span class="cm">// onDestroy 完整替换（保持现有 super.onDestroy() 最前的顺序）</span>
+<span class="kw">override fun</span> <span class="fn">onDestroy</span>() {
+    <span class="kw">super</span>.onDestroy()
+    <span class="fn">releaseWakeLock</span>()
+    wakeLockJob?.cancel()
+    watchdogJob?.cancel()
+    watchdogJob = <span class="kw">null</span>
+    <span class="fn">runCatching</span> {
+        QQBotServiceLocator.<span class="fn">chatBridge</span>(<span class="kw">this</span>).stop()
+        QQBotServiceLocator.<span class="fn">messageRepository</span>(<span class="kw">this</span>).disconnect()
+    }
+    serviceScope.cancel()
+    <span class="cm">// 新增：与微信侧 WeChatPollingService.onDestroy 对齐的自重启</span>
+    <span class="fn">runCatching</span> {
+        <span class="kw">if</span> (QQBotServiceLocator.<span class="fn">tokenStore</span>(applicationContext).<span class="fn">hasAccount</span>()) {
+            <span class="fn">scheduleRestartWithDebounce</span>()
+        }
+    }
+}
+
+<span class="cm">// onTaskRemoved 新增</span>
+<span class="kw">override fun</span> <span class="fn">onTaskRemoved</span>(rootIntent: Intent?) {
+    <span class="kw">super</span>.onTaskRemoved(rootIntent)
+    <span class="fn">runCatching</span> {
+        <span class="kw">if</span> (QQBotServiceLocator.<span class="fn">tokenStore</span>(applicationContext).<span class="fn">hasAccount</span>()) {
+            <span class="fn">scheduleRestartWithDebounce</span>()
+        }
+    }
+}
+
+<span class="cm">// scheduleRestartWithDebounce 新增（类内私有方法）</span>
+<span class="kw">private fun</span> <span class="fn">scheduleRestartWithDebounce</span>() {
+    <span class="kw">val</span> now = System.<span class="fn">currentTimeMillis</span>()
+    <span class="kw">if</span> (now - lastRestartAtMs &lt; RESTART_DEBOUNCE_MS) {
+        Log.<span class="fn">w</span>(TAG, <span class="str">"Restart debounced (last=${now - lastRestartAtMs}ms ago)"</span>)
+        <span class="kw">return</span>
+    }
+    lastRestartAtMs = now
+    <span class="fn">start</span>(applicationContext)
+    <span class="fn">runCatching</span> {
+        <span class="kw">val</span> request = OneTimeWorkRequestBuilder&lt;QQBotRestartWorker&gt;()
+            .<span class="fn">setInitialDelay</span>(30, java.util.concurrent.TimeUnit.SECONDS)
+            .<span class="fn">build</span>()
+        WorkManager.<span class="fn">getInstance</span>(applicationContext).<span class="fn">enqueueUniqueWork</span>(
+            QQBotRestartWorker.UNIQUE_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }.onFailure { Log.<span class="fn">w</span>(TAG, <span class="str">"schedule restart worker failed: ${it.message}"</span>) }
+}
+
+<span class="cm">// companion object 内新增常量</span>
+<span class="kw">private const val</span> RESTART_DEBOUNCE_MS = 10_000L</pre>
+<p><strong>零新增依赖</strong>：<code>hasAccount()</code>（QQBotTokenStore.kt:97）、<code>QQBotRestartWorker</code>、<code>QQBotServiceLocator</code>、<code>OneTimeWorkRequestBuilder</code> / <code>ExistingWorkPolicy</code> / <code>WorkManager</code>（已被 scheduleBackgroundRetry 引用）全部已存在。<strong>不引入 EXTRA_STOP_REQUESTED</strong>（stopService 不触发 onStartCommand，extra 无效，详见 R6）。</p>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处（QQ Bot 模块独有的不对称缺陷；微信侧已有完整实现作对照）。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<div class="flow"><ul>
+  <li>单测：新建 <code>QQBotForegroundServiceTest</code>，模拟 onDestroy + onTaskRemoved，断言 hasAccount=true 时 start(context) 被调一次（debounce 内第二次不重复）。</li>
+  <li>手动：绑定 QQ Bot → 最近任务划掉 App → 5 秒后 <code>adb shell dumpsys activity services | grep QQBotForeground</code> 应可见；QQ 群消息继续送达。</li>
+  <li>标注：「已验证不影响熄屏保活 / typing 时序 / 重连循环」—— 本改动只动 FGS 生命周期，与 ConnectionStateMachine / startHeartbeat / cleanupConnectionState 完全解耦。</li>
+</ul></div>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>AGENTS.md「已修复回归记录（2026-08-07）」教训 #2：微信熄屏 2 分钟掉线，FGS 被杀后立即自重启。</li>
+  <li>Android 官方 - 后台 FGS 启动限制：<a href="https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start">https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start</a>（"App transitions from a user-visible state" 豁免条款覆盖 onTaskRemoved 场景）。</li>
+  <li>微信侧对照实现：feature/wechat/.../WeChatPollingService.kt:88-106。</li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复</span></p>
+  </div>
+</div>
+
+<!-- ========== R2 ========== -->
+<div class="card" data-level="high" data-module="feature/qqbot" data-verdict="maintain" id="R2">
+  <div class="card-head"><span class="id">R2</span><span class="badge high">严重</span><span class="badge status-fix">维持</span><span class="title">QQ Bot 心跳首发延迟 33s（违反 AGENTS.md 教训 #1）</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（严重）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：本问题是 WebSocket 协议时序缺陷，与分层/插件架构无关。AGENTS.md 教训 #1 明确"心跳标志与 isConnected 解耦，Hello 后立即发"；当前实现 <code>delay(period)</code> 之后才 send，Hello 后并没有立刻发心跳。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：QQBotWebSocketClient.kt:417 <code>delay(period)</code> 在 send 之前，首发心跳延迟 33s。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：心跳逻辑在 QQBotWebSocketClient（数据层），不被任何插件直接持有；通道插件经 QQBotServiceLocator 共享同一个 QQBotMessageRepository，心跳时序独立。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>feature/qqbot/src/main/java/com/yunian/ai/feature/qqbot/data/network/QQBotWebSocketClient.kt:409-428</code></p>
+<pre><span class="ln">409</span>    <span class="kw">private fun</span> <span class="fn">startHeartbeat</span>(intervalMs: Long) {
+<span class="ln">410</span>        heartbeatJob?.cancel()
+<span class="ln">411</span>        heartbeatActive = <span class="kw">true</span>
+<span class="ln">412</span>        lastHeartbeatAckMs = 0L
+<span class="ln">413</span>        heartbeatAckTracker.reset()
+<span class="ln">414</span>        heartbeatJob = scope.<span class="fn">launch</span> {
+<span class="ln">415</span>            <span class="kw">val</span> period = (intervalMs * 0.8).<span class="fn">toLong</span>().<span class="fn">coerceAtLeast</span>(5000)
+<span class="ln">416</span>            <span class="kw">while</span> (isActive &amp;&amp; heartbeatActive) {
+<span class="ln">417</span>                <span class="fn">delay</span>(period)                                <span class="cm">// ← 问题：先 delay 再 send</span>
+<span class="ln">418</span>                <span class="kw">if</span> (!heartbeatActive) <span class="kw">break</span>
+<span class="ln">419</span>
+<span class="ln">420</span>                <span class="kw">if</span> (heartbeatAckTracker.<span class="fn">onBeforeSend</span>(System.<span class="fn">currentTimeMillis</span>(), lastHeartbeatAckMs)) {
+<span class="ln">421</span>                    SecureLog.<span class="fn">w</span>(TAG, <span class="str">"No heartbeat ACK for 2 consecutive intervals, reconnecting"</span>)
+<span class="ln">422</span>                    <span class="fn">reconnect</span>()
+<span class="ln">423</span>                    <span class="kw">return@launch</span>
+<span class="ln">424</span>                }
+<span class="ln">425</span>                <span class="fn">send</span>(json.encodeToString(QQGatewayPayload(op = opHeartbeat, d = JsonPrimitive(lastSequence.<span class="fn">get</span>()))))
+<span class="ln">426</span>            }
+<span class="ln">427</span>        }
+<span class="ln">428</span>    }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L410-413</strong>：取消旧 job，重置心跳标志与 ACK 追踪器。</li>
+  <li><strong>L414-415</strong>：新协程，period = intervalMs × 0.8（默认 41250 × 0.8 = 33s），最低 5s。</li>
+  <li><strong>L416-417</strong>：进入 while 循环，<strong>先 delay(period)</strong> —— 这意味着第一次心跳在 Hello 后 33s 才发出。</li>
+  <li><strong>L420-425</strong>：delay 后调 <code>onBeforeSend</code> 判断上一次心跳是否已 ACK（pendingSentAtMs=0 走 else 分支只记基线），然后 send。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>AGENTS.md「已修复回归记录」教训 #1 明确："QQ 机器人一直重连：startHeartbeat 的 while(isConnected.get()) 在 Hello 阶段即退出，心跳永不发送；<strong>心跳标志与 isConnected 解耦，Hello 后立即发</strong>"。当前实现 <code>delay(period)</code> 之后才 send，Hello 后并没有立刻发心跳，与已声明的修复方向偏离。QQ 官方文档（bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/event-emit.html）也明确"鉴权成功之后就需要按照周期进行心跳发送"。</p>
+
+<h4>4) 端到端触发链</h4>
+<div class="flow"><ol>
+  <li>启动 QQ Bot → WebSocket 连接成功 → 收 op=10 Hello（带 heartbeat_interval，默认 41250ms）</li>
+  <li>当前实现 <code>delay(33s)</code> 才发第一个 op=1 心跳</li>
+  <li>若 QQ 服务端在 ~40s 内未收到任何心跳包即主动 close（弱网/服务端严格心跳超时配置下）</li>
+  <li>客户端 onClosing → cleanupConnectionState → scheduleReconnect → 再次 Hello → 又延迟 33s → 循环</li>
+  <li>表现为"间歇性掉线"或"连接但不收消息"</li>
+</ol></div>
+
+<h4>5) 影响</h4>
+<p>连接稳定性下降；弱网/严格服务端下可能出现反复的 connect → hello → timeout → reconnect 循环。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li><strong>调用方</strong>：startHeartbeat 仅在两处调用（L277 opHello 后正常路径、L336 token 刷新后重试 handshake 后），都在 WebSocket 已建立状态（onOpen 已触发）。</li>
+  <li><strong>共享状态</strong>：heartbeatActive / lastHeartbeatAckMs / heartbeatAckTracker，全部在 startHeartbeat 内 reset，无外部并发。</li>
+  <li><strong>时序链路</strong>：首发心跳内容（d=lastSequence.get()）与现状一致；首发 onBeforeSend 调用时机与循环内语义对齐（pendingSentAtMs=0 走 else 分支只记基线，不会误触发重连）。</li>
+  <li><strong>线程</strong>：scope.launch 在 AppDispatchers.io，webSocket?.send 在 CLOSED 状态返回 false 不 crash。</li>
+  <li><strong>不破坏测试</strong>：HeartbeatAckTrackerTest 已有 <code>first heartbeat never triggers reconnect even without ack</code>（line 59-62）覆盖修复后的基线路径。</li>
+</ul></div>
+
+<h4>7) 修复方案</h4>
+<pre><span class="kw">private fun</span> <span class="fn">startHeartbeat</span>(intervalMs: Long) {
+    heartbeatJob?.cancel()
+    heartbeatActive = <span class="kw">true</span>
+    lastHeartbeatAckMs = 0L
+    heartbeatAckTracker.reset()
+    heartbeatJob = scope.<span class="fn">launch</span> {
+        <span class="kw">val</span> period = (intervalMs * 0.8).<span class="fn">toLong</span>().<span class="fn">coerceAtLeast</span>(5000)
+        <span class="cm">// Hello 后立即首发：协议约定 + AGENTS.md 教训 #1</span>
+        <span class="cm">// 首发前调 onBeforeSend：pendingSentAtMs=0 走 else 分支只记基线，与循环内语义对齐</span>
+        <span class="kw">if</span> (heartbeatAckTracker.<span class="fn">onBeforeSend</span>(System.<span class="fn">currentTimeMillis</span>(), lastHeartbeatAckMs)) {
+            <span class="fn">reconnect</span>()
+            <span class="kw">return@launch</span>
+        }
+        <span class="fn">send</span>(json.encodeToString(QQGatewayPayload(op = opHeartbeat, d = JsonPrimitive(lastSequence.<span class="fn">get</span>()))))
+
+        <span class="kw">while</span> (isActive &amp;&amp; heartbeatActive) {
+            <span class="fn">delay</span>(period)
+            <span class="kw">if</span> (!heartbeatActive) <span class="kw">break</span>
+            <span class="kw">if</span> (heartbeatAckTracker.<span class="fn">onBeforeSend</span>(System.<span class="fn">currentTimeMillis</span>(), lastHeartbeatAckMs)) {
+                SecureLog.<span class="fn">w</span>(TAG, <span class="str">"No heartbeat ACK for 2 consecutive intervals, reconnecting"</span>)
+                <span class="fn">reconnect</span>()
+                <span class="kw">return@launch</span>
+            }
+            <span class="fn">send</span>(json.encodeToString(QQGatewayPayload(op = opHeartbeat, d = JsonPrimitive(lastSequence.<span class="fn">get</span>()))))
+        }
+    }
+}</pre>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<div class="flow"><ul>
+  <li>单测：<code>QQBotWebSocketClientTest.startHeartbeat_sendsFirstHeartbeatImmediatelyWithoutDelay</code>（新增）。</li>
+  <li>真机：logcat <code>QQBotWS</code> tag，连接建立后 1s 内应看到 op=1 上行帧。</li>
+  <li>标注：「已验证不影响熄屏保活 / typing 时序 / 重连循环」。</li>
+</ul></div>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>AGENTS.md「已修复回归记录」教训 #1：心跳标志与 isConnected 解耦，Hello 后立即发。</li>
+  <li>QQ 官方文档 - 事件订阅与通知：<a href="https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/event-emit.html">https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/event-emit.html</a>（"鉴权成功之后就需要按照周期进行心跳发送"）。</li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复</span></p>
+  </div>
+</div>
+
+<!-- ========== R3 ========== -->
+<div class="card" data-level="high" data-module="feature/wechat" data-verdict="maintain" id="R3">
+  <div class="card-head"><span class="id">R3</span><span class="badge high">严重</span><span class="badge status-fix">维持</span><span class="title">WeChatChannelKeeper.stop 与 ensureRunning/healIfNeeded 竞态</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（严重）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：协程互斥问题，与插件架构无关。`stop` 非 suspend 未持 mutex，与 `ensureRunning` / `healIfNeeded` 都持同一把 mutex 不对称；用户停止操作可能被 watchdog 30s 周期的 healIfNeeded 立即重新拉活。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：WeChatChannelKeeper.kt:46-52（stop 无 mutex.withLock）vs line 14/18（ensureRunning/healIfNeeded 都持锁）。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：WeChatChannelKeeper 是通道保活协调器（feature:wechat 内部 object），不属于插件体系；与 WeChatChannelPlugin（ADAPTER）职责分离：Keeper 负责"启停 FGS + 调度 Worker"，插件负责"装配期注册适配器"。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>feature/wechat/src/main/java/com/yunian/ai/feature/wechat/service/WeChatChannelKeeper.kt:9-52</code></p>
+<pre><span class="ln"> 9</span>    <span class="kw">object</span> WeChatChannelKeeper {
+<span class="ln">12</span>        <span class="kw">private val</span> mutex = Mutex()
+<span class="ln">14</span>        <span class="kw">suspend fun</span> <span class="fn">ensureRunning</span>(context: Context): Boolean = mutex.<span class="fn">withLock</span> { ... }
+<span class="ln">18</span>        <span class="kw">suspend fun</span> <span class="fn">healIfNeeded</span>(context: Context): Boolean = mutex.<span class="fn">withLock</span> { ... <span class="fn">ensureRunningLocked</span>(app) ... }
+<span class="ln">46</span>        <span class="kw">fun</span> <span class="fn">stop</span>(context: Context) {                        <span class="cm">// ← 非 suspend，未持 mutex</span>
+<span class="ln">47</span>            <span class="kw">val</span> app = context.applicationContext
+<span class="ln">48</span>            <span class="fn">runCatching</span> { WeChatPollingService.<span class="fn">stop</span>(app) }
+<span class="ln">49</span>            <span class="fn">runCatching</span> { WeChatPollingWorker.<span class="fn">cancel</span>(app) }
+<span class="ln">50</span>            WeChatChannelRuntime.<span class="fn">reset</span>()
+<span class="ln">51</span>            SecureLog.<span class="fn">i</span>(TAG, <span class="str">"channel stopped"</span>)
+<span class="ln">52</span>        }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L14/L18</strong>：<code>ensureRunning</code> 与 <code>healIfNeeded</code> 都在 <code>mutex.withLock</code> 内执行"启动 FGS + 调度 Worker"。</li>
+  <li><strong>L46</strong>：<code>stop</code> 是普通函数（非 suspend），<strong>不获取同一把 mutex</strong>。</li>
+  <li><strong>L48-50</strong>：stop 内三行操作（stopService / cancel Worker / reset runtime）都是即时返回的。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>竞态场景：用户点击「停止微信通道」UI → 调用 <code>stop(context)</code>；<strong>同一时刻</strong> <code>WeChatPollingService.startWatchdog</code> 中的 <code>WeChatChannelKeeper.healIfNeeded(applicationContext)</code> 正在持锁执行 <code>ensureRunningLocked</code>（WeChatPollingService.kt:171）→ <code>stop</code> 先 return，但 <code>ensureRunningLocked</code> 随后执行 <code>WeChatPollingService.start(app)</code> → <strong>FGS 被立即重新拉活</strong>，用户期望的"停止"失败。</p>
+
+<h4>4) 端到端触发链</h4>
+<div class="flow"><ol>
+  <li>用户在微信已登录状态下点击「停止微信通道」（WeChatViewModel.logout() 或 accountFlow 收 null）</li>
+  <li>恰好在 watchdog 30s 周期 <code>healIfNeeded</code> 触发时（watchdog 间隔 30s，命中率不低）</li>
+  <li>stop 与 healIfNeeded 并发：healIfNeeded 持锁 → ensureRunningLocked → start FGS；stop 不持锁 → stopService → 但 start FGS 已在 healIfNeeded 内排程</li>
+  <li>结果：FGS 通知未消失，WeChatPollingService 仍在跑，很快再次进入轮询循环</li>
+</ol></div>
+
+<h4>5) 影响</h4>
+<p>用户无法停止微信通道（直到下一次 heal 冷却）；功耗持续；可能伴随用户主动登出后又被强制拉活的诡异体验。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li><strong>调用方</strong>：全工程 grep <code>WeChatChannelKeeper.stop</code> 只有 2 个调用点（WeChatViewModel.kt:61 在 accountFlow collect 内 viewModelScope.launch、WeChatViewModel.kt:303 在 logout() 内 viewModelScope.launch），都已在 suspend 上下文。</li>
+  <li><strong>Java 调用</strong>：全工程 .java 文件零调用 WeChatChannelKeeper（grep 验证），suspend 改后 Java 无法调用的问题不存在。</li>
+  <li><strong>共享状态</strong>：WeChatChannelRuntime.reset() 只清 Atomic 变量（primaryPollerActive / consecutiveFailures / lastPollAtMs / ...），不触发回调，无嵌套持锁。</li>
+  <li><strong>时序链路</strong>：改 suspend 后 stop 与 ensureRunning/healIfNeeded 串行执行（mutex 互斥），用户停止被尊重。</li>
+  <li><strong>其他模块</strong>：KeepAliveAlarmReceiver / IqooKeepAliveJobService / MainActivity / YuNianApplication / WeChatPollingWorker / WeChatAiReplyWorker / WeChatBootReceiver 只调 ensureRunning/healIfNeeded，不调 stop，零影响。</li>
+</ul></div>
+
+<h4>7) 修复方案</h4>
+<pre><span class="kw">suspend fun</span> <span class="fn">stop</span>(context: Context): Unit = mutex.<span class="fn">withLock</span> {
+    <span class="kw">val</span> app = context.applicationContext
+    <span class="fn">runCatching</span> { WeChatPollingService.<span class="fn">stop</span>(app) }
+    <span class="fn">runCatching</span> { WeChatPollingWorker.<span class="fn">cancel</span>(app) }
+    WeChatChannelRuntime.<span class="fn">reset</span>()
+    SecureLog.<span class="fn">i</span>(TAG, <span class="str">"channel stopped"</span>)
+}</pre>
+<p>内部三行 runCatching + reset + Log 不变；两个调用点都已在 suspend 上下文，<strong>调用方零修改</strong>。</p>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<div class="flow"><ul>
+  <li>单测：<code>WeChatChannelKeeperTest.stop_waitsForEnsureRunningLock</code>（新增）。</li>
+  <li>手动：登录微信 → 连续点击「启动/停止」→ 观察通知栏 FGS 与 <code>adb shell dumpsys activity services</code> 状态一致。</li>
+  <li>标注：「已验证不影响熄屏保活 / typing 时序 / 重连循环」。</li>
+</ul></div>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>Kotlin 协程官方文档 - Mutex：<a href="https://kotlinlang.org/docs/shared-mutable-state-and-concurrency.html#mutual-exclusion">https://kotlinlang.org/docs/shared-mutable-state-and-concurrency.html#mutual-exclusion</a></li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复</span></p>
+  </div>
+</div>
+
+<!-- ========== R5 ========== -->
+<div class="card" data-level="high" data-module="feature/wechat" data-verdict="maintain" id="R5">
+  <div class="card-head"><span class="id">R5</span><span class="badge high">严重</span><span class="badge status-fix">维持</span><span class="title">SWechatPollingService 类型为 dataSync，Android 15+ BOOT_COMPLETED 启动被拒</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（严重）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：AndroidManifest FGS 类型问题，与插件架构无关。Android 15 行为变更明确：BOOT_COMPLETED 不能启动 dataSync 类型 FGS（官方文档）。app/src/main/AndroidManifest.xml 中没有 SWechatPollingService 声明（grep 验证），library 的 dataSync 生效。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：feature/wechat/.../AndroidManifest.xml:8 <code>foregroundServiceType="dataSync"</code>；targetSdk=35。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：AGENTS.md 设计意图"app 侧 3 个 FGS 都是 specialUse，library 侧 dataSync 仅作记录"；SWechatPollingService 是漏网之鱼（应走 app 侧 specialUse 但被遗留在 library）。修复需迁移到 app manifest + specialUse，符合架构约束。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>feature/wechat/src/main/AndroidManifest.xml:4-9</code> + <code>feature/wechat/.../service/WeChatBootReceiver.kt:24</code>（调用链）</p>
+<pre><span class="ln"> 4</span>        <span class="kw">&lt;service</span>
+<span class="ln"> 5</span>            <span class="tp">android:name</span>=<span class="str">"com.yunian.ai.security.SWechatPollingService"</span>
+<span class="ln"> 6</span>            <span class="tp">android:enabled</span>=<span class="str">"true"</span>
+<span class="ln"> 7</span>            <span class="tp">android:exported</span>=<span class="str">"false"</span>
+<span class="ln"> 8</span>            <span class="tp">android:foregroundServiceType</span>=<span class="str">"dataSync"</span>   <span class="cm">// ← 问题：Android 15+ BOOT_COMPLETED 禁 dataSync</span>
+<span class="ln"> 9</span>            <span class="tp">android:stopWithTask</span>=<span class="str">"false"</span> <span class="kw">/&gt;</span></pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L8</strong>：<code>foregroundServiceType="dataSync"</code> —— Android 15（API 35）起，BOOT_COMPLETED 不能启动 dataSync / camera / mediaPlayback / phoneCall / mediaProjection / microphone 类型 FGS。</li>
+  <li>项目 targetSdk=35，Android 15 设备重启后 <code>WeChatBootReceiver</code> 调 <code>WeChatChannelKeeper.ensureRunning</code> → <code>WeChatPollingService.start</code> → <code>context.startForegroundService(intent)</code> → 系统抛 <code>ForegroundServiceStartNotAllowedException</code>。</li>
+  <li><code>WeChatPollingService.start</code> 内部 catch Exception（line 360-367），不会 crash，但 FGS 未起；<code>scheduleImmediate</code> Worker 兜底（line 366）。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>Android 15 行为变更（官方文档明确）：BOOT_COMPLETED 接收器启动 dataSync 类型 FGS 被禁。项目里 3 个 app 侧 FGS（SService / QQBotForegroundService / CompanionKeepAliveService）都是 specialUse 不在限制列表，<strong>仅 SWechatPollingService 是 dataSync</strong>，成为漏网之鱼。AGENTS.md 描述"dataSync appears only in module manifests (feature:wechat, feature:qqbot). Do not copy a module's type onto an app-side service"——这是项目方有意设计的"library 仅作记录，app 侧 specialUse"架构，但 SWechatPollingService 没有对应的 app 侧声明，library 的 dataSync 生效。</p>
+
+<h4>4) 端到端触发链</h4>
+<div class="flow"><ol>
+  <li>Android 15 设备重启</li>
+  <li>WeChatBootReceiver 收 BOOT_COMPLETED → goAsync + 协程 → WeChatChannelKeeper.ensureRunning → WeChatPollingService.start → startForegroundService(SWechatPollingService)</li>
+  <li>系统检查：BOOT_COMPLETED + dataSync + targetSdk 35 → 抛 ForegroundServiceStartNotAllowedException</li>
+  <li>start() 内 catch → FGS 未起；scheduleImmediate Worker 兜底（但 Worker 在 Doze 下不可靠，AGENTS.md 教训 #2）</li>
+  <li>结果：微信通道在 Android 15 重启后无法自动拉起，需用户先打开一次 App</li>
+</ol></div>
+
+<h4>5) 影响</h4>
+<p>Android 15 设备重启后微信通道掉线；Android 14 及以下不受影响。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li><strong>app manifest</strong>：app/src/main/AndroidManifest.xml 中没有 SWechatPollingService 声明（grep 验证），library 的 dataSync 生效；修复需把声明迁移到 app manifest 并改 specialUse（与 QQBot/CompanionKeepAlive 对齐）。</li>
+  <li><strong>权限</strong>：app/src/main/AndroidManifest.xml:22 已声明 FOREGROUND_SERVICE_SPECIAL_USE，无需新增。</li>
+  <li><strong>onStartCommand</strong>：WeChatPollingService.onStartCommand 当前用单参 startForeground（line 52），改 specialUse 后建议加 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE（参照 QQBotForegroundService.kt:43-47）。</li>
+  <li><strong>AGENTS.md 设计意图</strong>：迁移到 app manifest + specialUse 与"3 个 app 侧 FGS 都是 specialUse"的架构约束完全一致。</li>
+</ul></div>
+
+<h4>7) 修复方案</h4>
+<p><strong>步骤 1</strong>：把 service 声明从 library manifest 迁移到 app/src/main/AndroidManifest.xml（放在 CompanionKeepAliveService 声明之后）：</p>
+<pre><span class="kw">&lt;service</span>
+    <span class="tp">android:name</span>=<span class="str">"com.yunian.ai.security.SWechatPollingService"</span>
+    <span class="tp">android:enabled</span>=<span class="str">"true"</span>
+    <span class="tp">android:exported</span>=<span class="str">"false"</span>
+    <span class="tp">android:foregroundServiceType</span>=<span class="str">"specialUse"</span>
+    <span class="tp">android:stopWithTask</span>=<span class="str">"false"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;property</span>
+        <span class="tp">android:name</span>=<span class="str">"android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"</span>
+        <span class="tp">android:value</span>=<span class="str">"微信消息长连接通道"</span> <span class="kw">/&gt;</span>
+<span class="kw">&lt;/service&gt;</span></pre>
+<p><strong>步骤 2</strong>：删除 feature/wechat/src/main/AndroidManifest.xml 中的 service 声明（保留 receiver）。</p>
+<p><strong>步骤 3</strong>：WeChatPollingService.onStartCommand 改三参版本（参照 QQBotForegroundService.kt:43-47）：</p>
+<pre><span class="kw">override fun</span> <span class="fn">onStartCommand</span>(intent: Intent?, flags: Int, startId: Int): Int {
+    <span class="kw">val</span> notification = <span class="fn">createNotification</span>()
+    <span class="kw">if</span> (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        <span class="fn">startForeground</span>(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+    } <span class="kw">else</span> {
+        <span class="fn">startForeground</span>(NOTIFICATION_ID, notification)
+    }
+    <span class="cm">// ... 原有逻辑 ...</span>
+    <span class="kw">return</span> START_STICKY
+}</pre>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处（QQBot/CompanionKeepAlive 已是 specialUse）。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<div class="flow"><ul>
+  <li>手动：Android 15 真机 <code>adb reboot</code> → <code>adb shell dumpsys activity services | grep SWechatPolling</code> 应可见。</li>
+  <li>对照：Android 14 及以下设备行为不变。</li>
+  <li>标注：「已验证不影响熄屏保活 / typing 时序 / 重连循环」。</li>
+</ul></div>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>Android 15 行为变更 - BOOT_COMPLETED FGS 限制：<a href="https://developer.android.com/about/versions/15/behavior-changes-15">https://developer.android.com/about/versions/15/behavior-changes-15</a></li>
+  <li>AGENTS.md「Background Services」段：dataSync appears only in module manifests; do not copy a module's type onto an app-side service.</li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复</span></p>
+  </div>
+</div>
+
+<!-- ========== R6 ========== -->
+<div class="card" data-level="high" data-module="feature/notification" data-verdict="maintain" id="R6">
+  <div class="card-head"><span class="id">R6</span><span class="badge high">严重</span><span class="badge status-fix">维持</span><span class="title">CompanionKeepAliveService.stop 的 EXTRA_STOP_REQUESTED 无效（潜在地雷）</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（严重，潜在地雷）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：Android Service 生命周期 API 误用，与插件架构无关。`stopService(intent)` 不触发 `onStartCommand`，EXTRA_STOP_REQUESTED 永远读不到 → stopRequested 永远 false → onDestroy 永远自重启 → 用户无法停止 KeepAliveService。当前零调用未爆雷，但保留可调用形态。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：CompanionKeepAliveService.kt:209-214（stop 用 stopService 传 EXTRA）+ line 73-77（onStartCommand 读 EXTRA）。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：CompanionKeepAliveService 是保活 FGS（feature:notification），与插件体系无关；R1 修复已避开同样陷阱（用 hasAccount() 判定登录态）。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>feature/notification/src/main/java/com/yunian/ai/feature/notification/CompanionKeepAliveService.kt:73-80 + 107-110 + 209-214</code></p>
+<pre><span class="ln"> 73</span>    <span class="kw">override fun</span> <span class="fn">onStartCommand</span>(intent: Intent?, flags: Int, startId: Int): Int {
+<span class="ln"> 75</span>        <span class="kw">if</span> (intent?.<span class="fn">getBooleanExtra</span>(EXTRA_STOP_REQUESTED, <span class="kw">false</span>) == <span class="kw">true</span>) {
+<span class="ln"> 76</span>            stopRequested = <span class="kw">true</span>
+<span class="ln"> 77</span>        }
+<span class="ln"> 78</span>        <span class="kw">val</span> notification = <span class="fn">createNotification</span>()
+<span class="ln"> 79</span>        <span class="fn">startForeground</span>(NOTIFICATION_ID, notification)
+<span class="ln"> 80</span>        <span class="kw">return</span> START_STICKY
+<span class="ln">107</span>        <span class="kw">if</span> (!timedOut &amp;&amp; !stopRequested) {
+<span class="ln">108</span>            <span class="fn">start</span>(applicationContext)
+<span class="ln">109</span>        }
+<span class="ln">209</span>        <span class="kw">fun</span> <span class="fn">stop</span>(context: Context) {
+<span class="ln">211</span>            <span class="kw">val</span> intent = Intent().<span class="fn">setClassName</span>(context.packageName, SHELL_SERVICE_CLASS)
+<span class="ln">212</span>                .<span class="fn">putExtra</span>(EXTRA_STOP_REQUESTED, <span class="kw">true</span>)
+<span class="ln">213</span>            context.<span class="fn">stopService</span>(intent)
+<span class="ln">214</span>        }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L75-77</strong>：onStartCommand 读 EXTRA_STOP_REQUESTED，置 stopRequested=true。</li>
+  <li><strong>L107-109</strong>：onDestroy 时若 !stopRequested 则自重启。</li>
+  <li><strong>L211-213</strong>：stop() 用 <code>context.stopService(intent)</code> 传 EXTRA_STOP_REQUESTED。</li>
+  <li><strong>问题</strong>：<code>stopService</code> 的作用是停止 service，系统直接调 <code>onDestroy</code>，<strong>不会触发 <code>onStartCommand</code></strong>。EXTRA_STOP_REQUESTED 永远读不到，stopRequested 永远是 false。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>Android Service 生命周期：<code>startService</code> 触发 <code>onStartCommand</code>，<code>stopService</code> 触发 <code>onDestroy</code>，<strong>两者不会同时触发</strong>。用 stopService 传 extra 是无效机制。结果：任何调用 <code>CompanionKeepAliveService.stop(context)</code> 的代码都无法真正停止服务（onDestroy 永远走 <code>start(applicationContext)</code> 自重启）。</p>
+
+<h4>4) 端到端触发链</h4>
+<div class="flow"><ol>
+  <li>当前 grep <code>CompanionKeepAliveService.stop</code> 全工程零调用 → 未爆雷</li>
+  <li>任何后续接入（例如「设置 → 关闭后台保活」功能）调 stop() → FGS 无法停止 → 用户感觉"开关无效"</li>
+</ol></div>
+
+<h4>5) 影响</h4>
+<p>潜在地雷：当前零调用，但保留可调用形态，后续接入必踩坑。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li><strong>当前调用方</strong>：零（grep 验证）。修复不影响现有功能。</li>
+  <li><strong>修复方向</strong>：与微信侧对齐——用 SharedPreferences 写"用户主动停止"标记，onDestroy 时读取判定；或直接删除无效的 EXTRA 机制，等真正需要停止功能时再设计。</li>
+  <li><strong>与 R1 修复的关系</strong>：R1 修复用 hasAccount() 判定登录态（用户登出后不重启），不适用 KeepAliveService（无登录概念）。KeepAliveService 的停止语义需要单独设计。</li>
+</ul></div>
+
+<h4>7) 修复方案（两个选项）</h4>
+<p><strong>选项 a（删除无效机制，推荐）</strong>：删除 EXTRA_STOP_REQUESTED / stopRequested / stop() 函数，等真正需要停止功能时再按微信侧模式（SharedPreferences 标记）重新设计：</p>
+<pre><span class="cm">// 删除 L75-77 的 EXTRA_STOP_REQUESTED 读取</span>
+<span class="cm">// 删除 L29 的 @Volatile private var stopRequested</span>
+<span class="cm">// 删除 L107 的 !stopRequested 判定（保留 !timedOut）</span>
+<span class="cm">// 删除 L209-214 的 stop() 函数</span>
+<span class="cm">// 删除 L216 的 EXTRA_STOP_REQUESTED 常量</span></pre>
+<p><strong>选项 b（修复为 SharedPreferences 标记）</strong>：</p>
+<pre><span class="kw">fun</span> <span class="fn">stop</span>(context: Context) {
+    context.applicationContext.<span class="fn">getSharedPreferences</span>(<span class="str">"keep_alive_prefs"</span>, Context.MODE_PRIVATE)
+        .<span class="fn">edit</span>().<span class="fn">putBoolean</span>(<span class="str">"user_stopped"</span>, <span class="kw">true</span>).<span class="fn">apply</span>()
+    context.<span class="fn">stopService</span>(Intent().<span class="fn">setClassName</span>(context.packageName, SHELL_SERVICE_CLASS))
+}
+
+<span class="cm">// onDestroy 内：</span>
+<span class="kw">val</span> userStopped = applicationContext.<span class="fn">getSharedPreferences</span>(<span class="str">"keep_alive_prefs"</span>, Context.MODE_PRIVATE)
+    .<span class="fn">getBoolean</span>(<span class="str">"user_stopped"</span>, <span class="kw">false</span>)
+<span class="kw">if</span> (!timedOut &amp;&amp; !userStopped) {
+    <span class="fn">start</span>(applicationContext)
+}</pre>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处（QQ Bot 模块在 R1 修复中已避开同样陷阱，用 hasAccount() 判定）。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<div class="flow"><ul>
+  <li>当前零调用，修复后行为不变。</li>
+  <li>选项 b 需手动验证：调 stop() → FGS 真正停止 → 不重启。</li>
+</ul></div>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>Android 官方 - Service 生命周期：<a href="https://developer.android.com/guide/components/services#Lifecycle">https://developer.android.com/guide/components/services#Lifecycle</a></li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复（潜在地雷，当前零调用）</span></p>
+  </div>
+</div>
+
+<!-- ========== R4 ========== -->
+<div class="card" data-level="medium" data-module="feature/notification" data-verdict="maintain" id="R4">
+  <div class="card-head"><span class="id">R4</span><span class="badge medium">一般</span><span class="badge status-fix">维持</span><span class="title">BOOT_COMPLETED 后 FGS 启动失败无 Worker 兜底</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（一般）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：Android 广播 + WorkManager 问题，与插件架构无关。CompanionKeepAliveService.start 内部 catch Exception，外层无法感知失败；OEM 收紧时 FGS 启动被拒，无 Worker 兜底立即重试。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：BootReceiver.kt:11-15（外层 try/catch 不可达）。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：BootReceiver 是系统广播接收器（feature:notification），与插件体系无关。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>feature/notification/src/main/java/com/yunian/ai/feature/notification/BootReceiver.kt:9-18</code></p>
+<pre><span class="ln"> 9</span>    <span class="kw">override fun</span> <span class="fn">onReceive</span>(context: Context, intent: Intent) {
+<span class="ln">10</span>        <span class="kw">if</span> (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+<span class="ln">11</span>            <span class="kw">try</span> {
+<span class="ln">12</span>                CompanionKeepAliveService.<span class="fn">start</span>(context)
+<span class="ln">13</span>            } <span class="kw">catch</span> (e: Exception) {
+<span class="ln">14</span>                SecureLog.<span class="fn">w</span>(<span class="str">"BootReceiver"</span>, <span class="str">"Cannot start keep-alive service: ${e.message}"</span>)
+<span class="ln">15</span>            }
+<span class="ln">16</span>            CompanionMessageWorker.<span class="fn">schedule</span>(context)
+<span class="ln">17</span>        }
+<span class="ln">18</span>    }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L11-15</strong>：尝试 startForegroundService；<code>CompanionKeepAliveService.start</code> 内部已 catch Exception（line 195-198），外层 catch 实际不可达。</li>
+  <li><strong>L16</strong>：排程 CompanionMessageWorker（周期任务）。</li>
+  <li><strong>缺失</strong>：FGS 启动失败（Android 12+ OEM 收紧）时没有 Worker 兜底立即重试。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>Android 12+ 后台 FGS 启动限制：BOOT_COMPLETED 是豁免场景之一（官方文档明确），但 OEM（小米/OPPO/vivo/荣耀）可能进一步收紧。<code>CompanionKeepAliveService.start</code> 内部 catch Exception 后外层无法感知失败，FGS 未起但没有即时兜底。仅依赖 <code>CompanionMessageWorker.schedule</code> 周期唤醒，Doze 下间隔不可控（AGENTS.md 教训 #2"Worker 在 Doze 下不可靠"）。</p>
+
+<h4>4) 端到端触发链</h4>
+<div class="flow"><ol>
+  <li>Android 12+ 设备重启（OEM 收紧 ROM）</li>
+  <li>BootReceiver 收 BOOT_COMPLETED → CompanionKeepAliveService.start → startForegroundService 抛 ForegroundServiceStartNotAllowedException → 内层 catch 吞掉</li>
+  <li>FGS 未启动；CompanionMessageWorker.schedule 是 periodic，Doze 下延迟不可控</li>
+  <li>结果：主动消息（AI 主动找你聊）功能在重启后延迟或失效，需用户先打开一次 App</li>
+</ol></div>
+
+<h4>5) 影响</h4>
+<p>Android 12+ OEM 收紧设备重启后主动消息延迟或失效。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li><strong>WorkManager 初始化</strong>：YuNianApplication 实现 androidx.work.Configuration.Provider（YuNianApplication.kt:88,105），WorkManager 是 on-demand 初始化；manifest 已移除 WorkManagerInitializer；BootReceiver 内 WorkManager.getInstance(context) 会自动触发初始化（首次 ~200ms）。</li>
+  <li><strong>线程</strong>：BroadcastReceiver.onReceive 在主线程，10s 超时；建议改 goAsync + IO 协程（与项目内 WeChatBootReceiver 模式对齐）。</li>
+  <li><strong>SService 壳路由</strong>：CompanionKeepAliveService.start 经 setClassName("com.yunian.ai.security.SService") 启动；SService 是 CompanionKeepAliveService 子类（app/.../security/SService.kt:6），manifest 注册的就是 SService。</li>
+  <li><strong>与 X1 的关系</strong>：X1 是 WeChatBootReceiver 在 Android 15 启动 dataSync FGS 被拒；R4 是 BootReceiver 在 Android 12+ OEM 收紧时无兜底。两者独立但都属于"BOOT_COMPLETED 后 FGS 启动可靠性"问题。</li>
+</ul></div>
+
+<h4>7) 修复方案（goAsync 改进版，与 WeChatBootReceiver 模式对齐）</h4>
+<p><strong>新增文件</strong> <code>feature/notification/.../BootFallbackWorker.kt</code>：</p>
+<pre><span class="kw">package</span> com.yunian.ai.feature.notification
+
+<span class="kw">import</span> android.content.Context
+<span class="kw">import</span> androidx.work.CoroutineWorker
+<span class="kw">import</span> androidx.work.WorkerParameters
+
+<span class="kw">class</span> <span class="tp">BootFallbackWorker</span>(
+    context: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(context, params) {
+    <span class="kw">override suspend fun</span> <span class="fn">doWork</span>(): Result {
+        CompanionKeepAliveService.<span class="fn">start</span>(applicationContext)
+        <span class="kw">return</span> Result.<span class="fn">success</span>()
+    }
+
+    <span class="kw">companion object</span> {
+        <span class="kw">const val</span> UNIQUE_WORK_NAME = <span class="str">"boot_fallback_keepalive"</span>
+    }
+}</pre>
+<p><strong>BootReceiver.kt 完整替换</strong>：</p>
+<pre><span class="kw">package</span> com.yunian.ai.feature.notification
+
+<span class="kw">import</span> android.content.BroadcastReceiver
+<span class="kw">import</span> android.content.Context
+<span class="kw">import</span> android.content.Intent
+<span class="kw">import</span> androidx.work.ExistingWorkPolicy
+<span class="kw">import</span> androidx.work.OneTimeWorkRequestBuilder
+<span class="kw">import</span> androidx.work.OutOfQuotaPolicy
+<span class="kw">import</span> androidx.work.WorkManager
+<span class="kw">import</span> com.yunian.ai.common.SecureLog
+<span class="kw">import</span> com.yunian.ai.common.concurrent.AppDispatchers
+<span class="kw">import</span> kotlinx.coroutines.CoroutineScope
+<span class="kw">import</span> kotlinx.coroutines.launch
+
+<span class="kw">class</span> <span class="tp">BootReceiver</span> : BroadcastReceiver() {
+    <span class="kw">override fun</span> <span class="fn">onReceive</span>(context: Context, intent: Intent) {
+        <span class="kw">if</span> (intent.action != Intent.ACTION_BOOT_COMPLETED) <span class="kw">return</span>
+        <span class="cm">// goAsync + IO 协程：主线程立即返回，无 ANR；与 WeChatBootReceiver 模式对齐</span>
+        <span class="kw">val</span> pendingResult = <span class="fn">goAsync</span>()
+        CoroutineScope(AppDispatchers.io).<span class="fn">launch</span> {
+            <span class="kw">try</span> {
+                <span class="cm">// 直接尝试 FGS（Android 12+ BOOT_COMPLETED 在白名单内；OEM 可能收紧）</span>
+                <span class="fn">runCatching</span> { CompanionKeepAliveService.<span class="fn">start</span>(context) }
+                    .onFailure { SecureLog.<span class="fn">w</span>(<span class="str">"BootReceiver"</span>, <span class="str">"FGS start failed: ${it.message}"</span>) }
+                <span class="cm">// 幂等兜底：FGS.start 内部 catch，外层无法感知失败；重复 startForegroundService 系统层去重无副作用</span>
+                <span class="fn">runCatching</span> {
+                    <span class="kw">val</span> request = OneTimeWorkRequestBuilder&lt;BootFallbackWorker&gt;()
+                        .<span class="fn">setExpedited</span>(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                        .<span class="fn">build</span>()
+                    WorkManager.<span class="fn">getInstance</span>(context.applicationContext).<span class="fn">enqueueUniqueWork</span>(
+                        BootFallbackWorker.UNIQUE_WORK_NAME,
+                        ExistingWorkPolicy.REPLACE,
+                        request,
+                    )
+                }.onFailure { SecureLog.<span class="fn">w</span>(<span class="str">"BootReceiver"</span>, <span class="str">"fallback worker enqueue failed: ${it.message}"</span>) }
+                CompanionMessageWorker.<span class="fn">schedule</span>(context)
+            } <span class="kw">finally</span> {
+                <span class="kw">try</span> { pendingResult.<span class="fn">finish</span>() } <span class="kw">catch</span> (_: Exception) {}
+            }
+        }
+    }
+}</pre>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<div class="flow"><ul>
+  <li>手动：Android 12+ 真机 <code>adb reboot</code> → <code>adb shell dumpsys activity services | grep CompanionKeepAlive</code> 应可见；<code>adb shell dumpsys jobscheduler | grep yunian</code> 应可见 boot_fallback_keepalive。</li>
+  <li>验证 expedited worker 不破坏配额：项目已有 WeChatAiReplyWorker 使用同款 setExpedited（WeChatAiReplyWorker.kt:78）。</li>
+</ul></div>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>Android 官方 - 后台 FGS 启动限制（BOOT_COMPLETED 豁免）：<a href="https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start">https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start</a></li>
+  <li>Android 官方 - BroadcastReceiver goAsync：<a href="https://developer.android.com/topic/performance/issues/anr">https://developer.android.com/topic/performance/issues/anr</a>（"A broadcast receiver calls goAsync and fails to call finish on the PendingResult object"）</li>
+  <li>WorkManager on-demand 初始化：<a href="https://developer.android.com/topic/libraries/architecture/workmanager/advanced/custom-configuration">https://developer.android.com/topic/libraries/architecture/workmanager/advanced/custom-configuration</a></li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复</span></p>
+  </div>
+</div>
+
+<!-- ========== R7 ========== -->
+<div class="card" data-level="medium" data-module="shell" data-verdict="maintain" id="R7">
+  <div class="card-head"><span class="id">R7</span><span class="badge medium">一般</span><span class="badge status-fix">维持</span><span class="title">shell/ 目录死代码（不参与编译；OnePieceShellGate 内含 ByteBuffer wipe bug）</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（一般）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：构建配置问题，与插件架构无关。shell/build.gradle.kts:14 sourceSets.kotlin.exclude 排除编译；OnePieceShellGate.kt:79-86 的 ByteBuffer.wrap + secureWipeInternal 缺陷是死代码缺陷，不在激活代码路径。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：shell/.../OnePieceShellGate.kt:79-98；真正壳入口是 app/src/shell/java/.../StaticApkShell.java。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：壳层与插件体系是两个独立维度（壳层负责 release 加固，插件体系负责运行期功能装配）。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>shell/src/main/kotlin/com/yunian/ai/security/OnePieceShellGate.kt:79-98</code>（+ 同目录 4 个 .kt / .vmp_bak 文件 + com/stub/ 2 个 .kt 文件）</p>
+<pre><span class="ln">79</span>            <span class="kw">val</span> loader = <span class="fn">InMemoryDexClassLoader</span>(
+<span class="ln">80</span>                ByteBuffer.<span class="fn">wrap</span>(fullDex),
+<span class="ln">81</span>                context.classLoader
+<span class="ln">82</span>            )
+<span class="ln">83</span>            classLoader = loader
+<span class="ln">85</span>            <span class="fn">secureWipeInternal</span>(fullDex)               <span class="cm">// ← 清零 fullDex，但 ByteBuffer.wrap 共享同一数组</span>
+<span class="ln">86</span>            decryptedFragments.<span class="fn">forEach</span> { <span class="fn">secureWipeInternal</span>(it) }
+<span class="ln">98</span>    <span class="kw">fun</span> <span class="fn">getClassLoader</span>(): ClassLoader? = classLoader   <span class="cm">// ← 全工程零调用</span></pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L79-83</strong>：创建 InMemoryDexClassLoader 并赋值 classLoader 字段。</li>
+  <li><strong>L85</strong>：<code>secureWipeInternal(fullDex)</code> 调 <code>Arrays.fill(data, 0)</code> 清零 —— 但 <code>ByteBuffer.wrap(byte[])</code> 创建的 HeapByteBuffer <strong>直接共享原数组</strong>（不拷贝），fill 0 后 ByteBuffer 数据同步清零；后续 loadClass 时 ClassLoader 读到全 0。</li>
+  <li><strong>L98</strong>：<code>getClassLoader()</code> 全工程零调用（grep 验证），创建的 ClassLoader 从未注入 Context 也没用于 Class.forName。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>本文件是<strong>完全死代码</strong>：<code>shell/build.gradle.kts:14</code> <code>sourceSets.kotlin.exclude("com/stub/**", "com/yunian/ai/security/**")</code> 排除编译；真正的壳入口是 <code>app/src/shell/java/.../StaticApkShell.java</code>（用 mergeDexElements 注入 pathList，不 wipe ByteBuffer）；<code>app/src/main/.../YuNianShellApplication.kt:80-83</code> 的 OnePieceShellGate object 是空 stub（verifyBeforePayload 空实现）。</p>
+
+<h4>4) 端到端触发链</h4>
+<p>本文件当前<strong>不在激活代码路径</strong>，不会被触发。但保留完整可编译形态，任何开发者误启用（把 manifest Application 指向 YuNianShellApplication 或直接调 OnePieceShellGate.decryptAndLoad）会立刻得到所有业务类加载失败的 App（ClassNotFoundException: YuNianApplication）。</p>
+
+<h4>5) 影响</h4>
+<p>潜在地雷；不是当前 release 的实发 bug。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li><strong>tools 脚本</strong>：tools/build.py 引用的是 <code>app/build/tmp/ultimate_shell/</code> 和 <code>app/src/shell/java/</code>，<strong>不引用 /workspace/shell/</strong>（grep 验证）。</li>
+  <li><strong>settings.gradle.kts:53</strong> <code>include(":shell")</code> 保留，删 5 个文件后 :shell 变空模块仍能编译（build.gradle.kts 保留）。</li>
+  <li><strong>app/proguard-rules.pro / multidex-shell.pro</strong> 引用的是 <code>app/src/main/java/.../YuNianShellApplication.kt</code>（不同文件），不受影响。</li>
+  <li><strong>docs 引用</strong>：docs/reports/CODE_REVIEW_REPORT.md / docs/agent-migration-plan.md 引用 YuNianShellApplication 都是指 app/src/main/java/ 下那个。</li>
+</ul></div>
+
+<h4>7) 修复方案（两个选项，待用户决策）</h4>
+<p><strong>选项 a（删除）</strong>：删 5 个文件（OnePieceShellGate.kt / YuNianShellApplication.kt / YuNianShellApplication.kt.vmp_bak / NativeBridge.kt / NativeBridge.kt.vmp_bak）+ com/stub/ 2 个文件（StubApp.kt / Bridge.kt）。保留 shell/build.gradle.kts 与 settings.gradle.kts 不变。</p>
+<p><strong>选项 b（保留 + 警告注释，推荐）</strong>：项目方在 shell/build.gradle.kts:9 明确注释"仅作类结构参考"，删除可能丢失历史参考。在 OnePieceShellGate.kt 顶部加注释：</p>
+<pre><span class="cm">// ⚠️ 本文件不参与编译（shell/build.gradle.kts sourceSets.kotlin.exclude），仅作历史参考。</span>
+<span class="cm">// 警告：第 79-86 行存在缺陷 —— ByteBuffer.wrap(fullDex) 之后立即 secureWipeInternal(fullDex)</span>
+<span class="cm">// 会让 InMemoryDexClassLoader 后续 loadClass 拿到全 0；getClassLoader() 也从未被调用。</span>
+<span class="cm">// 真实壳入口：app/src/shell/java/com/yunian/ai/security/StaticApkShell.java</span></pre>
+
+<h4>8) 同类实例清单</h4>
+<p>shell/src/main/kotlin/ 下全部 7 个文件（5 个 security/ + 2 个 stub/）都是同类死代码。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<p>选 a：编译通过即可；选 b：零风险零工作量。</p>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>Java NIO - ByteBuffer.wrap：<a href="https://docs.oracle.com/javase/8/docs/api/java/nio/ByteBuffer.html#wrap-byte:A-">https://docs.oracle.com/javase/8/docs/api/java/nio/ByteBuffer.html#wrap-byte:A-</a>（HeapByteBuffer 共享原数组）</li>
+  <li>Android 官方 - InMemoryDexClassLoader：<a href="https://developer.android.com/reference/dalvik/system/InMemoryDexClassLoader">https://developer.android.com/reference/dalvik/system/InMemoryDexClassLoader</a></li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复（选项 a 删 / b 加注释，待用户决策）</span></p>
+  </div>
+</div>
+
+<!-- ========== R8 ========== -->
+<div class="card" data-level="medium" data-module="core/security" data-verdict="maintain" id="R8">
+  <div class="card-head"><span class="id">R8</span><span class="badge medium">一般</span><span class="badge status-fix">维持</span><span class="title">verify_request_integrity 死代码 + 硬编码 "api.github.com"</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（一般）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：native 死代码 + 硬编码错误，与插件架构无关。native-bridge.cpp:1701 的 static 函数零调用；line 2565 的 JNI 实现硬编码返回 true；Kotlin 侧 external 声明零调用；README 明确"自建更新通道（非 GitHub Release）"。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：native-bridge.cpp:1701-1709 + 2565-2568 + NativeBridge.kt:40 + docs/.../MODULE_ARCHITECTURE.md:314。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：core:security 是 native 安全引擎，与插件体系无关。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>core/security/src/main/cpp/native-bridge.cpp:1701-1709 + 2565-2568</code>；<code>core/security/.../NativeBridge.kt:40</code>；<code>docs/modularization/MODULE_ARCHITECTURE.md:314</code></p>
+<pre><span class="ln">1701</span>    <span class="kw">static</span> jboolean <span class="fn">verify_request_integrity</span>(JNIEnv* env, jclass, jstring urlObj) {
+<span class="ln">1702</span>        <span class="kw">if</span> (!g_sig_ok || !<span class="fn">rd</span>()) <span class="kw">return</span> JNI_FALSE;
+<span class="ln">1703</span>        <span class="kw">const char</span>* url = env-&gt;<span class="fn">GetStringUTFChars</span>(urlObj, <span class="kw">nullptr</span>);
+<span class="ln">1704</span>        <span class="kw">if</span> (!url) <span class="kw">return</span> JNI_FALSE;
+<span class="ln">1705</span>        <span class="kw">const char</span>* expected = <span class="str">"api.github.com"</span>;            <span class="cm">// ← 与项目自建更新通道不匹配</span>
+<span class="ln">1706</span>        <span class="kw">int</span> ok = (<span class="fn">strstr</span>(url, expected) != <span class="kw">nullptr</span>) ? 1 : 0;
+<span class="ln">1707</span>        env-&gt;<span class="fn">ReleaseStringUTFChars</span>(urlObj, url);
+<span class="ln">1708</span>        <span class="kw">return</span> ok ? JNI_TRUE : JNI_FALSE;
+<span class="ln">1709</span>    }
+<span class="ln">2565</span>    <span class="cm">/* RN */</span> jboolean <span class="fn">Java_com_yunian_ai_security_NativeBridge_verifyRequestIntegrity</span>(
+<span class="ln">2566</span>        JNIEnv* env, jobject thiz, jstring url) {
+<span class="ln">2567</span>        <span class="kw">return</span> JNI_TRUE;                                   <span class="cm">// ← 硬编码返回 true，不调 1701</span>
+<span class="ln">2568</span>    }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><strong>L1701-1709</strong>：static 函数 verify_request_integrity，硬编码 <code>"api.github.com"</code> 作为期望域名。<strong>全工程零调用</strong>（grep 验证，连 native 内部都不调用它）。</li>
+  <li><strong>L2565-2568</strong>：JNI 注册名实现 Java_..._verifyRequestIntegrity，<strong>硬编码返回 JNI_TRUE</strong>，不调用 1701 的 static 函数。</li>
+  <li><strong>NativeBridge.kt:40</strong>：<code>external fun verifyRequestIntegrity(url: String): Boolean</code> 声明。<strong>全工程 Kotlin 侧零调用</strong>。</li>
+  <li><strong>RegisterNatives 表</strong>（native-bridge.cpp:3173-3228）：<strong>没有 verifyRequestIntegrity 表项</strong>，JNI 函数仅靠默认命名约定解析。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>README.md「应用内更新」明确"自建更新通道（非 GitHub Release）"。硬编码 api.github.com 与项目实际服务端不匹配；且整条链路（static 函数 + JNI 实现 + Kotlin 声明）都是死代码 + 错误数据双重缺陷。</p>
+
+<h4>4) 端到端触发链</h4>
+<p>当前不触发（零调用方）；但若未来某个链路调用 verifyRequestIntegrity，会误判所有合法域名为不合法、所有 GitHub 域名为合法——既不能用，也误导审计。</p>
+
+<h4>5) 影响</h4>
+<p>潜在地雷；不是当前实发 bug。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<div class="flow"><ul>
+  <li>删除后零引用：RegisterNatives 表本来就没表项；Kotlin 侧零调用；docs 仅需删一行。</li>
+  <li>不影响其他 native 函数（verifySignature / isSafe / isMitmDetected 等独立存在）。</li>
+</ul></div>
+
+<h4>7) 修复方案</h4>
+<p>4 处一并删除：</p>
+<ul>
+  <li>native-bridge.cpp:1701-1709（static 死函数）</li>
+  <li>native-bridge.cpp:2565-2568（JNI 实现）</li>
+  <li>NativeBridge.kt:40（external 声明）</li>
+  <li>docs/modularization/MODULE_ARCHITECTURE.md:314（文档行）</li>
+</ul>
+<p>删除后需重跑 ndk-build 验证 native 编译通过。</p>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一组。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<p><code>cd core/security && $NDK/ndk-build clean && $NDK/ndk-build</code> 编译通过；<code>./gradlew assembleDebug</code> 通过。</p>
+
+<h4>10) 参考资料</h4>
+<p>README.md「应用内更新」段。</p>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复</span></p>
+  </div>
+</div>
+
+<!-- ========== R9 ========== -->
+<div class="card" data-level="medium" data-module="feature/qqbot" data-verdict="maintain" id="R9">
+  <div class="card-head"><span class="id">R9</span><span class="badge medium">一般</span><span class="badge status-fix">维持</span><span class="title">feature/qqbot library manifest 与 app manifest 重复声明 service，类型冲突</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（一般，清理型）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：manifest merger 问题，与插件架构无关。library 的 dataSync 声明与 app 的 specialUse 冲突，merger 规则下 app wins，library 声明无效；AGP &lt; 8.7 存在"无法合并 foregroundServiceType" bug。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：feature/qqbot/.../AndroidManifest.xml:8-12 vs app/.../AndroidManifest.xml:118-127。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：与 R5 不同 —— R5 的 SWechatPollingService 在 app 侧无声明所以 library 生效；R9 的 QQBotForegroundService 在 app 侧有声明所以 library 无效。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>feature/qqbot/src/main/AndroidManifest.xml:8-12</code> vs <code>app/src/main/AndroidManifest.xml:118-127</code></p>
+<pre><span class="cm">&lt;!-- library manifest（dataSync） --&gt;</span>
+<span class="ln"> 8</span>        <span class="kw">&lt;service</span>
+<span class="ln"> 9</span>            <span class="tp">android:name</span>=<span class="str">"com.yunian.ai.feature.qqbot.service.QQBotForegroundService"</span>
+<span class="ln">12</span>            <span class="tp">android:foregroundServiceType</span>=<span class="str">"dataSync"</span> <span class="kw">/&gt;</span>
+
+<span class="cm">&lt;!-- app manifest（specialUse，wins） --&gt;</span>
+<span class="ln">118</span>        <span class="kw">&lt;service</span>
+<span class="ln">119</span>            <span class="tp">android:name</span>=<span class="str">"com.yunian.ai.feature.qqbot.service.QQBotForegroundService"</span>
+<span class="ln">122</span>            <span class="tp">android:foregroundServiceType</span>=<span class="str">"specialUse"</span>
+<span class="ln">124-126</span>        <span class="kw">&lt;property</span> <span class="tp">android:name</span>=<span class="str">"android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"</span> ... <span class="kw">/&gt;</span></pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li>library manifest 声明 dataSync；app manifest 声明 specialUse。</li>
+  <li>Manifest merger 规则下<strong>应用模块 wins</strong>，library 的 dataSync 声明对最终 APK 完全无效。</li>
+  <li>AGP 8.7.0 修复记录明确"问题 344016038 无法合并 foregroundServiceType 标记"，老 AGP 可能合并失败。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>AGENTS.md 设计意图："app 侧 specialUse，library 侧 dataSync 仅作记录"。但 library 的 dataSync 声明与 app 冲突，merger 规则下被忽略，属于冗余 + 误导；老 AGP 还可能合并失败。</p>
+
+<h4>4) 端到端触发链</h4>
+<p>零运行时影响（app 的 specialUse 生效）；代码误导。</p>
+
+<h4>5) 影响</h4>
+<p>代码误导 + 老 AGP 合并风险。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<p>删除 library manifest 中的 service 声明不影响 app wins 结果；feature:wechat 的 AndroidManifest.xml 中 SWechatPollingService 是另一类问题（详见 R5，app 侧无声明所以 library 生效）。</p>
+
+<h4>7) 修复方案</h4>
+<p>feature/qqbot/src/main/AndroidManifest.xml 完整替换：</p>
+<pre>&lt;?xml version=<span class="str">"1.0"</span> encoding=<span class="str">"utf-8"</span>?&gt;
+&lt;manifest xmlns:android=<span class="str">"http://schemas.android.com/apk/res/android"</span>&gt;
+    &lt;uses-permission android:name=<span class="str">"android.permission.FOREGROUND_SERVICE"</span> /&gt;
+    <span class="cm">&lt;!-- QQBotForegroundService 在 app/src/main/AndroidManifest.xml 中已声明（specialUse）。
+         library 模块内的同类声明与 app 冲突，merger 规则下 app wins，本声明对最终 APK 无效；
+         为避免误导并规避 AGP &lt; 8.7 的"无法合并 foregroundServiceType"问题，已移除冗余声明。 --&gt;</span>
+&lt;/manifest&gt;</pre>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处（feature:wechat 的 SWechatPollingService 在 R5 单独处理，因为 app 侧无声明）。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<p><code>./gradlew assembleDebug</code> 通过；合并后的 manifest 中 QQBotForegroundService 类型为 specialUse（<code>app/build/intermediates/merged_manifests/...</code>）。</p>
+
+<h4>10) 参考资料</h4>
+<div class="flow"><ul>
+  <li>AGP 8.7.0 release notes - 问题 344016038"无法合并 foregroundServiceType 标记"：<a href="https://developer.android.com/build/releases/agp-8-7-0-release-notes">https://developer.android.com/build/releases/agp-8-7-0-release-notes</a></li>
+  <li>AGENTS.md「Background Services」段。</li>
+</ul></div>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复（清理）</span></p>
+  </div>
+</div>
+
+<!-- ========== R10 ========== -->
+<div class="card" data-level="low" data-module="app" data-verdict="maintain" id="R10">
+  <div class="card-head"><span class="id">R10</span><span class="badge low">技术债</span><span class="badge status-fix">维持</span><span class="title">测试断言与代码漂移（OnePieceShellPlanTest / ReleaseConfigurationTest 当前已失败）</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2340;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">复审判定（v2）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">维持</span>（技术债，另开任务）</p>
+  <p style="margin:4px 0;"><strong>理由</strong>：测试技术债，与插件架构无关。docs/agent-migration-plan.md 已声明多个测试"迁移前既存"失败。</p>
+  <p style="margin:4px 0;"><strong>代码证据</strong>：OnePieceShellPlanTest.kt（断言 .security.YuNianShellApplication 但 manifest 是 .security.StaticApkShell）等。</p>
+  <p style="margin:4px 0;"><strong>插件契约对照</strong>：测试断言漂移与插件体系无关；本次不动。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>app/src/test/java/com/yunian/ai/OnePieceShellPlanTest.kt</code>、<code>app/src/test/java/com/yunian/ai/ReleaseConfigurationTest.kt</code> 等</p>
+
+<h4>2) 现象</h4>
+<div class="flow"><ul>
+  <li><code>OnePieceShellPlanTest.manifestUsesRepositoryOwnedShellApplicationAndKeepsPayloadGateInMemoryOnly</code> 断言 <code>manifest.contains(".security.YuNianShellApplication")</code>，但 manifest 实际是 <code>.security.StaticApkShell</code>；断言 <code>shell.contains("class YuNianShellApplication : YuNianApplication()")</code>，但实际是 <code>: Application(), Configuration.Provider</code>。</li>
+  <li><code>ReleaseConfigurationTest.manifestsExposeOnlyShellComponentEntries</code> 断言 CompanionKeepAliveService 不应直接在 manifest 声明，但 AGENTS.md 强制要求"所有 service/receiver 用全限定类名"，两者冲突。</li>
+</ul></div>
+
+<h4>3) 根因</h4>
+<p>项目本身技术债；<code>docs/agent-migration-plan.md</code> 已声明多个测试"迁移前既存"失败。</p>
+
+<h4>4) 端到端触发链</h4>
+<p><code>./gradlew testDebugUnitTest</code> 时这些测试失败；不影响 release APK。</p>
+
+<h4>5) 影响</h4>
+<p>测试套件可信度下降；新开发者难以区分"我引入的失败"与"既存失败"。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<p>仅 test 模块；不影响 release。</p>
+
+<h4>7) 修复方案</h4>
+<p>另开技术债清理任务，逐一对齐测试断言与当前代码；本次不动。</p>
+
+<h4>8) 同类实例清单</h4>
+<p>docs/agent-migration-plan.md 列出 7+ 个失败测试。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<p>另开任务时跑全量 <code>./gradlew testDebugUnitTest --rerun-tasks</code>。</p>
+
+<h4>10) 参考资料</h4>
+<p>docs/agent-migration-plan.md。</p>
+
+<h4>11) 状态</h4>
+<p><span class="badge status-pending">待修复（另开任务）</span></p>
+  </div>
+</div>
+
+<!-- ========== R11 ========== -->
+<div class="card" data-level="low" data-module="core/agent" data-verdict="false-positive" id="R11">
+  <div class="card-head"><span class="id">R11</span><span class="badge low">非 bug</span><span class="badge status-fix">已确认·关闭</span><span class="title">MemoryStoreImpl 的 runBlockingOnIo 在 Rust FFI 线程上的死锁风险</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2a1a;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">确认结果（v2.1）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">非 bug，关闭</span></p>
+  <p style="margin:4px 0;"><strong>确认方法</strong>：逐项追踪 UnifiedMemoryProvider / UnifiedMemoryRepository / 下游 Flow collector / Rust Object 关系。</p>
+  <p style="margin:4px 0;"><strong>关键证据</strong>：</p>
+  <ul style="margin:4px 0 4px 20px;">
+    <li><strong>UnifiedMemoryProvider 不是 Flow</strong>：接口是 suspend 函数（getMemoryContext / extractAndSaveFromConversation），由调用方主动调用，不是 Flow collector 被动接收（feature/memory/.../UnifiedMemoryProvider.kt:55-157）。</li>
+    <li><strong>UnifiedMemoryRepository 的 4 个 Flow</strong>（getStableMemories / getWorkingMemories / getPreferences / getRelationships，core/database/.../UnifiedMemoryRepository.kt:18-33）：<strong>唯一 collector</strong> 是 MemoryScreen.kt:293/429 的 <code>collectAsStateWithLifecycle</code>，收到新值后<strong>只更新 Compose State 触发 UI 重组</strong>，<strong>不调用任何 Rust 函数</strong>。</li>
+    <li><strong>feature/memory 模块零调用 AgentFacade / Rust runtime</strong>（grep 验证）。</li>
+    <li><strong>Rust FFI 线程</strong>调 MemoryStoreImpl.insert_memory 时被 runBlockingOnIo 阻塞 → Kotlin IO 完成后 Room 触发 invalidation → MemoryScreen collector 更新 Compose State（主线程）→ <strong>没有任何一方再调 Rust</strong> → <strong>无死锁闭环</strong>。</li>
+  </ul>
+  <p style="margin:4px 0;"><strong>结论</strong>：不存在"Flow collector 调用 Rust 函数"链路，不会死锁。<strong>关闭此条目</strong>。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>core/agent/src/main/kotlin/com/yunian/ai/agent/memory/MemoryStoreImpl.kt:240-242</code></p>
+<pre><span class="ln">240</span>    <span class="kw">private inline fun</span> &lt;T&gt; <span class="fn">runBlockingOnIo</span>(<span class="kw">crossinline</span> block: <span class="kw">suspend</span> () -&gt; T): T =
+<span class="ln">241</span>        kotlinx.coroutines.<span class="fn">runBlocking</span> { <span class="fn">withContext</span>(Dispatchers.IO) { <span class="fn">block</span>() } }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li>Rust MemorySelector 持 <code>memories: Mutex&lt;...&gt;</code> 期间，通过 UniFFI 同步回调 Kotlin MemoryStore.insert_memory / list_memories 等。</li>
+  <li>Kotlin 侧 <code>runBlockingOnIo</code> <strong>阻塞 Rust FFI 线程</strong>直到 IO 完成。</li>
+</ul></div>
+
+<h4>3) 根因（疑似）</h4>
+<p>可能的死锁闭环：</p>
+<div class="flow"><ol>
+  <li>Rust FFI 线程 T1 持 Rust Mutex → 阻塞在 Kotlin 的 Room IO</li>
+  <li>Kotlin Room invalidation tracker 在 IO 完成后向某 StateFlow 发射</li>
+  <li>Kotlin 主线程某 collector 收到新值，调用 Rust 另一函数试图拿同一把 Rust Mutex</li>
+  <li>T1 在等 Kotlin IO 完成 → Kotlin IO 已完成但 Room 触发 collector → collector 在等 Rust Mutex → 死锁</li>
+</ol></div>
+<p><strong>但</strong>：在 feature/memory 和 core/database 中没有找到明确的"Room Flow → 调 Rust"链路，所以标待确认。</p>
+
+<h4>4) 端到端触发链</h4>
+<p>待确认：需要 UnifiedMemoryProvider 或 MemoryProvider 全部下游消费者的代码评审，确认是否存在"Flow collector 调用 Rust 函数"。</p>
+
+<h4>5) 影响</h4>
+<p>若闭环存在：跨语言死锁，App 卡死。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<p>跨 Kotlin / Rust FFI 边界；涉及 Rust Mutex + Kotlin Room + Kotlin Flow。</p>
+
+<h4>7) 修复方案（若确认存在）</h4>
+<p>把 runBlockingOnIo 改成 <code>CompletableFuture.get(timeout)</code> 或 Threads 框架的 transfer，避免阻塞 Rust FFI 线程。</p>
+
+<h4>8) 同类实例清单</h4>
+<p>MemoryStoreImpl 内 9 处 runBlockingOnIo 调用（L84/105/143/155/171/181/187/195/222）。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<p>待确认后补充。</p>
+
+<h4>10) 参考资料</h4>
+<p>Rust Book - Mutex；Kotlin 协程 - runBlocking。</p>
+
+<h4>11) 状态</h4>
+<p><span class="badge pending">待确认</span></p>
+  </div>
+</div>
+
+<!-- ========== R12 ========== -->
+<div class="card" data-level="low" data-module="agent-native" data-verdict="maintain" id="R12">
+  <div class="card-head"><span class="id">R12</span><span class="badge low">确认存在·不修</span><span class="badge status-fix">已确认·不修</span><span class="title">Rust run_with_retry 的 thread::sleep 不响应 Kotlin 协程取消</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2a1a;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">确认结果（v2.1）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">确认存在但不修</span></p>
+  <p style="margin:4px 0;"><strong>确认方法</strong>：精读 RetryPolicy 定义与默认值。</p>
+  <p style="margin:4px 0;"><strong>关键证据</strong>（agent-native/src/retry.rs:33-53）：</p>
+  <ul style="margin:4px 0 4px 20px;">
+    <li><code>max_backoff = 8s</code>（单次退避硬上限，同时约束 Retry-After）</li>
+    <li><code>total_budget = 30s</code>（整个重试序列绝对上限，含睡+请求）</li>
+    <li><code>max_attempts = 3</code>（首次 + 最多 2 次重试）</li>
+    <li><code>initial_backoff = 800ms</code>，×2 指数退避</li>
+  </ul>
+  <p style="margin:4px 0;"><strong>用户取消时的实际滞后</strong>：</p>
+  <ul style="margin:4px 0 4px 20px;">
+    <li>最坏情况：首次请求失败 → 800ms 退避期间取消 → 滞后 ≤ 800ms</li>
+    <li>次坏情况：第二次重试失败 → 1600ms 退避期间取消 → 滞后 ≤ 1600ms</li>
+    <li>极端情况：第三次重试失败 → 3200ms 退避期间取消（受 max_backoff=8s 封顶）→ 滞后 ≤ 3200ms</li>
+    <li><strong>任何路径下用户取消滞后都不会超过 30s</strong>（total_budget 上限）；且 is_cancelled 在每次退避<strong>之后</strong>立即检查（retry.rs:251），<strong>实际滞后 = 单次退避时长</strong>（≤ 8s）。</li>
+  </ul>
+  <p style="margin:4px 0;"><strong>用户可感知阈值判断</strong>：&lt; 2s 可忽略；2-5s 轻微可感知但可接受；&gt; 5s 明显可感知。单次退避最大 8s（极端情况），在可感知阈值边缘；但总预算 30s 保证不会无限拖延。</p>
+  <p style="margin:4px 0;"><strong>结论</strong>：<strong>不构成实际 bug，不修</strong>。Condvar::wait_timeout 改动收益小（滞后从 ≤8s 降到 &lt;1s）但引入额外复杂度；权衡后不建议改。建议在 AgentFacade 文档中注明"取消操作可能在退避期间滞后最多 8s"。</p>
+</div>
+
+
+<h4>1) 位置</h4>
+<p><code>agent-native/src/retry.rs:250</code></p>
+<pre><span class="ln">250</span>                <span class="fn">on_backoff</span>(backoff);   <span class="cm">// 生产为 thread::sleep</span>
+<span class="ln">251</span>                <span class="kw">if</span> <span class="fn">is_cancelled</span>(cancel) {
+<span class="ln">252</span>                    crate::agentlog::<span class="fn">warn</span>(<span class="str">"retry"</span>, &amp;<span class="fn">format!</span>(<span class="str">"{label}: 退避期间被取消，停止重试"</span>));
+<span class="ln">253</span>                    <span class="kw">return</span> Err(CANCELLED_MESSAGE.<span class="fn">to_string</span>());
+<span class="ln">254</span>                }</pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><code>on_backoff</code> 闭包内部用 <code>thread::sleep</code> 阻塞退避；sleep 期间无法响应 Kotlin 侧的协程取消。</li>
+  <li>只能等 sleep 自然醒来后检查 <code>cancel</code> 标志（L251）。</li>
+</ul></div>
+
+<h4>3) 根因（疑似）</h4>
+<p>用户取消聊天/退出聊天页时，若 Agent 正处于退避等待（最多几秒到几十秒），实际停止时间会滞后。</p>
+
+<h4>4) 端到端触发链</h4>
+<p>用户在 LLM 请求失败 → 429/5xx 退避期间退出聊天页 → Kotlin 协程 cancel → Rust 在 thread::sleep → 滞后到 sleep 结束才停止。</p>
+
+<h4>5) 影响</h4>
+<p>用户体验：取消操作滞后（退避时长）。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<p>跨 Kotlin 协程取消 → Rust thread::sleep 边界。</p>
+
+<h4>7) 修复方案（若确认需要）</h4>
+<p>用 <code>Condvar::wait_timeout</code> 替换 thread::sleep，由 cancel() 触发 notify。改动量小，但需要测试。</p>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处（retry.rs 内 run_with_retry 的 on_backoff 闭包）。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<p>待确认实际最大退避时长（查 RetryPolicy.max_backoff 实际值）；若 max_backoff ≤ 5s 且总预算 ≤ 30s，体验影响可忽略，标不修。</p>
+
+<h4>10) 参考资料</h4>
+<p>Rust Book - Condvar。</p>
+
+<h4>11) 状态</h4>
+<p><span class="badge pending">待确认</span></p>
+  </div>
+</div>
+
+<!-- ========== R13 ========== -->
+<div class="card" data-level="low" data-module="agent-native" data-verdict="false-positive" id="R13">
+  <div class="card-head"><span class="id">R13</span><span class="badge low">非 bug</span><span class="badge status-fix">已确认·关闭</span><span class="title">turn_lock 持锁期间跨 FFI 同步调用 ToolHost（依赖"工具实现不调 Rust 写方法"约定）</span><span class="toggle"></span></div>
+  <div class="card-body">
+
+<div style="background:#1a2a1a;border-left:3px solid #69db7c;padding:10px 12px;margin:10px 0;border-radius:4px;font-size:13px;">
+  <h4 style="margin:0 0 6px;color:#69db7c;">确认结果（v2.1）</h4>
+  <p style="margin:4px 0;"><strong>判定</strong>：<span class="badge status-fix">非 bug，关闭</span></p>
+  <p style="margin:4px 0;"><strong>确认方法</strong>：逐项追踪 AgentToolHost 内所有工具实现路径是否调 AgentRuntime 写方法；区分"调用方"（ViewModel/Worker，runTurn 返回后调写方法）与"ToolHost"（runTurn 持有期间被回调）。</p>
+  <p style="margin:4px 0;"><strong>关键证据</strong>：</p>
+  <ul style="margin:4px 0 4px 20px;">
+    <li><strong>AgentToolHost.executeToolSuspending 的所有工具实现路径</strong>（core/agent/.../AgentToolHost.kt:166-184）：
+      <ul>
+        <li><code>MEMORY_TOOLS</code> → <code>AgentFacade.executeMemoryTool</code> → <code>memorySelector(context).executeMemoryTool(...)</code> → <strong>MemorySelector 是独立 Rust Object</strong>（memory_selector.rs:80-81 只有 <code>store: Arc&lt;dyn MemoryStore&gt;</code> 一个字段，<strong>没有任何 Mutex</strong>），<strong>与 AgentRuntime 不共享 Mutex</strong></li>
+        <li><code>LOAD_SKILL_TOOL</code> → <code>executeLoadSkill</code> → <code>AgentFacade.loadSkillContent</code> → <code>skillSelector(context).loadContent(...)</code> → <strong>SkillSelector 也是独立 Rust Object</strong></li>
+        <li><code>STICKER_PICK_TOOL</code> → <code>executeStickerPick</code> → <code>StickerPreferenceFacade.sampleCandidates</code> → <code>engine(context).sampleCandidates(...)</code> → <strong>StickerPreferenceEngine 也是独立 Rust Object</strong></li>
+        <li><code>DELEGATE_TASK_TOOL</code> / <code>FETCH_DELEGATION_TOOL</code> → Kotlin DelegationCoordinator.create/get → <strong>不调 Rust</strong></li>
+        <li>其他 → <code>dispatchRegistryTool</code> → <code>ToolRegistry.get(name)?.execute(...)</code> → Kotlin AiTool 实现（feature 模块）；grep 验证 <strong>feature 模块零调用 <code>AgentFacade.approveTool / rejectTool / syncRuntimeConfig / setWorldbook / setSignatureProvider / setMockTransport / registerGlobalTools / unregisterGlobalTool / runtime(</code></strong></li>
+      </ul>
+    </li>
+    <li><strong>调用方（ViewModel / Worker / Repository）调 AgentFacade 写方法是在 runTurn 返回之后</strong>（turn_lock 已释放），<strong>顺序执行不是嵌套</strong>：
+      <ul>
+        <li>ChatGenerationManager.kt:707/709/811（approveTool / rejectTool / syncRuntimeConfig）—— ViewModel 协程，runTurn 返回后调</li>
+        <li>GroupChatViewModel.kt:951/982 —— 同上</li>
+        <li>AiReplyWorker.kt:161 / CompanionMessageWorker.kt:289 —— Worker 协程，runTurn 返回后调</li>
+        <li>WorkflowEngine.kt:126 —— <code>AgentFacade.runtime(...).runTurnWithCredentials</code>，<strong>这是调用方不是 ToolHost</strong></li>
+      </ul>
+    </li>
+    <li><strong>Rust std::sync::Mutex 不可重入</strong>：同一线程内重复 lock 同一 Mutex 死锁；但当前 ToolHost 内所有路径都<strong>不拿 AgentRuntime 的任何 Mutex</strong>（mutable / approved_tools / rejected_tools / mock_transport / signature_provider / worldbook），<strong>当前不可触发</strong>。</li>
+  </ul>
+  <p style="margin:4px 0;"><strong>结论</strong>：当前不可触发，<strong>关闭此条目</strong>。唯一需要防范的未来风险：任何后续工具实现若新增"调用 <code>AgentFacade.runtime(...)</code> 或 <code>AgentFacade.approveTool</code> 等 AgentRuntime 写方法"，会在 turn_lock 持有期间嵌套 lock 同一 Mutex 死锁。<strong>建议补 review 规范文档，不需要代码改动</strong>。</p>
+</div>
+
+<h4>1) 位置</h4>
+<p><code>agent-native/src/agent.rs:1035 + 565-601</code></p>
+<pre><span class="ln">1035</span>        <span class="kw">let</span> _turn_guard = <span class="kw">self</span>.turn_lock.<span class="fn">lock</span>().<span class="fn">unwrap</span>();   <span class="cm">// std::sync::Mutex，不可重入</span>
+<span class="ln">...持锁期间...</span>
+<span class="ln">586</span>                <span class="kw">return</span> tool_host.<span class="fn">execute</span>(name.<span class="fn">to_string</span>(), arguments.<span class="fn">to_string</span>(), ctx_json);   <span class="cm">// FFI 同步回调 KT</span></pre>
+
+<h4>2) 逐行解释</h4>
+<div class="flow"><ul>
+  <li><code>turn_lock</code> 是 <code>std::sync::Mutex</code>（<strong>不可重入</strong>），从 run_turn_inner 入口一直持到 return（RAII）。</li>
+  <li>期间经 <code>registry.execute_tool</code> → <code>tool_host.execute(...)</code> 跨 FFI 同步回调 Kotlin AgentToolHost.execute（其内部 runBlocking 20s 超时）。</li>
+  <li>execute_tool 在调 tool_host.execute 前先 drop(global)/drop(session)，主动释放 registry 锁，正确。</li>
+</ul></div>
+
+<h4>3) 根因（疑似）</h4>
+<p>若 Kotlin 工具实现在执行过程中<strong>反向</strong>调用 <code>AgentFacade.approveTool / rejectTool / syncRuntimeConfig / setWorldbook / update_settings</code> 等任何要拿 Rust AgentRuntime.mutable / approved_tools / rejected_tools / mock_transport / signature_provider / worldbook Mutex 的方法——这些 Mutex 与 turn_lock 是<strong>不同</strong>的 Mutex，<strong>不会与 turn_lock 死锁</strong>；但可能与<strong>自身的嵌套调用</strong>死锁（Rust 标准 Mutex 不可重入，<strong>同一线程</strong>内重复 lock 同一 Mutex 会死锁）。</p>
+<p><strong>现状证据</strong>：AgentToolHost 内的工具实现（executeLoadSkill / executeStickerPick / dispatchRegistryTool 等）<strong>均不调用</strong> AgentFacade 的任何 runtime(context).* 写方法——只读 Room / SharedPreferences / 网络。<strong>当前不可触发</strong>。</p>
+
+<h4>4) 端到端触发链</h4>
+<p>待确认：任何后续工具实现若新增"调用 AgentFacade.* 写方法"，需在 review 时阻断。</p>
+
+<h4>5) 影响</h4>
+<p>若触发：同一线程嵌套 lock 同一 Mutex 死锁，App 卡死。</p>
+
+<h4>6) 跨模块/跨层/跨线程影响面</h4>
+<p>跨 Kotlin / Rust FFI 边界；涉及 Rust std::sync::Mutex 不可重入语义。</p>
+
+<h4>7) 修复方案（预防性）</h4>
+<p>补 review 规范："禁止在 ToolHost 实现内调用 AgentFacade.* 写方法"；或在 AgentFacade 文档中明确该约束。</p>
+
+<h4>8) 同类实例清单</h4>
+<p>仅此一处（turn_lock 持锁期间的所有 tool_host.execute 调用）。</p>
+
+<h4>9) 回归用例与验证方式</h4>
+<p>当前不可触发；规范文档即可。</p>
+
+<h4>10) 参考资料</h4>
+<p>Rust Book / Nomicon - std::sync::Mutex 不可重入。</p>
+
+<h4>11) 状态</h4>
+<p><span class="badge pending">待确认</span></p>
+  </div>
+</div>
+
+<h2 id="conclusion">结尾 · 总体结论 / 残留风险 / 待确认清单 / 本次复审 Changelog</h2>
+
+<h3>总体结论（v2 复审版）</h3>
+<div class="flow">
+  <p><strong>v1 结论</strong>：本次审查覆盖 24 个 Gradle 模块 + agent-native（Rust）+ core/security（C++），建立完整心智模型，共发现 <strong>13 个根因</strong>（去重后）：1 致命 / 4 严重 / 4 一般 / 1 技术债 / 3 待确认。</p>
+  <p><strong>v2 复审结论</strong>：经 DeepSeek Harness / Cordis 插件范式 + 本项目插件契约（Plugin.kt / PluginHostImpl / PluginEventBus / ChannelRegistryImpl）逐条复审，<strong>13 个根因全部维持</strong>，无需降级、撤销或新增。原因：v1 的 13 个根因<u>没有任何一条是建立在"违反单向依赖"的判定上</u>，全部是 Android 生命周期 / 协议时序 / 并发互斥 / 跨语言 FFI / 死代码 / manifest 配置 / 测试技术债的真实问题，与插件契约兼容。</p>
+  <p><strong>插件架构适配性</strong>：项目已演进为"万物皆插件"架构（Agent = Model + Harness），插件经内核注册、通过声明的契约与依赖注入被发现和调用、通过服务注册表/事件总线横向协作，是解耦的正常设计。经反查插件生命周期 / 初始化顺序 / 事件总线竞态 / 服务循环依赖 / 跨插件共享状态，<strong>未发现漏报 bug</strong>。</p>
+</div>
+
+<h3>本次复审 Changelog（v1 → v2）</h3>
+<table>
+  <thead><tr><th>变更</th><th>数量</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge status-fix">维持</span></td><td>13</td><td>R1（致命）/ R2、R3、R5、R6（严重）/ R4、R7、R8、R9（一般）/ R10（技术债）/ R11、R12、R13（待确认）</td></tr>
+    <tr><td><span class="badge">降级</span></td><td>0</td><td>—</td></tr>
+    <tr><td><span class="badge">撤销（误报）</span></td><td>0</td><td>—</td></tr>
+    <tr><td><span class="badge">升级</span></td><td>0</td><td>—</td></tr>
+    <tr><td><span class="badge">新增</span></td><td>0</td><td>—</td></tr>
+  </tbody>
+</table>
+<div class="flow">
+  <p><strong>逐条变更说明</strong>：</p>
+  <ul>
+    <li><strong>R1（维持，致命）</strong>：QQ Bot FGS 缺自重启。与插件架构无关，是 Android Service 生命周期缺陷。证据：QQBotForegroundService.kt:104-115 vs WeChatPollingService.kt:88-106（微信侧有三段式自重启）。</li>
+    <li><strong>R2（维持，严重）</strong>：QQ Bot 心跳首发延迟 33s。与插件架构无关，是 WebSocket 协议时序缺陷。证据：QQBotWebSocketClient.kt:417。</li>
+    <li><strong>R3（维持，严重）</strong>：WeChatChannelKeeper.stop 未持锁。与插件架构无关，是协程互斥缺陷。证据：WeChatChannelKeeper.kt:46-52 vs line 14/18。</li>
+    <li><strong>R5（维持，严重）</strong>：SWechatPollingService 类型为 dataSync。与插件架构无关，是 AndroidManifest FGS 类型缺陷；Android 15 明确禁 BOOT_COMPLETED 启动 dataSync。证据：feature/wechat/.../AndroidManifest.xml:8。</li>
+    <li><strong>R6（维持，严重，潜在地雷）</strong>：CompanionKeepAliveService.stop 的 EXTRA 无效。与插件架构无关，是 Android Service 生命周期 API 误用。证据：CompanionKeepAliveService.kt:209-214 + 73-77。</li>
+    <li><strong>R4（维持，一般）</strong>：BootReceiver 无 Worker 兜底。与插件架构无关，是 Android 广播 + WorkManager 缺陷。</li>
+    <li><strong>R7（维持，一般）</strong>：shell/ 目录死代码。与插件架构无关，是构建配置问题。</li>
+    <li><strong>R8（维持，一般）</strong>：verify_request_integrity 死代码。与插件架构无关，是 native 死代码 + 硬编码错误。</li>
+    <li><strong>R9（维持，一般）</strong>：library manifest 与 app manifest 冲突。与插件架构无关，是 manifest merger 问题。</li>
+    <li><strong>R10（维持，技术债）</strong>：测试断言漂移。与插件架构无关，是测试技术债。</li>
+    <li><strong>R11（维持，待确认）</strong>：MemoryStoreImpl FFI 死锁风险。与插件架构无关，是跨语言 FFI 线程模型问题。</li>
+    <li><strong>R12（维持，待确认）</strong>：thread::sleep 不响应取消。与插件架构无关，是 Rust 阻塞 IO 问题。</li>
+    <li><strong>R13（维持，待确认）</strong>：turn_lock 跨 FFI 持锁。与插件架构无关，是 Rust std::sync::Mutex 不可重入语义。</li>
+  </ul>
+</div>
+
+<h3>插件架构复审补充（v2 新增）</h3>
+<div class="flow">
+  <p><strong>反查插件生命周期 / 初始化顺序 / 事件总线竞态 / 服务循环依赖 / 跨插件共享状态，未发现漏报 bug</strong>：</p>
+  <ul>
+    <li><strong>服务循环依赖</strong>：PluginHostImpl 构造时接收 frameworkServices 静态快照（4 个：APP_CONTEXT/TOOLS/CHANNELS/AGENT），不存在循环依赖。</li>
+    <li><strong>插件生命周期泄漏</strong>：PluginHostImpl.load fail-closed（manifest 不一致 / requires 缺失 / schema 校验失败 / setup 异常）→ 回滚全部副作用；unload 逆序执行 effects；PluginEventBus.disposeContexts 兜底清理"插件忘了登记 effect"的监听器；ChannelRegistryImpl 查询期活性兜底（loadedAdapterPluginIds 回查 pluginsOf(ADAPTER).filter { isLoaded }）。</li>
+    <li><strong>事件总线竞态</strong>：ConcurrentHashMap + CopyOnWriteArrayList 无锁快照遍历；监听器在回调里 emit 不重入死锁；监听器在派发过程中退订/卸载插件不会抛 ConcurrentModificationException；parallel 显式切 Dispatchers.Default 避免单线程调度器退化。</li>
+    <li><strong>初始化顺序</strong>：registerServiceProviders → initAgentRuntime → loadDefaultBlueprint → applyDisabledPluginOverlay → markInitialized 顺序执行（同一协程内）；放行后并行任务不阻挡首帧。</li>
+    <li><strong>跨插件共享状态</strong>：ToolRegistry.tools / availabilityCache 用 ConcurrentHashMap，无竞态。</li>
+  </ul>
+</div>
+
+<h3>残留风险（v2 复审版）</h3>
+<div class="flow"><ul>
+  <li>R6 修复需要用户决策（选项 a 删 / 选项 b SharedPreferences 标记）。</li>
+  <li>R7 修复需要用户决策（选项 a 删 / 选项 b 加注释）。</li>
+  <li>R5 修复需要改 manifest（迁移 SWechatPollingService 到 app 侧 + specialUse），属于架构变更，需项目方拍板。</li>
+  <li>沙箱无 JDK/Android SDK/Rust 工具链，构建与单测未执行；需在本机补跑 <code>./gradlew clean assembleDebug</code> 与 <code>./gradlew testDebugUnitTest --rerun-tasks</code>。</li>
+</ul></div>
+
+<h3>待确认清单（v2 复审版）</h3>
+<div class="flow"><ul>
+  <li><strong>R11</strong>：UnifiedMemoryProvider / MemoryProvider 下游消费者是否存在"Flow collector 调用 Rust 函数"链路？</li>
+  <li><strong>R12</strong>：RetryPolicy.max_backoff 实际值是多少？若在用户可感知阈值内（&lt; 2s）则标不修。</li>
+  <li><strong>R13</strong>：是否需要补 review 规范"禁止在 ToolHost 内调用 AgentFacade.* 写方法"？</li>
+  <li><strong>R7</strong>：项目方是否有意保留 shell/ 目录作参考？</li>
+  <li><strong>R6</strong>：CompanionKeepAliveService 是否需要"用户主动停止"功能？若需要选 b，不需要选 a。</li>
+</ul></div>
+
+<div class="footer">
+  <p>报告版本：v2.0（复审版） · v1 生成时间：2026-10-05 14:38 UTC · v2 复审时间：2026-10-05 16:20 UTC · 扫描工具：MonkeyCode-AI 代码审计</p>
+  <p>复审依据：DeepSeek Harness v0.2.1-alpha.1 + Cordis 内核 0.6.2 + 本项目插件契约（Plugin.kt / PluginHostImpl.kt / PluginEventBus.kt / ChannelRegistryImpl.kt）。</p>
+  <p>本报告为静态代码审查产物；构建与单测需在本机执行后更新状态为「已修复/已验证」。</p>
+</div>
+
+<script>
+(function(){
+  var levelBtns = document.querySelectorAll('.filters button[data-level]');
+  var moduleSel = document.getElementById('moduleFilter');
+  var verdictSel = document.getElementById('verdictFilter');
+  var searchInput = document.getElementById('searchInput');
+  var summaryRows = document.querySelectorAll('#summaryTable tbody tr');
+  var cards = document.querySelectorAll('.card');
+  var currentLevel = 'all';
+  function applyFilter(){
+    var mod = moduleSel.value;
+    var verd = verdictSel.value;
+    var q = (searchInput.value || '').toLowerCase();
+    summaryRows.forEach(function(r){
+      var lv = r.getAttribute('data-level');
+      var md = r.getAttribute('data-module');
+      var txt = r.textContent.toLowerCase();
+      var ok = (currentLevel==='all' || lv===currentLevel) && (mod==='all' || md===mod) && (!q || txt.indexOf(q)>=0);
+      r.classList.toggle('hidden', !ok);
+    });
+    cards.forEach(function(c){
+      var lv = c.getAttribute('data-level');
+      var md = c.getAttribute('data-module');
+      var vd = c.getAttribute('data-verdict');
+      var txt = c.textContent.toLowerCase();
+      var ok = (currentLevel==='all' || lv===currentLevel) && (mod==='all' || md===mod) && (verd==='all' || vd===verd) && (!q || txt.indexOf(q)>=0);
+      c.classList.toggle('hidden', !ok);
+    });
+  }
+  levelBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      levelBtns.forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      currentLevel = b.getAttribute('data-level');
+      applyFilter();
+    });
+  });
+  moduleSel.addEventListener('change', applyFilter);
+  verdictSel.addEventListener('change', applyFilter);
+  searchInput.addEventListener('input', applyFilter);
+  document.querySelectorAll('.card-head').forEach(function(h){
+    h.addEventListener('click', function(){ h.parentElement.classList.toggle('open'); });
+  });
+})();
+</script>
+
+</body>
+</html>
