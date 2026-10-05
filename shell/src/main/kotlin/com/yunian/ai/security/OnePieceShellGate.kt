@@ -1,3 +1,15 @@
+// ⚠️ 本文件不参与编译（shell/build.gradle.kts:14 sourceSets.kotlin.exclude("com/yunian/ai/security/**")），
+// 仅作历史参考（项目方在 shell/build.gradle.kts:9 明确注释"仅作类结构参考"）。
+//
+// 警告：第 79-86 行存在缺陷 —— ByteBuffer.wrap(fullDex) 之后立即 secureWipeInternal(fullDex)
+// 会让 InMemoryDexClassLoader 后续 loadClass 拿到全 0（ByteBuffer.wrap 共享原数组，Arrays.fill(0)
+// 同步清零 ByteBuffer 数据）；getClassLoader() 也从未被调用（全工程零调用方）。
+//
+// 真实壳入口：app/src/shell/java/com/yunian/ai/security/StaticApkShell.java
+// （用 mergeDexElements 注入 pathList.dexElements，不 wipe ByteBuffer）。
+// app/src/main/java/com/yunian/ai/security/YuNianShellApplication.kt:80-83 的 OnePieceShellGate
+// object 是空 stub（verifyBeforePayload 空实现），与本文件同名但不同实现。
+
 package com.yunian.ai.security
 
 import android.content.Context
