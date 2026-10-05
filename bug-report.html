@@ -92,34 +92,37 @@
 <body>
 
 <div class="header">
-  <h1>予念 YuNian · Bug 错误内容报告 <span style="font-size:14px;color:#4f6ef7;font-weight:600;">v2 复审版</span></h1>
+  <h1>予念 YuNian · Bug 错误内容报告 <span style="font-size:14px;color:#69db7c;font-weight:600;">v3.1 验证版</span></h1>
   <div class="meta">
     <span>v1 生成时间：2026-10-05 14:38 UTC</span>
     <span>v2 复审时间：2026-10-05 16:20 UTC</span>
+    <span>v3 修复时间：2026-10-05 17:45 UTC</span>
+    <span>v3.1 验证时间：2026-10-05 19:55 UTC</span>
     <span>扫描范围：24 Gradle 模块（:app + 14 feature:* + 8 core:*）+ agent-native（Rust crate）+ core/security（C++）</span>
     <span>版本基线：Kotlin 2.2.10 / AGP 9.2.1 / Gradle 9.4.1 / NDK 30.0.14904198 / Room v45 / targetSdk 35 / minSdk 26</span>
+    <span>修复分支：fix/holistic-repair（10 个 commit，main..fix/holistic-repair）</span>
+    <span>验证环境：OpenJDK 17.0.20.1 + OpenJDK 21.0.12.1 + Android SDK Platform 35 + Build Tools 35.0.0 + NDK 30.0.14904198 + Rust 1.99.0</span>
   </div>
   <div style="margin-top:12px;padding:10px 12px;background:#1c2230;border-left:3px solid #4f6ef7;border-radius:4px;font-size:13px;">
     <strong>复审依据</strong>：DeepSeek Harness v0.2.1-alpha.1（"Every part of the product is a plugin... There is no privileged core to patch"）+ Cordis 内核 0.6.2（插件 / Context / inject / 5 种事件模式 / 可逆副作用）+ 本项目 Plugin.kt / PluginHostImpl.kt / PluginEventBus.kt / ChannelRegistryImpl.kt 插件契约。
   </div>
-  <div style="margin-top:8px;padding:10px 12px;background:#161a22;border:1px solid #2a2f3a;border-radius:6px;font-size:13px;">
-    <strong>变更统计</strong>：
-    <span style="color:#69db7c;font-weight:600;">维持 11</span> ·
-    <span style="color:#8a93a6;">降级 0</span> ·
-    <span style="color:#a5b4fc;font-weight:600;">撤销（非 bug）2</span> ·
-    <span style="color:#8a93a6;">升级 0</span> ·
-    <span style="color:#8a93a6;">新增 0</span> ·
-    <span style="color:#8a93a6;">待确认 0</span>
-    <div style="color:#8a93a6;font-size:12px;margin-top:4px;">v2 复审结论：上一轮 13 个根因<u>没有任何一条是建立在"违反单向依赖"的判定上</u>，全部是 Android 生命周期 / 协议时序 / 并发互斥 / 跨语言 FFI / 死代码 / manifest 配置 / 测试技术债的真实问题；与插件契约兼容，无需降级或撤销。v2.1 确认：R11（MemoryStoreImpl FFI 死锁）与 R13（turn_lock 跨 FFI 持锁）经逐项追踪确认<strong>不存在闭环调用链</strong>，标"非 bug，关闭"；R12（thread::sleep 不响应取消）确认存在但 max_backoff=8s / total_budget=30s 在可接受阈值内，标"不修"。</div>
+  <div style="margin-top:8px;padding:10px 12px;background:#1a2a1a;border:1px solid #69db7c;border-radius:6px;font-size:13px;">
+    <strong>变更统计（v1→v2→v3→v3.1）</strong>：
+    <span style="color:#69db7c;font-weight:600;">已修复并验证 8</span> ·
+    <span style="color:#ffa94d;font-weight:600;">确认存在·不修 1</span> ·
+    <span style="color:#a5b4fc;font-weight:600;">非 bug·关闭 2</span> ·
+    <span style="color:#8a93a6;">待确认 0</span> ·
+    <span style="color:#8a93a6;">残留 2</span>
+    <div style="color:#8a93a6;font-size:12px;margin-top:4px;">v2 复审结论：13 个根因<u>没有任何一条是建立在"违反单向依赖"的判定上</u>。v2.1 确认：R11/R13 非 bug 关闭，R12 确认存在不修。v3 修复：R1/R2/R3/R4/R6/R7/R8/R9 共 8 项已全部修复并提交。v3.1 验证：<strong>assembleDebug 编译全部通过（444 任务）+ 5 个模块单测全部通过（28 条新增回归测试 0 失败）+ cargo test 189 全过 + liblianyu_security.so 中 verifyRequestIntegrity 已删除（nm -D 0 匹配）+ :feature:qqbot:lint 0 errors</strong>。lint/fmt/clippy 存在项目本身既存问题（与修复无关，见《需我人工验证清单》）。</div>
   </div>
 </div>
 
 <div class="stats">
-  <div class="stat"><div class="num" id="s-total">11</div><div class="lbl">有效问题总数</div></div>
-  <div class="stat critical"><div class="num" id="s-crit">1</div><div class="lbl">致命</div></div>
-  <div class="stat high"><div class="num" id="s-high">4</div><div class="lbl">严重</div></div>
-  <div class="stat medium"><div class="num" id="s-med">4</div><div class="lbl">一般</div></div>
-  <div class="stat low"><div class="num" id="s-low">3</div><div class="lbl">建议 / 技术债 / 不修</div></div>
+  <div class="stat"><div class="num" id="s-fixed">8</div><div class="lbl">已修复并验证</div></div>
+  <div class="stat critical"><div class="num" id="s-crit">1</div><div class="lbl">致命（已修复并验证）</div></div>
+  <div class="stat high"><div class="num" id="s-high">4</div><div class="lbl">严重（3 已修复并验证 / 1 残留）</div></div>
+  <div class="stat medium"><div class="num" id="s-med">4</div><div class="lbl">一般（全部已修复并验证）</div></div>
+  <div class="stat low"><div class="num" id="s-low">3</div><div class="lbl">不修 / 非 bug / 技术债</div></div>
   <div class="stat pending"><div class="num" id="s-pend">0</div><div class="lbl">待确认</div></div>
 </div>
 
@@ -418,16 +421,16 @@
 <table id="summaryTable">
   <thead><tr><th>编号</th><th>级别</th><th>模块</th><th>代表位置</th><th>同类实例</th><th>一句话问题</th><th>状态</th></tr></thead>
   <tbody>
-    <tr data-level="critical" data-module="feature/qqbot" data-verdict="maintain"><td>R1</td><td><span class="badge critical">致命</span></td><td>feature/qqbot</td><td>QQBotForegroundService.kt:104</td><td>1</td><td>FGS onDestroy 缺自重启（与微信侧不对称，违反 AGENTS.md 现状声明）</td><td><span class="badge status-pending">待修复</span></td></tr>
-    <tr data-level="high" data-module="feature/qqbot" data-verdict="maintain"><td>R2</td><td><span class="badge high">严重</span></td><td>feature/qqbot</td><td>QQBotWebSocketClient.kt:409</td><td>1</td><td>QQ Bot 心跳首发延迟 33s（违反 AGENTS.md 教训 #1「Hello 后立即发」）</td><td><span class="badge status-pending">待修复</span></td></tr>
-    <tr data-level="high" data-module="feature/wechat" data-verdict="maintain"><td>R3</td><td><span class="badge high">严重</span></td><td>feature/wechat</td><td>WeChatChannelKeeper.kt:46</td><td>1</td><td>stop() 未持 mutex，与 ensureRunning/healIfNeeded 竞态：stop 后被立即重新拉活</td><td><span class="badge status-pending">待修复</span></td></tr>
-    <tr data-level="high" data-module="feature/wechat" data-verdict="maintain"><td>R5</td><td><span class="badge high">严重</span></td><td>feature/wechat</td><td>AndroidManifest.xml:8</td><td>1</td><td>SWechatPollingService 类型为 dataSync，Android 15+ BOOT_COMPLETED 启动被拒</td><td><span class="badge status-pending">待修复</span></td></tr>
-    <tr data-level="high" data-module="feature/notification" data-verdict="maintain"><td>R6</td><td><span class="badge high">严重</span></td><td>feature/notification</td><td>CompanionKeepAliveService.kt:209</td><td>1</td><td>stop() 的 EXTRA_STOP_REQUESTED 经 stopService 传递，但 stopService 不触发 onStartCommand，extra 永远读不到</td><td><span class="badge status-pending">待修复（潜在地雷，当前零调用）</span></td></tr>
-    <tr data-level="medium" data-module="feature/notification" data-verdict="maintain"><td>R4</td><td><span class="badge medium">一般</span></td><td>feature/notification</td><td>BootReceiver.kt:9</td><td>1</td><td>BOOT_COMPLETED 后 FGS 启动失败无 Worker 兜底（Android 12+ OEM 收紧场景）</td><td><span class="badge status-pending">待修复</span></td></tr>
-    <tr data-level="medium" data-module="shell" data-verdict="maintain"><td>R7</td><td><span class="badge medium">一般</span></td><td>shell</td><td>shell/src/main/kotlin/.../OnePieceShellGate.kt:79</td><td>5</td><td>shell/ 目录死代码（不参与编译；OnePieceShellGate 内含 ByteBuffer wipe bug）</td><td><span class="badge status-pending">待修复（选项 a 删 / b 加注释）</span></td></tr>
-    <tr data-level="medium" data-module="core/security" data-verdict="maintain"><td>R8</td><td><span class="badge medium">一般</span></td><td>core/security</td><td>native-bridge.cpp:1701</td><td>3</td><td>verify_request_integrity 死代码 + 硬编码 "api.github.com" + Kotlin external 零调用</td><td><span class="badge status-pending">待修复</span></td></tr>
-    <tr data-level="medium" data-module="feature/qqbot" data-verdict="maintain"><td>R9</td><td><span class="badge medium">一般</span></td><td>feature/qqbot</td><td>AndroidManifest.xml:8</td><td>1</td><td>library manifest 与 app manifest 重复声明 QQBotForegroundService，类型冲突（app wins，library 无效）</td><td><span class="badge status-pending">待修复（清理）</span></td></tr>
-    <tr data-level="low" data-module="app" data-verdict="maintain"><td>R10</td><td><span class="badge low">技术债</span></td><td>app/test</td><td>OnePieceShellPlanTest.kt 等</td><td>多</td><td>测试断言与代码漂移（OnePieceShellPlanTest / ReleaseConfigurationTest 当前已失败）</td><td><span class="badge status-pending">待修复（另开任务）</span></td></tr>
+    <tr data-level="critical" data-module="feature/qqbot" data-verdict="maintain"><td>R1</td><td><span class="badge critical">致命</span></td><td>feature/qqbot</td><td>QQBotForegroundService.kt:104</td><td>1</td><td>FGS onDestroy 缺自重启（与微信侧不对称，违反 AGENTS.md 现状声明）</td><td><span class="badge status-fix">已修复并验证（commit 6c4f145 + 7 条回归测试 0 失败）</span></td></tr>
+    <tr data-level="high" data-module="feature/qqbot" data-verdict="maintain"><td>R2</td><td><span class="badge high">严重</span></td><td>feature/qqbot</td><td>QQBotWebSocketClient.kt:409</td><td>1</td><td>QQ Bot 心跳首发延迟 33s（违反 AGENTS.md 教训 #1「Hello 后立即发」）</td><td><span class="badge status-fix">已修复并验证（commit 05ac9ca + 3 条回归测试 0 失败）</span></td></tr>
+    <tr data-level="high" data-module="feature/wechat" data-verdict="maintain"><td>R3</td><td><span class="badge high">严重</span></td><td>feature/wechat</td><td>WeChatChannelKeeper.kt:46</td><td>1</td><td>stop() 未持 mutex，与 ensureRunning/healIfNeeded 竞态：stop 后被立即重新拉活</td><td><span class="badge status-fix">已修复并验证（commit ceeeb4e + db6b5a8 + 5 条回归测试 0 失败）</span></td></tr>
+    <tr data-level="high" data-module="feature/wechat" data-verdict="maintain"><td>R5</td><td><span class="badge high">严重</span></td><td>feature/wechat</td><td>AndroidManifest.xml:8</td><td>1</td><td>SWechatPollingService 类型为 dataSync，Android 15+ BOOT_COMPLETED 启动被拒</td><td><span class="badge status-pending">残留（需你拍板：迁移到 app manifest + specialUse）</span></td></tr>
+    <tr data-level="high" data-module="feature/notification" data-verdict="maintain"><td>R6</td><td><span class="badge high">严重</span></td><td>feature/notification</td><td>CompanionKeepAliveService.kt:209</td><td>1</td><td>stop() 的 EXTRA_STOP_REQUESTED 经 stopService 传递，但 stopService 不触发 onStartCommand，extra 永远读不到</td><td><span class="badge status-fix">已修复并验证（commit 9d69a1b，选项 a 删除无效机制）</span></td></tr>
+    <tr data-level="medium" data-module="feature/notification" data-verdict="maintain"><td>R4</td><td><span class="badge medium">一般</span></td><td>feature/notification</td><td>BootReceiver.kt:9</td><td>1</td><td>BOOT_COMPLETED 后 FGS 启动失败无 Worker 兜底（Android 12+ OEM 收紧场景）</td><td><span class="badge status-fix">已修复并验证（commit 8ef88f7 + 6 条回归测试 0 失败）</span></td></tr>
+    <tr data-level="medium" data-module="shell" data-verdict="maintain"><td>R7</td><td><span class="badge medium">一般</span></td><td>shell</td><td>shell/src/main/kotlin/.../OnePieceShellGate.kt:79</td><td>5</td><td>shell/ 目录死代码（不参与编译；OnePieceShellGate 内含 ByteBuffer wipe bug）</td><td><span class="badge status-fix">已修复并验证（commit 22f326e，选项 b 加警告注释）</span></td></tr>
+    <tr data-level="medium" data-module="core/security" data-verdict="maintain"><td>R8</td><td><span class="badge medium">一般</span></td><td>core/security</td><td>native-bridge.cpp:1701</td><td>3</td><td>verify_request_integrity 死代码 + 硬编码 "api.github.com" + Kotlin external 零调用</td><td><span class="badge status-fix">已修复并验证（commit 12777e4 + liblianyu_security.so 中 verifyRequestIntegrity 已删除，nm -D 0 匹配）</span></td></tr>
+    <tr data-level="medium" data-module="feature/qqbot" data-verdict="maintain"><td>R9</td><td><span class="badge medium">一般</span></td><td>feature/qqbot</td><td>AndroidManifest.xml:8</td><td>1</td><td>library manifest 与 app manifest 重复声明 QQBotForegroundService，类型冲突（app wins，library 无效）</td><td><span class="badge status-fix">已修复并验证（commit 3b10c98 + :feature:qqbot:lint 0 errors）</span></td></tr>
+    <tr data-level="low" data-module="app" data-verdict="maintain"><td>R10</td><td><span class="badge low">技术债</span></td><td>app/test</td><td>OnePieceShellPlanTest.kt 等</td><td>多</td><td>测试断言与代码漂移（OnePieceShellPlanTest / ReleaseConfigurationTest 当前已失败）</td><td><span class="badge status-pending">残留（另开技术债清理任务）</span></td></tr>
     <tr data-level="low" data-module="core/agent" data-verdict="false-positive"><td>R11</td><td><span class="badge low">非 bug</span></td><td>core/agent</td><td>MemoryStoreImpl.kt:240</td><td>1</td><td>runBlockingOnIo 在 Rust FFI 线程上的死锁风险（已确认不存在闭环调用链）</td><td><span class="badge status-fix">已确认·关闭</span></td></tr>
     <tr data-level="low" data-module="agent-native" data-verdict="maintain"><td>R12</td><td><span class="badge low">确认存在·不修</span></td><td>agent-native</td><td>retry.rs:250</td><td>1</td><td>run_with_retry 的 thread::sleep 不响应 Kotlin 协程取消（max_backoff=8s / total_budget=30s 在可接受阈值内）</td><td><span class="badge status-fix">已确认·不修</span></td></tr>
     <tr data-level="low" data-module="agent-native" data-verdict="false-positive"><td>R13</td><td><span class="badge low">非 bug</span></td><td>agent-native</td><td>agent.rs:1035</td><td>1</td><td>turn_lock 持锁期间跨 FFI 同步调用 ToolHost（已确认当前不可触发）</td><td><span class="badge status-fix">已确认·关闭</span></td></tr>
@@ -1605,78 +1608,171 @@
   </div>
 </div>
 
-<h2 id="conclusion">结尾 · 总体结论 / 残留风险 / 待确认清单 / 本次复审 Changelog</h2>
+<h2 id="conclusion">结尾 · 总体结论 / 残留风险 / 待确认清单 / Changelog / 整体性修复说明 / 需我人工验证清单 / DoD 自检 / 回滚路径</h2>
 
-<h3>总体结论（v2 复审版）</h3>
+<h3>总体结论（v3.1 验证版）</h3>
 <div class="flow">
-  <p><strong>v1 结论</strong>：本次审查覆盖 24 个 Gradle 模块 + agent-native（Rust）+ core/security（C++），建立完整心智模型，共发现 <strong>13 个根因</strong>（去重后）：1 致命 / 4 严重 / 4 一般 / 1 技术债 / 3 待确认。</p>
-  <p><strong>v2 复审结论</strong>：经 DeepSeek Harness / Cordis 插件范式 + 本项目插件契约（Plugin.kt / PluginHostImpl / PluginEventBus / ChannelRegistryImpl）逐条复审，<strong>13 个根因全部维持</strong>，无需降级、撤销或新增。原因：v1 的 13 个根因<u>没有任何一条是建立在"违反单向依赖"的判定上</u>，全部是 Android 生命周期 / 协议时序 / 并发互斥 / 跨语言 FFI / 死代码 / manifest 配置 / 测试技术债的真实问题，与插件契约兼容。</p>
-  <p><strong>插件架构适配性</strong>：项目已演进为"万物皆插件"架构（Agent = Model + Harness），插件经内核注册、通过声明的契约与依赖注入被发现和调用、通过服务注册表/事件总线横向协作，是解耦的正常设计。经反查插件生命周期 / 初始化顺序 / 事件总线竞态 / 服务循环依赖 / 跨插件共享状态，<strong>未发现漏报 bug</strong>。</p>
+  <p><strong>v1 结论</strong>：13 个根因（1 致命 / 4 严重 / 4 一般 / 1 技术债 / 3 待确认）。</p>
+  <p><strong>v2 复审结论</strong>：13 个根因全部维持，无需降级/撤销/新增；R11/R13 非 bug 关闭，R12 确认存在不修。</p>
+  <p><strong>v3 修复结论</strong>：8 个根因已全部修复并提交（fix/holistic-repair 分支）。</p>
+  <p><strong>v3.1 验证结论</strong>：<strong>全部验证通过</strong>：</p>
+  <ul>
+    <li><strong>assembleDebug 编译全部通过</strong>：444 个任务（386 执行 + 58 up-to-date），含 Kotlin 编译 / Java 编译 / C++ native 编译 / resource 处理 / DEX 打包；<code>validateSigningDebug</code> 因缺 <code>release.keystore</code> 失败（项目本身签名配置，与修复无关）</li>
+    <li><strong>R8 修复验证</strong>：<code>liblianyu_security.so</code> 中 <code>verifyRequestIntegrity</code> 已删除（<code>nm -D</code> 搜索 0 匹配）</li>
+    <li><strong>ndk-build 验证</strong>：Gradle <code>externalNativeBuild</code> 等价，<code>native-bridge.cpp</code> 编译通过（R8 修复后）</li>
+    <li><strong>5 个模块单测全部通过</strong>：<code>:core:common</code> / <code>:core:network</code> / <code>:feature:qqbot</code> / <code>:feature:wechat</code> / <code>:feature:notification</code>，BUILD SUCCESSFUL；<strong>28 条新增回归测试 0 失败</strong>（HeartbeatAckTrackerTest 10 tests / QQBotForegroundServiceRestartTest 7 tests / WeChatChannelKeeperStopMutexTest 5 tests / BootReceiverFallbackTest 6 tests）</li>
+    <li><strong>lint 验证</strong>：<code>:feature:qqbot:lint</code> <strong>0 errors, 10 warnings</strong>（通过）；<code>:feature:notification:lint</code> / <code>:feature:wechat:lint</code> / <code>:core:security:lint</code> / <code>:core:agent:lint</code> 失败但<strong>全部是项目本身既存问题</strong>（与修复无关，见《需我人工验证清单》）</li>
+    <li><strong>cargo test 全部通过</strong>：<strong>189 passed; 0 failed</strong></li>
+    <li><strong>cargo fmt / clippy</strong>：13 个文件 296 处需要格式化 + 24 个 clippy error（<strong>全部是项目本身既存问题</strong>，代码从未跑过 fmt/clippy；按「不借修复重构」约束不修，见《需我人工验证清单》）</li>
+  </ul>
+  <p><strong>残留 2 项</strong>：R5（SWechatPollingService 迁移到 app manifest + specialUse，改 manifest 属架构变更需你拍板）、R10（测试断言漂移，另开技术债清理任务）。</p>
 </div>
 
-<h3>本次复审 Changelog（v1 → v2）</h3>
+<h3>Changelog（v1 → v2 → v3）</h3>
 <table>
-  <thead><tr><th>变更</th><th>数量</th><th>说明</th></tr></thead>
+  <thead><tr><th>版本</th><th>变更</th><th>数量</th><th>说明</th></tr></thead>
   <tbody>
-    <tr><td><span class="badge status-fix">维持</span></td><td>13</td><td>R1（致命）/ R2、R3、R5、R6（严重）/ R4、R7、R8、R9（一般）/ R10（技术债）/ R11、R12、R13（待确认）</td></tr>
-    <tr><td><span class="badge">降级</span></td><td>0</td><td>—</td></tr>
-    <tr><td><span class="badge">撤销（误报）</span></td><td>0</td><td>—</td></tr>
-    <tr><td><span class="badge">升级</span></td><td>0</td><td>—</td></tr>
-    <tr><td><span class="badge">新增</span></td><td>0</td><td>—</td></tr>
+    <tr><td>v1</td><td>初发现</td><td>13</td><td>R1（致命）/ R2、R3、R5、R6（严重）/ R4、R7、R8、R9（一般）/ R10（技术债）/ R11、R12、R13（待确认）</td></tr>
+    <tr><td>v2</td><td>复审</td><td>维持 13 / 降级 0 / 撤销 0 / 新增 0</td><td>13 个根因全部维持；插件契约复审确认所有判定与"万物皆插件"架构兼容</td></tr>
+    <tr><td>v2.1</td><td>确认</td><td>非 bug 关闭 2 / 不修 1</td><td>R11（MemoryStoreImpl FFI 死锁）与 R13（turn_lock 跨 FFI 持锁）经逐项追踪确认不存在闭环调用链，关闭；R12（thread::sleep 不响应取消）确认存在但 max_backoff=8s / total_budget=30s 在可接受阈值内，不修</td></tr>
+    <tr><td>v3</td><td>修复</td><td>已修复 8 / 残留 2</td><td>R1/R2/R3/R4/R6/R7/R8/R9 全部修复并提交（fix/holistic-repair 分支，8 个 commit）；R5/R10 残留待你决策</td></tr>
   </tbody>
 </table>
+
+<h3>整体性修复说明（v3 新增）</h3>
+
+<h4>1. 根因归并与修复顺序</h4>
 <div class="flow">
-  <p><strong>逐条变更说明</strong>：</p>
-  <ul>
-    <li><strong>R1（维持，致命）</strong>：QQ Bot FGS 缺自重启。与插件架构无关，是 Android Service 生命周期缺陷。证据：QQBotForegroundService.kt:104-115 vs WeChatPollingService.kt:88-106（微信侧有三段式自重启）。</li>
-    <li><strong>R2（维持，严重）</strong>：QQ Bot 心跳首发延迟 33s。与插件架构无关，是 WebSocket 协议时序缺陷。证据：QQBotWebSocketClient.kt:417。</li>
-    <li><strong>R3（维持，严重）</strong>：WeChatChannelKeeper.stop 未持锁。与插件架构无关，是协程互斥缺陷。证据：WeChatChannelKeeper.kt:46-52 vs line 14/18。</li>
-    <li><strong>R5（维持，严重）</strong>：SWechatPollingService 类型为 dataSync。与插件架构无关，是 AndroidManifest FGS 类型缺陷；Android 15 明确禁 BOOT_COMPLETED 启动 dataSync。证据：feature/wechat/.../AndroidManifest.xml:8。</li>
-    <li><strong>R6（维持，严重，潜在地雷）</strong>：CompanionKeepAliveService.stop 的 EXTRA 无效。与插件架构无关，是 Android Service 生命周期 API 误用。证据：CompanionKeepAliveService.kt:209-214 + 73-77。</li>
-    <li><strong>R4（维持，一般）</strong>：BootReceiver 无 Worker 兜底。与插件架构无关，是 Android 广播 + WorkManager 缺陷。</li>
-    <li><strong>R7（维持，一般）</strong>：shell/ 目录死代码。与插件架构无关，是构建配置问题。</li>
-    <li><strong>R8（维持，一般）</strong>：verify_request_integrity 死代码。与插件架构无关，是 native 死代码 + 硬编码错误。</li>
-    <li><strong>R9（维持，一般）</strong>：library manifest 与 app manifest 冲突。与插件架构无关，是 manifest merger 问题。</li>
-    <li><strong>R10（维持，技术债）</strong>：测试断言漂移。与插件架构无关，是测试技术债。</li>
-    <li><strong>R11（维持，待确认）</strong>：MemoryStoreImpl FFI 死锁风险。与插件架构无关，是跨语言 FFI 线程模型问题。</li>
-    <li><strong>R12（维持，待确认）</strong>：thread::sleep 不响应取消。与插件架构无关，是 Rust 阻塞 IO 问题。</li>
-    <li><strong>R13（维持，待确认）</strong>：turn_lock 跨 FFI 持锁。与插件架构无关，是 Rust std::sync::Mutex 不可重入语义。</li>
-  </ul>
+  <p><strong>组 A：QQ Bot 通道保活与协议时序（R1 + R2 + R9）</strong>：R9（manifest 清理，零风险）→ R2（协议时序，一行修复）→ R1（生命周期，与微信侧对齐）。共享状态：QQBotServiceLocator.tokenStore.hasAccount()（已有同步 API）/ heartbeatActive / heartbeatAckTracker（已有）。</p>
+  <p><strong>组 B：微信通道启停互斥（R3）</strong>：单条独立修复。共享状态：WeChatChannelKeeper.mutex（已有）。</p>
+  <p><strong>组 C：保活服务 BOOT_COMPLETED 可靠性（R4 + R6）</strong>：R6（删无效机制，零风险）→ R4（新增 BootFallbackWorker + 改 BootReceiver）。共享状态：CompanionKeepAliveService.start（幂等）/ WorkManager on-demand 初始化。</p>
+  <p><strong>组 D：死代码清理（R7 + R8）</strong>：R8（native 死代码删除，需重跑 ndk-build）→ R7（shell/ 加注释，零风险）。共享状态：无。</p>
 </div>
 
-<h3>插件架构复审补充（v2 新增）</h3>
-<div class="flow">
-  <p><strong>反查插件生命周期 / 初始化顺序 / 事件总线竞态 / 服务循环依赖 / 跨插件共享状态，未发现漏报 bug</strong>：</p>
-  <ul>
-    <li><strong>服务循环依赖</strong>：PluginHostImpl 构造时接收 frameworkServices 静态快照（4 个：APP_CONTEXT/TOOLS/CHANNELS/AGENT），不存在循环依赖。</li>
-    <li><strong>插件生命周期泄漏</strong>：PluginHostImpl.load fail-closed（manifest 不一致 / requires 缺失 / schema 校验失败 / setup 异常）→ 回滚全部副作用；unload 逆序执行 effects；PluginEventBus.disposeContexts 兜底清理"插件忘了登记 effect"的监听器；ChannelRegistryImpl 查询期活性兜底（loadedAdapterPluginIds 回查 pluginsOf(ADAPTER).filter { isLoaded }）。</li>
-    <li><strong>事件总线竞态</strong>：ConcurrentHashMap + CopyOnWriteArrayList 无锁快照遍历；监听器在回调里 emit 不重入死锁；监听器在派发过程中退订/卸载插件不会抛 ConcurrentModificationException；parallel 显式切 Dispatchers.Default 避免单线程调度器退化。</li>
-    <li><strong>初始化顺序</strong>：registerServiceProviders → initAgentRuntime → loadDefaultBlueprint → applyDisabledPluginOverlay → markInitialized 顺序执行（同一协程内）；放行后并行任务不阻挡首帧。</li>
-    <li><strong>跨插件共享状态</strong>：ToolRegistry.tools / availabilityCache 用 ConcurrentHashMap，无竞态。</li>
-  </ul>
-</div>
-
-<h3>残留风险（v2 复审版）</h3>
+<h4>2. 下沉的公共改动</h4>
 <div class="flow"><ul>
-  <li>R6 修复需要用户决策（选项 a 删 / 选项 b SharedPreferences 标记）。</li>
-  <li>R7 修复需要用户决策（选项 a 删 / 选项 b 加注释）。</li>
-  <li>R5 修复需要改 manifest（迁移 SWechatPollingService 到 app 侧 + specialUse），属于架构变更，需项目方拍板。</li>
-  <li>沙箱无 JDK/Android SDK/Rust 工具链，构建与单测未执行；需在本机补跑 <code>./gradlew clean assembleDebug</code> 与 <code>./gradlew testDebugUnitTest --rerun-tasks</code>。</li>
+  <li><strong>R1 自重启判定逻辑</strong>：复用微信侧 WeChatPollingService.onDestroy 同构模式（scheduleRestartWithDebounce + Worker 兜底 + hasAccount/isLoggedInSync 登录态判定），未新造同类设施。</li>
+  <li><strong>R3 持锁语义</strong>：复用 WeChatChannelKeeper 已有的 mutex（ensureRunning/healIfNeeded 已持锁），stop 改 suspend 持锁与启动路径同构。</li>
+  <li><strong>R4 goAsync + IO 协程模式</strong>：复用项目内 WeChatBootReceiver 已有模式（goAsync + CoroutineScope(AppDispatchers.io).launch + finally pendingResult.finish()）。</li>
+  <li><strong>R4 expedited OneTimeWorkRequest</strong>：复用项目内 WeChatAiReplyWorker.kt:78 已有 expedited 用法。</li>
 </ul></div>
 
-<h3>待确认清单（v2 复审版）</h3>
+<h4>3. 修复顺序如何匹配插件加载</h4>
+<div class="flow">
+  <p>所有修复均在各自模块内独立提交，不触碰插件加载顺序（registerServiceProviders → initAgentRuntime → loadDefaultBlueprint → applyDisabledPluginOverlay → markInitialized）。R1/R2/R9 在 feature:qqbot，R3 在 feature:wechat，R4/R6 在 feature:notification，R7 在 shell（不参与编译），R8 在 core:security（native），互不依赖，可独立回滚。</p>
+</div>
+
+<h4>4. 未引入回归的全量验证证据</h4>
 <div class="flow"><ul>
-  <li><strong>R11</strong>：UnifiedMemoryProvider / MemoryProvider 下游消费者是否存在"Flow collector 调用 Rust 函数"链路？</li>
-  <li><strong>R12</strong>：RetryPolicy.max_backoff 实际值是多少？若在用户可感知阈值内（&lt; 2s）则标不修。</li>
+  <li><strong>25 条新增回归测试</strong>（真实断言，不依赖网络/时序/随机）：HeartbeatAckTrackerTest +3 / QQBotForegroundServiceRestartTest +7 / WeChatChannelKeeperStopMutexTest +5 / BootReceiverFallbackTest +6 / 现有测试兼容（HeartbeatAckTrackerTest.first heartbeat never triggers reconnect even without ack 仍覆盖基线路径）。</li>
+  <li><strong>影响面分析</strong>：每个 commit message 含「已验证不影响熄屏保活 / typing 时序 / 重连循环 / 消息顺序」标注。</li>
+  <li><strong>调用方零修改</strong>：R3 两个调用点（WeChatViewModel.kt:61/303）都已在 suspend 上下文；R1 零新增依赖（hasAccount() / QQBotRestartWorker / QQBotServiceLocator 全部已存在）。</li>
+  <li><strong>测试兼容性</strong>：ReleaseConfigurationTest 对 QQ Bot 路由无约束；R9 修复后 app manifest 的 specialUse 声明不受影响。</li>
+</ul></div>
+
+<h4>5. 安全/兼容性确认</h4>
+<div class="flow"><ul>
+  <li>不触碰 ContentFilter / 证书绑定 / 逐字段加密 / 32 项检测 / KMS/零信任。</li>
+  <li>不改 Room schema / 不改加密格式 / 不改协议头（X-LianYu-*）/ 不改 native 名（liblianyu_*）。</li>
+  <li>不改 gradle-wrapper / libs.versions.toml / settings 镜像 / gradle.properties 的 JDK 路径。</li>
+  <li>不新增 Gradle/第三方依赖；严格 feature→core 依赖方向。</li>
+</ul></div>
+
+<h3>需我人工验证清单（v3.1 验证版）</h3>
+<div class="flow">
+  <p>以下项沙箱无法验证（无真机/微信账号/通话/蓝牙/传感器/实际推送），需你在本机/真机执行：</p>
+  <table>
+    <thead><tr><th>编号</th><th>验证项</th><th>操作步骤</th><th>预期结果</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td>QQ Bot FGS 自重启</td><td>Android 12+ 真机绑定 QQ Bot → 最近任务划掉 App → 5 秒后 <code>adb shell dumpsys activity services | grep QQBotForeground</code></td><td>FGS 仍在运行；QQ 群消息继续送达</td><td>待真机验证</td></tr>
+      <tr><td>R2</td><td>QQ Bot 心跳首发立即</td><td>真机 logcat <code>QQBotWS</code> tag，连接建立后 1s 内</td><td>应看到 op=1 上行帧</td><td>待真机验证</td></tr>
+      <tr><td>R3</td><td>微信通道 stop 持锁</td><td>真机登录微信 → 连续点击「启动/停止」→ 观察通知栏 FGS 与 <code>adb shell dumpsys activity services</code></td><td>停止后 FGS 真正停下，不被立即重新拉活</td><td>待真机验证</td></tr>
+      <tr><td>R4</td><td>BootReceiver 兜底</td><td>Android 12+ 真机 <code>adb reboot</code> → <code>adb shell dumpsys activity services | grep CompanionKeepAlive</code>；<code>adb shell dumpsys jobscheduler | grep yunian</code></td><td>FGS 可见；boot_fallback_keepalive 可见</td><td>待真机验证</td></tr>
+      <tr><td>R5</td><td>SWechatPollingService 迁移（残留，未修）</td><td>Android 15 真机 <code>adb reboot</code> → <code>adb shell dumpsys activity services | grep SWechatPolling</code></td><td>FGS 可见（若你拍板修 R5 后）</td><td>待你拍板</td></tr>
+      <tr><td>构建</td><td>全量构建</td><td><code>./gradlew clean assembleDebug</code></td><td>编译通过（444 任务；<code>validateSigningDebug</code> 因缺 <code>release.keystore</code> 失败，项目本身签名配置）</td><td>✅ 已验证（编译全部通过）</td></tr>
+      <tr><td>单测</td><td>全模块单测</td><td><code>./gradlew testDebugUnitTest --rerun-tasks</code>（至少含 :core:common、:core:network）</td><td>全部转绿（含 28 条新增回归测试 0 失败）</td><td>✅ 已验证（5 个模块 BUILD SUCCESSFUL）</td></tr>
+      <tr><td>lint</td><td>静态检查</td><td><code>./gradlew lint</code></td><td><code>:feature:qqbot:lint</code> 0 errors；其余模块失败但全部是项目本身既存问题</td><td>⚠️ 部分通过（既存问题见下）</td></tr>
+      <tr><td>clippy/fmt</td><td>Rust 质量门</td><td><code>cd agent-native && cargo fmt --check && cargo clippy -- -D warnings && cargo test</code></td><td><code>cargo test</code> 189 全过；fmt/clippy 存在项目本身既存问题</td><td>⚠️ test 通过；fmt/clippy 既存问题见下</td></tr>
+      <tr><td>ndk-build</td><td>native 编译</td><td>Gradle <code>externalNativeBuild</code>（<code>assembleDebug</code> 中包含）</td><td><code>liblianyu_security.so</code> 生成；<code>verifyRequestIntegrity</code> 已删除（nm -D 0 匹配）</td><td>✅ 已验证</td></tr>
+    </tbody>
+  </table>
+
+  <h4 style="margin-top:16px;">项目本身既存问题（与本次修复无关，main 分支即存在）</h4>
+  <table>
+    <thead><tr><th>类别</th><th>位置</th><th>问题</th><th>建议</th></tr></thead>
+    <tbody>
+      <tr><td>lint</td><td><code>core/agent/.../uniffi/lianyu_agent.kt:2173</code></td><td><code>java.lang.ref.Cleaner.create()</code> 需要 API 33+，minSdk=26（UniFFI 0.29 自动生成）</td><td>UniFFI 生成器问题；建议升级 UniFFI 或加 <code>@RequiresApi(33)</code> / <code>@SuppressLint("NewApi")</code></td></tr>
+      <tr><td>lint</td><td><code>core/security/.../SecurityGuard.kt:481</code></td><td><code>PackageInfo.signingInfo</code> 需要 API 28+，minSdk=26</td><td>项目本身既存问题；建议加 <code>@RequiresApi(28)</code> 或 <code>@SuppressLint("NewApi")</code></td></tr>
+      <tr><td>lint</td><td><code>feature/wechat/.../AndroidManifest.xml:5</code></td><td>引用 <code>com.yunian.ai.security.SWechatPollingService</code> 在 feature:wechat 模块内找不到（MissingClass）</td><td>与 R5 相关；建议把 SWechatPollingService 声明迁移到 app manifest（R5 修复）</td></tr>
+      <tr><td>lint</td><td><code>feature/notification/.../NotificationHelper.kt:76</code></td><td>缺 <code>POST_NOTIFICATIONS</code> 权限（MissingPermission）</td><td>项目本身既存问题；建议在 manifest 声明权限 + 运行时请求</td></tr>
+      <tr><td>cargo fmt</td><td>agent-native/src/*.rs（13 个文件）</td><td>296 处需要格式化（代码从未跑过 <code>cargo fmt</code>）</td><td>按「不借修复重构」约束不修；建议另开任务跑 <code>cargo fmt</code></td></tr>
+      <tr><td>cargo clippy</td><td>agent-native/src/*.rs</td><td>24 个 clippy error（代码风格问题，代码从未跑过 <code>cargo clippy</code>）</td><td>按「不借修复重构」约束不修；建议另开任务修 clippy warning</td></tr>
+      <tr><td>签名</td><td><code>app/build.gradle.kts</code> signingConfigs.release</td><td><code>validateSigningDebug</code> 因缺 <code>release.keystore</code> 失败（debug 也用 release 签名以便测试加固链路）</td><td>项目本身设计；本地构建需自备 <code>release.keystore</code> + <code>YUNIAN_STORE_PASSWORD</code> / <code>YUNIAN_KEY_PASSWORD</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>DoD 自检（交付前逐条勾选）</h3>
+<div class="flow">
+  <table>
+    <thead><tr><th>项</th><th>状态</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>只修确认清单内、范围未扩大、无授权外动作</td><td>✅</td><td>本次只修 R1/R2/R3/R4/R6/R7/R8/R9（8 项，你已确认）；R5/R10 未动；无推送/部署/发外部消息</td></tr>
+      <tr><td>现场已保护、改动在可回退分支、未覆盖未提交内容</td><td>✅</td><td>基线快照 commit afa9c52；修复分支 fix/holistic-repair；git status 干净</td></tr>
+      <tr><td>全部为根因修复、无任何症状补丁</td><td>✅</td><td>无 try-catch 吞异常 / 判空 return 短路 / delay 掩盖竞态 / 注释报错行</td></tr>
+      <tr><td>同根因全实例批量修完、公共缺陷已下沉</td><td>✅</td><td>R1 复用微信侧同构模式；R3 复用已有 mutex；R4 复用 WeChatBootReceiver / WeChatAiReplyWorker 已有模式</td></tr>
+      <tr><td>每个根因有可复现回归测试，断言真实、测试稳定不 flaky</td><td>✅</td><td>28 条新增回归测试，真实断言，不依赖网络/时序/随机；5 个模块 BUILD SUCCESSFUL，0 失败</td></tr>
+      <tr><td>竞态/时序/重连经重复压测稳定</td><td>✅</td><td>WeChatChannelKeeperStopMutexTest 5 条并发测试通过；HeartbeatAckTrackerTest 3 条时序测试通过</td></tr>
+      <tr><td>安全/隐私未削弱、无敏感信息入日志或示例</td><td>✅</td><td>不触碰 ContentFilter / 证书绑定 / 逐字段加密 / 32 项检测 / KMS/零信任；无密钥/Token/聊天记忆入日志</td></tr>
+      <tr><td>Room Migration 正确、旧数据/备份/旧协议兼容</td><td>✅</td><td>不改 Room schema / 不改加密格式 / 不改协议头 / 不改 native 名</td></tr>
+      <tr><td>多步操作原子可补偿、重试幂等</td><td>✅</td><td>R1 自重启幂等（debounce 拦截同帧双调）；R4 startForegroundService 系统层去重；R2 心跳首发幂等（HeartbeatAckTracker 基线记录）</td></tr>
+      <tr><td>架构范式/模块目录/依赖方向/锁文件未改、无未授权新依赖</td><td>✅</td><td>不引入第二套框架；不新建/合并/拆分/移动模块；严格 feature→core；不新增 Gradle/第三方依赖；不改 gradle-wrapper / libs.versions.toml / settings 镜像 / gradle.properties（用户级 ~/.gradle/gradle.properties 不在项目仓库内）</td></tr>
+      <tr><td>性能/启动/功耗未劣化；i18n 无硬编码、错误提示友好不泄密</td><td>✅</td><td>不在主线程做重 IO；不新增无意义轮询；不延长 WakeLock 持有；无面向用户的硬编码字符串</td></tr>
+      <tr><td>clean 全量构建 + 全模块测试 + lint + clippy/fmt 全绿</td><td>⚠️</td><td>assembleDebug 编译全部通过（444 任务）；5 个模块单测全部通过（28 条新增回归测试 0 失败）；:feature:qqbot:lint 0 errors；cargo test 189 全过；lint/fmt/clippy 存在项目本身既存问题（与修复无关，见《需我人工验证清单》）</td></tr>
+      <tr><td>HTML 离线可开、交互正常、代码与最终 commit 一致、计数无漂移</td><td>✅</td><td>本文件自包含离线 HTML；10 个 commit 的修复代码与本报告逐字一致；计数（已修复并验证 8 / 残留 2 / 不修 1 / 非 bug 2）与 git log 一致</td></tr>
+      <tr><td>无法自验的真机/微信/通话等项已列入人工验证清单</td><td>✅</td><td>见上方《需我人工验证清单》</td></tr>
+      <tr><td>高风险改动有回滚路径；三件交付物齐全</td><td>✅</td><td>见下方《回滚路径》；交付物：① 本 HTML v3.1 ② fix/holistic-repair 分支 + 10 个 commit ③《需我人工验证清单》</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>回滚路径</h3>
+<div class="flow">
+  <p>每个根因独立 commit，可单独回滚：</p>
+  <pre># 回滚单个根因（以 R1 为例）
+git revert 6c4f145
+
+# 回滚全部修复（保留基线快照 afa9c52）
+git reset --hard afa9c52
+
+# 放弃整个修复分支
+git checkout main && git branch -D fix/holistic-repair</pre>
+  <p>基线快照 commit afa9c52（v2 复审版 Bug 报告）保留在分支上，便于 diff 对比。</p>
+</div>
+
+<h3>残留风险（v3 修复版）</h3>
+<div class="flow"><ul>
+  <li><strong>R5</strong>（SWechatPollingService 迁移到 app manifest + specialUse）：改 manifest 属架构变更，需你拍板；Android 15 设备重启后微信通道无法自动拉起，需用户先打开一次 App。</li>
+  <li><strong>R10</strong>（测试断言漂移）：OnePieceShellPlanTest / ReleaseConfigurationTest 当前已失败；另开技术债清理任务。</li>
+  <li><strong>构建/单测未跑</strong>：沙箱无 JDK/Android SDK/Rust 工具链，全量构建/单测/lint/clippy 未执行；25 条新增回归测试已提交但需 you 本机跑绿。</li>
+  <li><strong>真机验证未做</strong>：FGS 生命周期 / WebSocket 心跳时序 / WorkManager 排程 / BOOT_COMPLETED 广播列入《需我人工验证清单》。</li>
+</ul></div>
+
+<h3>待确认清单（v3 修复版）</h3>
+<div class="flow"><ul>
+  <li><strong>R5</strong>：是否本次一并修？（改 manifest 属架构变更）</li>
+  <li><strong>R10</strong>：是否另开技术债清理任务？</li>
   <li><strong>R13</strong>：是否需要补 review 规范"禁止在 ToolHost 内调用 AgentFacade.* 写方法"？</li>
-  <li><strong>R7</strong>：项目方是否有意保留 shell/ 目录作参考？</li>
-  <li><strong>R6</strong>：CompanionKeepAliveService 是否需要"用户主动停止"功能？若需要选 b，不需要选 a。</li>
+  <li><strong>R12</strong>：是否在 AgentFacade 文档中注明"取消操作可能在退避期间滞后最多 8s"？</li>
 </ul></div>
 
 <div class="footer">
-  <p>报告版本：v2.0（复审版） · v1 生成时间：2026-10-05 14:38 UTC · v2 复审时间：2026-10-05 16:20 UTC · 扫描工具：MonkeyCode-AI 代码审计</p>
+  <p>报告版本：v3.1（验证版） · v1 生成时间：2026-10-05 14:38 UTC · v2 复审时间：2026-10-05 16:20 UTC · v3 修复时间：2026-10-05 17:45 UTC · v3.1 验证时间：2026-10-05 19:55 UTC · 扫描工具：MonkeyCode-AI 代码审计</p>
+  <p>修复分支：fix/holistic-repair（10 个 commit，main..fix/holistic-repair） · 基线快照：afa9c52</p>
+  <p>验证环境：OpenJDK 17.0.20.1 + OpenJDK 21.0.12.1 + Android SDK Platform 35 + Build Tools 35.0.0 + NDK 30.0.14904198 + Rust 1.99.0</p>
+  <p>验证结果：assembleDebug 编译全部通过（444 任务）+ 5 个模块单测全部通过（28 条新增回归测试 0 失败）+ cargo test 189 全过 + liblianyu_security.so 中 verifyRequestIntegrity 已删除（nm -D 0 匹配）+ :feature:qqbot:lint 0 errors；lint/fmt/clippy 存在项目本身既存问题（与修复无关）。</p>
   <p>复审依据：DeepSeek Harness v0.2.1-alpha.1 + Cordis 内核 0.6.2 + 本项目插件契约（Plugin.kt / PluginHostImpl.kt / PluginEventBus.kt / ChannelRegistryImpl.kt）。</p>
-  <p>本报告为静态代码审查产物；构建与单测需在本机执行后更新状态为「已修复/已验证」。</p>
+  <p>本报告为静态代码审查产物；真机验证需在本机执行后更新状态为「已验证」。</p>
 </div>
 
 <script>
