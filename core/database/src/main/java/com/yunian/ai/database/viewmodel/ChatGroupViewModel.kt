@@ -7,15 +7,27 @@ import com.yunian.ai.database.AppDatabase
 import com.yunian.ai.database.cache.HomeListCache
 import com.yunian.ai.database.model.ChatGroup
 import com.yunian.ai.database.repository.ChatGroupRepository
+import com.yunian.ai.domain.HomeSessionListOperator
+import com.yunian.ai.domain.HomeSessionType
+import com.yunian.ai.domain.ServiceRegistry
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ChatGroupViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: ChatGroupRepository
+    private val sessionOperator =
+        ServiceRegistry.getOrThrow(HomeSessionListOperator::class.java)
+    private val summaryDao = AppDatabase.getDatabase(application).conversationSummaryDao()
+
+    /** 群列表（按群更新时间倒序，既有行为）。 */
     val groups: StateFlow<List<ChatGroup>>
+
+    /** 首页展示用群条目：组信息 + 顶置/隐藏状态（长按菜单数据源）。 */
+    val groupItems: StateFlow<List<HomeGroupItem>>
 
     init {
         val database = AppDatabase.getDatabase(application)
@@ -26,6 +38,31 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
                 scope = viewModelScope,
                 started = SharingStarted.Eagerly,
                 initialValue = HomeListCache.snapshotGroups()
+            )
+        groupItems = combine(
+            repository.getAllGroups(),
+            summaryDao.getSummariesByType("group"),
+            sessionOperator.observeHiddenAt(HomeSessionType.GROUP)
+        ) { groupList, summaries, hiddenAt ->
+            val summariesById = summaries.associateBy { it.sessionId }
+            groupList.map { group ->
+                val summary = summariesById[group.id]
+                val hiddenAtMs = hiddenAt[group.id]
+                // 与单聊同判定：有新消息（lastMessageTimestamp > hiddenAtMs，含 AI 主动消息）即重显；
+                // 无摘要（记录已清）则视为隐藏中，新消息落库时摘要重建自然重显。
+                val isHidden = if (hiddenAtMs == null) false
+                else summary == null || summary.lastMessageTimestamp <= hiddenAtMs
+                HomeGroupItem(
+                    group = group,
+                    isPinned = summary?.isPinned == true,
+                    isHidden = isHidden
+                )
+            }
+        }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = emptyList()
             )
     }
 
@@ -50,4 +87,29 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
             repository.updateGroup(group)
         }
     }
+
+    // ── 首页群聊长按操作（删除 / 顶置 / 隐藏；语义同单聊，见 HomeSessionListOperator）──
+    fun deleteGroupChat(groupId: Long) {
+        viewModelScope.launch {
+            sessionOperator.deleteConversation(groupId, HomeSessionType.GROUP)
+        }
+    }
+
+    fun togglePinGroupChat(groupId: Long) {
+        viewModelScope.launch {
+            sessionOperator.togglePinned(groupId, HomeSessionType.GROUP)
+        }
+    }
+
+    fun hideGroupChat(groupId: Long) {
+        viewModelScope.launch {
+            sessionOperator.hideConversation(groupId, HomeSessionType.GROUP)
+        }
+    }
 }
+
+data class HomeGroupItem(
+    val group: ChatGroup,
+    val isPinned: Boolean = false,
+    val isHidden: Boolean = false
+)

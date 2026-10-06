@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.yunian.ai.database.model.AppMetaEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AppMetaDao {
@@ -20,4 +21,8 @@ interface AppMetaDao {
 
     @Query("SELECT * FROM app_meta")
     suspend fun getAll(): List<AppMetaEntity>
+
+    /** 单键值的响应式流（首页会话「隐藏该聊天」状态实时刷新用；DB v41 既有表）。 */
+    @Query("SELECT value FROM app_meta WHERE `key` = :key")
+    fun getFlow(key: String): Flow<String?>
 }

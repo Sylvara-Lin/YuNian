@@ -10,6 +10,8 @@ import com.yunian.ai.database.model.CompanionEntity
 import com.yunian.ai.database.model.ConversationSummary
 import com.yunian.ai.database.repository.ChatRepository
 import com.yunian.ai.database.repository.CompanionRepository
+import com.yunian.ai.domain.HomeSessionListOperator
+import com.yunian.ai.domain.HomeSessionType
 import com.yunian.ai.domain.ServiceRegistry
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +24,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val companionRepository = ServiceRegistry.getOrThrow(CompanionRepository::class.java)
     private val chatRepository = ServiceRegistry.getOrThrow(ChatRepository::class.java)
     private val summaryDao = AppDatabase.getDatabase(application).conversationSummaryDao()
+    private val sessionOperator =
+        ServiceRegistry.getOrThrow(HomeSessionListOperator::class.java)
 
     sealed class UiState {
         object Loading : UiState()
@@ -43,11 +47,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         chatListState = combine(
             companionRepository.getAllCompanions(),
-            summaryDao.getSummariesByType("chat")
-        ) { companions, summaries ->
+            summaryDao.getSummariesByType("chat"),
+            sessionOperator.observeHiddenAt(HomeSessionType.CHAT)
+        ) { companions, summaries, hiddenAt ->
             HomeListCache.putCompanions(companions)
             HomeListCache.putChatSummaries(summaries)
-            buildReady(companions, summaries) as UiState
+            buildReady(companions, summaries, hiddenAt) as UiState
         }
             .catch { e ->
 
@@ -66,9 +71,32 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ── 首页会话长按操作（删除 / 顶置 / 隐藏）──
+    // 语义与微信对齐（2026-10-06 需求定稿，见 HomeSessionListOperator KDoc）：
+    // 删除=清消息+摘要（AI 主动消息落库时摘要重建、会话重显）；隐藏=只藏入口，
+    // 摘要 lastMessageTimestamp 晚于隐藏时刻（有新消息，含 AI 主动消息）即重显。
+    fun deleteChat(companionId: Long) {
+        viewModelScope.launch {
+            sessionOperator.deleteConversation(companionId, HomeSessionType.CHAT)
+        }
+    }
+
+    fun togglePinChat(companionId: Long) {
+        viewModelScope.launch {
+            sessionOperator.togglePinned(companionId, HomeSessionType.CHAT)
+        }
+    }
+
+    fun hideChat(companionId: Long) {
+        viewModelScope.launch {
+            sessionOperator.hideConversation(companionId, HomeSessionType.CHAT)
+        }
+    }
+
     private fun buildReady(
         companions: List<CompanionEntity>,
-        summaries: List<ConversationSummary>
+        summaries: List<ConversationSummary>,
+        hiddenAt: Map<Long, Long> = emptyMap()
     ): UiState.Ready {
         val summariesById = summaries.associateBy { it.sessionId }
         val items = companions.map { companion ->
@@ -84,15 +112,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             ChatListItem(
                 companion = companion,
                 lastMessage = lastMessage,
-                hasUnread = (summary?.unreadCount ?: 0) > 0
+                hasUnread = (summary?.unreadCount ?: 0) > 0,
+                isPinned = summary?.isPinned == true,
+                isHidden = isHiddenNow(companion.id, summary, hiddenAt)
             )
         }
         return UiState.Ready(items)
+    }
+
+    private fun isHiddenNow(
+        sessionId: Long,
+        summary: ConversationSummary?,
+        hiddenAt: Map<Long, Long>
+    ): Boolean {
+        val hiddenAtMs = hiddenAt[sessionId] ?: return false
+        // 隐藏判定：摘要存在且新消息晚于隐藏时刻 → 已有新消息（AI 主动消息同），重显。
+        // 摘要不存在（清记录后）则视为隐藏中——有新消息时摘要重建，比较晚于隐藏时刻即重显。
+        val lastMessageTimestamp = summary?.lastMessageTimestamp ?: return true
+        return lastMessageTimestamp <= hiddenAtMs
     }
 }
 
 data class ChatListItem(
     val companion: CompanionEntity,
     val lastMessage: ChatMessage?,
-    val hasUnread: Boolean = false
+    val hasUnread: Boolean = false,
+    val isPinned: Boolean = false,
+    val isHidden: Boolean = false
 )

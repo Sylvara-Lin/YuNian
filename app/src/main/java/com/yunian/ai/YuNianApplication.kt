@@ -532,6 +532,17 @@ class YuNianApplication : Application(), ImageLoaderFactory, androidx.work.Confi
                     bgScope
                 )
             }
+            // 首页会话长按操作（删除/顶置/隐藏）：domain 契约 + database 实现，
+            // 消费方 feature:profile 经 ServiceRegistry 取用（不引入 feature→feature 依赖）。
+            ServiceRegistry.registerSingleton(com.yunian.ai.domain.HomeSessionListOperator::class.java) {
+                com.yunian.ai.database.repository.HomeSessionListStore(
+                    ServiceRegistry.getOrThrow(ChatRepository::class.java),
+                    ServiceRegistry.getOrThrow(GroupMessageRepository::class.java),
+                    ServiceRegistry.getOrThrow(AppMetaStore::class.java),
+                    database.appMetaDao(),
+                    database,
+                )
+            }
 
             TimelinePayloadCodecRegistry.registerBuiltins()
             ServiceRegistry.registerSingleton(TimelineStore::class.java) {
