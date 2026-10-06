@@ -77,7 +77,7 @@ class ReleaseConfigurationTest {
 
         assertTrue(
             "WeChat foreground polling service must be exposed only through the shell entry.",
-            wechatManifest.contains("android:name=\"com.yunian.ai.security.SWechatPollingService\"")
+            appManifest.contains("android:name=\"com.yunian.ai.security.SWechatPollingService\"")
         )
         assertTrue(
             "WeChat boot receiver must be exposed only through the shell entry.",

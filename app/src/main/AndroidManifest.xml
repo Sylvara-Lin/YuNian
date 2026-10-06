@@ -137,6 +137,17 @@
                 android:value="虚拟恋人后台守护与定时消息调度" />
         </service>
 
+        <service
+            android:name="com.yunian.ai.security.SWechatPollingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="微信消息长连接通道" />
+        </service>
+
         <!-- IQOO/OriginOS 第三层兜底保活 JobService -->
         <service
             android:name=".IqooKeepAliveJobService"
