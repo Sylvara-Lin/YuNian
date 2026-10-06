@@ -69,7 +69,8 @@ class HomeSessionListStore(
     override suspend fun togglePinned(sessionId: Long, type: HomeSessionType) {
         val key = pinnedKey(type)
         val map = appMetaStore.get(key, boolMapSerializer()) ?: emptyMap()
-        appMetaStore.put(key, map + (sessionId to !map[sessionId]!!), boolMapSerializer())
+        val current = map[sessionId] == true
+        appMetaStore.put(key, map + (sessionId to !current), boolMapSerializer())
     }
 
     override suspend fun hideConversation(sessionId: Long, type: HomeSessionType) {

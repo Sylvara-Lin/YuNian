@@ -35,6 +35,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     val chatListState: StateFlow<UiState>
 
+    private var cachedItems: List<ChatListItem> = emptyList()
+
     init {
         val initialState = if (HomeListCache.isWarmed()) {
             buildReady(
@@ -119,6 +121,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 isHidden = isHiddenNow(companion.id, summary, hiddenAt)
             )
         }
+        // 性能优化：内容相同则不更新引用（ChatListItem 是 data class，
+        // equals 比较所有字段），避免每次 combine 发射都触发 LazyColumn 全量重组。
+        if (items == cachedItems) return UiState.Ready(cachedItems)
+        cachedItems = items
         return UiState.Ready(items)
     }
 

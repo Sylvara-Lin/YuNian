@@ -29,6 +29,8 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
     /** 首页展示用群条目：组信息 + 顶置/隐藏状态（长按菜单数据源）。 */
     val groupItems: StateFlow<List<HomeGroupItem>>
 
+    private var cachedGroupItems: List<HomeGroupItem> = emptyList()
+
     init {
         val database = AppDatabase.getDatabase(application)
         repository = ChatGroupRepository(database.chatGroupDao())
@@ -46,7 +48,7 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
             sessionOperator.observePinned(HomeSessionType.GROUP)
         ) { groupList, summaries, hiddenAt, pinnedAt ->
             val summariesById = summaries.associateBy { it.sessionId }
-            groupList.map { group ->
+            val items = groupList.map { group ->
                 val summary = summariesById[group.id]
                 val hiddenAtMs = hiddenAt[group.id]
                 // 与单聊同判定：有新消息（lastMessageTimestamp > hiddenAtMs，含 AI 主动消息）即重显；
@@ -59,6 +61,8 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
                     isHidden = isHidden
                 )
             }
+            // 性能优化：内容相同则不更新引用，避免每次 combine 发射都触发全量重组。
+            if (items == cachedGroupItems) cachedGroupItems else items.also { cachedGroupItems = it }
         }
             .stateIn(
                 scope = viewModelScope,
