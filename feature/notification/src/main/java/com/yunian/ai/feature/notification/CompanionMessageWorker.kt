@@ -312,9 +312,14 @@ class CompanionMessageWorker(
                 systemPrompt = null,
                 companionNameMapJson = null,
             )
-            val result = AgentFacade.runTurn(
-                turnRequest, appContext, companion.id, AgentToolHost(appContext),
+            // 流式（runTurnStream）：reasoning 经 ProactiveReasoningSink 收集，
+            // 落库为 REASONING 消息（像正式回复的「已思考 X 秒」）。
+            val sink = ProactiveReasoningSink()
+            val result = AgentFacade.runTurnStream(
+                turnRequest, appContext, companion.id, AgentToolHost(appContext), sink,
             )
+            // reasoning 落库（思考过程显示给用户，像正式回复一样）
+            persistReasoning(companion.id, sink)
             val raw = result.finalText.trim()
                 .ifBlank { result.events.filter { it.kind == "bubble" }.joinToString("\n") { it.text } }
             if (raw.isBlank()) return@withContext null
@@ -325,11 +330,9 @@ class CompanionMessageWorker(
                 if (without.length < 2) return@withContext null
                 return@withContext without
             }
-            raw.replace(Regex("\\r\\n|\\r|\\n+"), "，")
-                .replace(Regex("，{2,}"), "，")
-                .trimStart('，', ',', '.', '。', ' ')
-                .trim()
-                .takeIf { it.length >= 2 }
+            // AI 的换行保留——BubbleTextSplitter.splitByParagraphs 按换行拆多条气泡，
+            // AI 自主决定发几条（设计原则：气泡拆几条交给 AI，不写死）。
+            raw.trim().takeIf { it.length >= 2 }
         }.onFailure {
             SecureLog.w("CompanionMessageWorker", "Agent proactive generation failed: ${it.message}")
         }.getOrNull()
@@ -355,8 +358,7 @@ class CompanionMessageWorker(
         - 话题选择以性格优先：上一话题已完结或不感兴趣时，可轻转、只回情绪，或输出 $NO_PROACTIVE_MARKER。
         若决定发消息：
         1. 像真人聊天一样自然，单次单动作且句式完整；不要长文堆叠共情+方案+追问
-        2. 优先 1 条消息，不要拆成很多短句连发
-        3. 不要重新开场、不要念日程；语气严格服从角色性格
+        2. 想发几条就发几条，用换行分隔；不要重新开场、不要念日程；语气严格服从角色性格
         4. 禁止括号，禁止AI感词汇，禁止说教
         5. 时间只是背景，不要机械报时或按时段派发固定关心任务
         ${if (settings.allowLateNightMessage) "" else "6. 当前处于免打扰时段，只做话题延续或情绪轻触，禁止提睡/吃/到家/报时"}
@@ -395,6 +397,39 @@ class CompanionMessageWorker(
      *
      * @return 最后一条成功落库气泡的消息 id（供 follow-up 状态追踪）；全部失败返回 null。
      */
+    /**
+     * 把主动消息的 reasoning 落库为 REASONING 消息（像正式回复的「已思考 X 秒」）。
+     *
+     * 走 `core:domain` 的 `TimelineStore.appendComplete`（与正式回复同一落库通道），
+     * 不依赖 `feature:chat` 的 AiResponseFinalizer（feature 不能依赖 feature）。
+     * reasoning 为空或时长为 null 时不落库（模型没思考/不支持 reasoning）。
+     */
+    private suspend fun persistReasoning(companionId: Long, sink: ProactiveReasoningSink) {
+        val reasoningText = sink.reasoningText()
+        if (reasoningText.isBlank()) return
+        val durationMs = sink.reasoningDurationMs() ?: return
+        runCatching {
+            val timelineStore = ServiceRegistry.getOrThrow(com.yunian.ai.domain.timeline.TimelineStore::class.java)
+            val turnId = com.yunian.ai.domain.timeline.TurnId("proactive-" + companionId + "-" + System.currentTimeMillis())
+            timelineStore.appendComplete(
+                com.yunian.ai.domain.timeline.ConversationRef(companionId, "chat"),
+                com.yunian.ai.domain.timeline.TimelineEvent(
+                    turnId = turnId,
+                    kind = com.yunian.ai.domain.timeline.TimelineEventKind.REASONING,
+                    status = com.yunian.ai.domain.timeline.TimelineEventStatus.COMPLETE,
+                    eventIndex = 0,
+                    timestamp = System.currentTimeMillis(),
+                    payload = com.yunian.ai.domain.timeline.ReasoningPayload(
+                        text = reasoningText,
+                        durationMs = durationMs,
+                    ),
+                ),
+            )
+        }.onFailure {
+            SecureLog.w("CompanionMessageWorker", "persist reasoning failed: ${it.message}")
+        }
+    }
+
     private suspend fun sendMessage(companion: com.yunian.ai.database.model.CompanionEntity, content: String): Long? {
         val trimmed = content.trim()
         if (trimmed.isEmpty()) return null
