@@ -36,8 +36,6 @@ object NativeBridge {
     external fun isSafe(): Boolean
     @JvmStatic
     external fun isMitmDetected(): Boolean
-    @JvmStatic
-    external fun verifyRequestIntegrity(url: String): Boolean
 
     @JvmStatic
     external fun isDeviceRooted(): Boolean

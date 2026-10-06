@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -49,7 +50,14 @@ open class WeChatPollingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = createNotification()
-        startForeground(NOTIFICATION_ID, notification)
+        // Android 14+（API 34+）显式指定 FGS 类型：与 app/src/main/AndroidManifest.xml 中
+        // SWechatPollingService 的 specialUse 声明一致（参照 QQBotForegroundService.kt:43-47）。
+        // Android 14 以下走两参版本（系统从 manifest 读取类型），行为不变。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
         renewWakeLock()
 
         if (pollJob == null || pollJob?.isActive != true) {

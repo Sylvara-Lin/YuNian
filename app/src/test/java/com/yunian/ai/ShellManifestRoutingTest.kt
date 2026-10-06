@@ -19,12 +19,16 @@ class ShellManifestRoutingTest {
 
     @Test
     fun wechatManifestRoutesWeChatEntryPointsThroughShellComponents() {
-        val manifest = File(projectRoot, "feature/wechat/src/main/AndroidManifest.xml").readText()
+        val appManifest = File(projectRoot, "app/src/main/AndroidManifest.xml").readText()
+        val wechatManifest = File(projectRoot, "feature/wechat/src/main/AndroidManifest.xml").readText()
 
-        assertTrue(manifest.contains("android:name=\"com.yunian.ai.security.SWechatPollingService\""))
-        assertTrue(manifest.contains("android:name=\"com.yunian.ai.security.SWechatBootReceiver\""))
+        // SWechatPollingService 的声明已迁移到 app/src/main/AndroidManifest.xml（specialUse），
+        // 与 SService / QQBotForegroundService / CompanionKeepAliveService 同构；
+        // feature:wechat 的 library manifest 只保留 SWechatBootReceiver。
+        assertTrue(appManifest.contains("android:name=\"com.yunian.ai.security.SWechatPollingService\""))
+        assertTrue(wechatManifest.contains("android:name=\"com.yunian.ai.security.SWechatBootReceiver\""))
 
-        assertTrue(!manifest.contains("SWechatProactiveMessageReceiver"))
-        assertTrue(!manifest.contains("SEND_PROACTIVE"))
+        assertTrue(!wechatManifest.contains("SWechatProactiveMessageReceiver"))
+        assertTrue(!wechatManifest.contains("SEND_PROACTIVE"))
     }
 }

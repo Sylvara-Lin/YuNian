@@ -1698,16 +1698,6 @@ static jboolean is_mitm_detected(JNIEnv*, jclass) {
     return g_mitm_detected ? JNI_TRUE : JNI_FALSE;
 }
 
-static jboolean verify_request_integrity(JNIEnv* env, jclass, jstring urlObj) {
-    if (!g_sig_ok || !rd()) return JNI_FALSE;
-    const char* url = env->GetStringUTFChars(urlObj, nullptr);
-    if (!url) return JNI_FALSE;
-    const char* expected = "api.github.com";
-    int ok = (strstr(url, expected) != nullptr) ? 1 : 0;
-    env->ReleaseStringUTFChars(urlObj, url);
-    return ok ? JNI_TRUE : JNI_FALSE;
-}
-
 static jboolean verify_sig(JNIEnv* env, jclass, jobject ctx) {
     // Cache: only run the expensive JNI cert chain once per process
     if (g_sig_ok) { g_sig_ok_bridge = 1; return JNI_TRUE; }
@@ -2560,11 +2550,6 @@ extern "C" {
     // Check for SSL pinning bypass via Xposed/module artifacts
     if (cm()) return JNI_TRUE;
     return JNI_FALSE;
-}
-
-/* RN */ jboolean Java_com_yunian_ai_security_NativeBridge_verifyRequestIntegrity(
-    JNIEnv* env, jobject thiz, jstring url) {
-    return JNI_TRUE;
 }
 
 /* RN */ jboolean Java_com_yunian_ai_security_NativeBridge_isDeviceRooted(

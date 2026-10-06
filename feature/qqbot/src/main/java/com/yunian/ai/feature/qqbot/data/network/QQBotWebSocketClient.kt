@@ -413,6 +413,16 @@ class QQBotWebSocketClient(
         heartbeatAckTracker.reset()
         heartbeatJob = scope.launch {
             val period = (intervalMs * 0.8).toLong().coerceAtLeast(5000)
+            // Hello 后立即首发：协议约定（QQ 官方文档「鉴权成功之后就需要按照周期进行心跳发送」）
+            // + AGENTS.md 教训 #1「心跳标志与 isConnected 解耦，Hello 后立即发」。
+            // 首发前调 onBeforeSend：pendingSentAtMs=0 走 else 分支只记基线，与循环内语义对齐；
+            // 不会误触发重连（HeartbeatAckTrackerTest.first heartbeat never triggers reconnect even without ack 已覆盖）。
+            if (heartbeatAckTracker.onBeforeSend(System.currentTimeMillis(), lastHeartbeatAckMs)) {
+                reconnect()
+                return@launch
+            }
+            send(json.encodeToString(QQGatewayPayload(op = opHeartbeat, d = JsonPrimitive(lastSequence.get()))))
+
             while (isActive && heartbeatActive) {
                 delay(period)
                 if (!heartbeatActive) break

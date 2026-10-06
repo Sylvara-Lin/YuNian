@@ -2,13 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
-    <application>
-        <service
-            android:name="com.yunian.ai.feature.qqbot.service.QQBotForegroundService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-    </application>
+    <!-- QQBotForegroundService 在 app/src/main/AndroidManifest.xml 中已声明（specialUse +
+         PROPERTY_SPECIAL_USE_FGS_SUBTYPE）。library 模块内的同类声明与 app 冲突，
+         manifest merger 规则下 app wins，本声明对最终 APK 无效；
+         为避免误导并规避 AGP < 8.7 的「无法合并 foregroundServiceType」问题，
+         已移除冗余声明（保留 uses-permission FOREGROUND_SERVICE 供模块内代码引用）。 -->
 </manifest>

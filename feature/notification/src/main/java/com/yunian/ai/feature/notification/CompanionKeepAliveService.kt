@@ -28,7 +28,6 @@ open class CompanionKeepAliveService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var timedOut = false
 
-    @Volatile private var stopRequested = false
     private val handler = Handler(Looper.getMainLooper())
     private val tickScope = CoroutineScope(SupervisorJob() + AppDispatchers.io)
     private val wakeLockRunnable = object : Runnable {
@@ -71,10 +70,6 @@ open class CompanionKeepAliveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
-        if (intent?.getBooleanExtra(EXTRA_STOP_REQUESTED, false) == true) {
-            stopRequested = true
-        }
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
         return START_STICKY
@@ -104,7 +99,7 @@ open class CompanionKeepAliveService : Service() {
         releaseWakeLock()
         super.onDestroy()
 
-        if (!timedOut && !stopRequested) {
+        if (!timedOut) {
             start(applicationContext)
         }
     }
@@ -118,9 +113,7 @@ open class CompanionKeepAliveService : Service() {
         // 这个时间戳是唯一不依赖 OEM 语义的判据。
         ApplicationExitMonitor.onUserTaskRemoved(applicationContext)
 
-        if (!stopRequested) {
-            start(applicationContext)
-        }
+        start(applicationContext)
     }
 
     private fun acquireWakeLock() {
@@ -206,14 +199,6 @@ open class CompanionKeepAliveService : Service() {
             }
         }
 
-        fun stop(context: Context) {
-
-            val intent = Intent().setClassName(context.packageName, SHELL_SERVICE_CLASS)
-                .putExtra(EXTRA_STOP_REQUESTED, true)
-            context.stopService(intent)
-        }
-
-        private const val EXTRA_STOP_REQUESTED = "stop_requested"
         private const val SHELL_SERVICE_CLASS = "com.yunian.ai.security.SService"
     }
 }

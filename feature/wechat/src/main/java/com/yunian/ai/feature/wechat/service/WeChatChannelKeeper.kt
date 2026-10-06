@@ -43,7 +43,18 @@ object WeChatChannelKeeper {
         true
     }
 
-    fun stop(context: Context) {
+    /**
+     * 停止微信通道（与 [ensureRunning] / [healIfNeeded] 持同一把 [mutex]）。
+     *
+     * 用户点「停止微信通道」时若恰逢 watchdog 30s 周期 [healIfNeeded] 持锁执行
+     * [ensureRunningLocked]，旧实现（非 suspend 未持锁）会先 return，但
+     * [ensureRunningLocked] 随后执行 [WeChatPollingService.start] → FGS 被立即重新拉活，
+     * 用户期望的"停止"失败。改 suspend 持锁后与启动路径串行执行，停止被尊重。
+     *
+     * 两个调用点（WeChatViewModel.kt:61 在 accountFlow collect 内 viewModelScope.launch、
+     * WeChatViewModel.kt:303 在 logout() 内 viewModelScope.launch）都已在 suspend 上下文，零修改。
+     */
+    suspend fun stop(context: Context): Unit = mutex.withLock {
         val app = context.applicationContext
         runCatching { WeChatPollingService.stop(app) }
         runCatching { WeChatPollingWorker.cancel(app) }

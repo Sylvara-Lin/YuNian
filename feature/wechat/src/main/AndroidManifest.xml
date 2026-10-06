@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
-        <service
-            android:name="com.yunian.ai.security.SWechatPollingService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync"
-            android:stopWithTask="false" />
+        <!-- SWechatPollingService 的声明已迁移到 app/src/main/AndroidManifest.xml（specialUse +
+             PROPERTY_SPECIAL_USE_FGS_SUBTYPE），与 SService / QQBotForegroundService /
+             CompanionKeepAliveService 同构。library 模块内的同类声明（dataSync）与 app 冲突，
+             manifest merger 规则下 app wins，本声明对最终 APK 无效；且 dataSync 在 Android 15
+             共享 6h/24h 预算，耗尽后 FGS 全部被杀且后台无法重启（BOOT_COMPLETED 禁启），
+             微信 7x24 长连接轮询必然每日中断。已移除冗余声明（保留 SWechatBootReceiver）。 -->
 
         <receiver
             android:name="com.yunian.ai.security.SWechatBootReceiver"

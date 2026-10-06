@@ -311,7 +311,6 @@ externalNativeBuild {
 | `getGitHubApiUrl()` | 获取 GitHub API 地址 |
 | `isSafe()` | 综合安全检测 |
 | `isMitmDetected()` | 中间人攻击检测 |
-| `verifyRequestIntegrity(String)` | 请求完整性校验 |
 
 **关键说明**：
 - **`System.loadLibrary("lianyu_security")`** 在 `NativeBridge.init` 中执行，如果 `.so` 未编译会导致应用闪退
