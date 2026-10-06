@@ -2240,7 +2240,6 @@ git checkout main && git branch -D fix/holistic-repair</pre>
 <div class="flow"><ul>
   <li><strong>R10</strong>（测试断言漂移）：OnePieceShellPlanTest / ReleaseConfigurationTest.manifestsExposeOnlyShellComponentEntries 当前已失败（既存技术债，与 9 个修复无交互）；另开技术债清理任务。</li>
   <li><strong>真机验证未做</strong>：FGS 生命周期 / WebSocket 心跳时序 / WorkManager 排程 / BOOT_COMPLETED 广播列入《需我人工验证清单》（v3.3 终审为静态调用链审查，真机行为仍需实测）。</li>
-  <li><strong>上游 400「a message has empty content」（运行期独立问题，非本次修复引入）</strong>：App 多条 Agent 链路把历史消息原样序列化进 <code>AgentTurnRequest.historyJson</code>（AgentDialogueCoordinator.kt:353 / AiReplyWorker.kt:174 / CompanionMessageWorker.kt:367 / GroupChatViewModel.kt:1031 / WorkflowEngine.kt:138），未过滤空白内容消息；Rust 侧 agent.rs:1060-1068 对 historyJson 原样透传，上游（Clove/suflow 中转）收到空 content 消息即返回 400 code=11151。主聊天路径（ChatGenerationManager）已由 AiDialogueHistoryPolicy.sanitizeForModel 过滤、不受影响。属既存缺陷，与 9 个修复正交，待另行决策是否修复。</li>
 </ul></div>
 
 <h3>待确认清单（v3.3 终审版）</h3>
@@ -2248,7 +2247,6 @@ git checkout main && git branch -D fix/holistic-repair</pre>
   <li><strong>R10</strong>：是否另开技术债清理任务？</li>
   <li><strong>R13</strong>：是否需要补 review 规范"禁止在 ToolHost 内调用 AgentFacade.* 写方法"？</li>
   <li><strong>R12</strong>：是否在 AgentFacade 文档中注明"取消操作可能在退避期间滞后最多 8s"？</li>
-  <li><strong>上游 400 空内容消息</strong>：5 条未过滤的 historyJson 序列化链路（见《残留风险》）是否修复？（修复方案：各序列化点跳过 blank content 消息 + WorkflowEngine 空提示词快速失败；属最小变更，与本次 9 项修复正交）</li>
 </ul></div>
 
 <div class="footer">
