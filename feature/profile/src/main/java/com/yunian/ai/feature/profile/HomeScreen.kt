@@ -50,6 +50,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -291,11 +294,10 @@ fun HomeScreen(
                                 openMenuSessionId = null
                                 onGroupClick(item.group.id)
                             },
-                            onLongClick = { view ->
-                                val loc = IntArray(2)
-                                view.getLocationInWindow(loc)
-                                menuAnchorPos = IntOffset(loc[0], loc[1])
-                                menuItemHeightPx = view.height
+                            onLongClick = { coords ->
+                                val bounds = coords.boundsInWindow()
+                                menuAnchorPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
+                                menuItemHeightPx = bounds.height.toInt()
                                 menuIsPinned = item.isPinned
                                 menuIsGroup = true
                                 menuSessionName = item.group.name
@@ -314,11 +316,10 @@ fun HomeScreen(
                                 openMenuSessionId = null
                                 onCompanionClick(item.companion.id)
                             },
-                            onLongClick = { view ->
-                                val loc = IntArray(2)
-                                view.getLocationInWindow(loc)
-                                menuAnchorPos = IntOffset(loc[0], loc[1])
-                                menuItemHeightPx = view.height
+                            onLongClick = { coords ->
+                                val bounds = coords.boundsInWindow()
+                                menuAnchorPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
+                                menuItemHeightPx = bounds.height.toInt()
                                 menuIsPinned = item.isPinned
                                 menuIsGroup = false
                                 menuSessionName = item.companion.name
@@ -451,12 +452,12 @@ fun GroupListItem(
     group: ChatGroup,
     isPinned: Boolean,
     onClick: () -> Unit,
-    onLongClick: (android.view.View) -> Unit,
+    onLongClick: (LayoutCoordinates) -> Unit,
     adaptiveSizing: AdaptiveSizing
 ) {
     val colorScheme = AppTheme.colors
     val haptic = LocalHapticFeedback.current
-    val view = LocalView.current
+    var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     AppListItemLayout(
         isStartAligned = true,
@@ -511,12 +512,13 @@ fun GroupListItem(
                 onClick = onClick,
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick(view)
+                    coords?.let { onLongClick(it) }
                 },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .onGloballyPositioned { coords = it },
         slotGap = AppTheme.dimens.avatarGap
     ) {
         Column(
@@ -571,7 +573,7 @@ fun ChatListItem(
     hasUnread: Boolean = false,
     isPinned: Boolean = false,
     onClick: () -> Unit,
-    onLongClick: (android.view.View) -> Unit,
+    onLongClick: (LayoutCoordinates) -> Unit,
     adaptiveSizing: AdaptiveSizing
 ) {
     val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -579,7 +581,7 @@ fun ChatListItem(
 
     val colorScheme = AppTheme.colors
     val haptic = LocalHapticFeedback.current
-    val view = LocalView.current
+    var coords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     AppListItemLayout(
         isStartAligned = true,
@@ -636,12 +638,13 @@ fun ChatListItem(
                 onClick = onClick,
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick(view)
+                    coords?.let { onLongClick(it) }
                 },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .onGloballyPositioned { coords = it },
         slotGap = AppTheme.dimens.avatarGap
     ) {
         Column(
