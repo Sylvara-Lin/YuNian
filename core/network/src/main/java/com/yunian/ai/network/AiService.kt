@@ -2070,6 +2070,7 @@ val systemPrompt = resolvePlaceholders(rawSystemPrompt, companion, config)
         client: OkHttpClient = okHttpClient
     ): ChatCallResult {
         val safeTemp = config.temperature.coerceIn(0.1f, 1.5f)
+        val reasoningEffort = appSettingsStore.getReasoningEffort()
         val baseUrl = normalizeOpenAiBaseUrl(config.baseUrl)
         val url = "${baseUrl.trimEnd('/')}/chat/completions"
         val allKeys = resolveKeysWithPartnerFallback(config).second
@@ -2124,6 +2125,9 @@ val systemPrompt = resolvePlaceholders(rawSystemPrompt, companion, config)
                 }
                 // 复读惩罚（provider 门控）：识图生成同属聊天生成，注入（见 ApiPenalty.kt）。
                 jsonBody.applyRepetitionPenalty(config.provider)
+                // 模型思考程度（provider 门控；识图链路未下沉 Rust，与 Rust native_gateway.rs
+                // 同一证据集，见 ApiReasoning.kt）。off = 不注入 → 与修复前逐字节一致。
+                jsonBody.applyReasoningEffort(config.provider, config.model, reasoningEffort)
                 // 同聊天路径：未显式配置则不发送 max_tokens，避免推理模型的思考过程挤占额度
                 config.maxTokens?.takeIf { it > 0 }?.let { maxTokens ->
                     val maxTokensParam = if (usesMaxCompletionTokens(config.provider)) {

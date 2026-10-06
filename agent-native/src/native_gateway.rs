@@ -437,6 +437,108 @@ impl NativeGateway {
         cfg.provider.eq_ignore_ascii_case("XIAOMI")
     }
 
+    // ── 模型思考程度（reasoning effort）──
+    //
+    // 背景（用户需求「可以调节模型思考程度」）：档位由 Kotlin AppSettingsStore 持久化
+    // （core:common ReasoningEffort：off/low/medium/high），每回合经 settings_json 热更新
+    // 下发（键 `reasoning_effort`，见 AgentFacade.buildSettingsJson）。本模块把该偏好
+    // 翻译成各 provider 的真实请求字段。
+    //
+    // === provider 能力门控（与 core:network ApiPenalty.kt 同构的红线）===
+    // 各 provider 的思考参数名 / 取值 / 默认值不同，部分 provider 对未知字段直接 400，
+    // 或仅在部分模型上支持 → 只对「官方文档确认支持」的通道注入，无法确认的一律不注入
+    // （宁可不发，也不破坏可用性）。逐 provider 取证记录（URL + 结论）：
+    //
+    // —— 白名单 A：OpenAI 语义 `reasoning_effort`（low/medium/high）——
+    //  - [OPENAI] platform.openai.com/docs/guides/reasoning — `reasoning_effort` 仅推理
+    //    模型（o 系 / GPT-5）支持，非推理模型传参会 400（unsupported_parameter）。
+    //    门控只能拿到 provider 拿不到模型推理能力 → 追加模型名启发式
+    //    [reasoning_model_gate]（o1/o3/o4/gpt-5 前缀；与 Kotlin AiService
+    //    `requiresFixedTemperature` 的模型名门控同构），非推理模型一律不注入。
+    //  - [DEEPSEEK] api-docs.deepseek.com/api/create-chat-completion — `reasoning_effort`
+    //    取值 none/low/high/max，**默认 high**（medium/xhigh 兼容映射为 high、minimal
+    //    映射为 low）；`thinking.type` 默认 enabled；本项目默认模型 `deepseek-v4-pro`
+    //    即文档枚举值 → low/medium/high 三档直接注入。
+    //  - [OPENROUTER] openrouter.ai/docs/api-reference/parameters — `reasoning_effort`
+    //    枚举 xhigh/high/medium/low/minimal/none，「OpenAI-style ... when supported by
+    //    the model」，且缺失参数不上传、参数由其向下游归一 → 低/中/高三档注入。
+    //
+    // —— 白名单 B：Anthropic 独立字段（extended thinking，不用 reasoning_effort）——
+    //  - [ANTHROPIC] docs.anthropic.com/en/docs/build-with-claude/extended-thinking —
+    //    `thinking: {type: "enabled", budget_tokens: N}`；硬约束：**budget_tokens <
+    //    max_tokens**，且启用 thinking 时 **temperature/top_p 不可自定义**（temperature
+    //    只能为 1 或不传）。→ 档位映射 budget（low=2048 / medium=8192 / high=24576），
+    //    同步抬高 max_tokens 至 budget+1024、省略 temperature（见
+    //    [reasoning_budget_tokens] 与 `build_anthropic_body` 的注入点）。
+    //
+    // —— 黑名单：不注入（不支持 / 明确报错 / 无法确认 / 模型相关）——
+    //  - [KIMI] platform.kimi.com — kimi-k2.6 思考配置固定，传参即报错（与复读惩罚同结论）。
+    //  - [GEMINI] Google OpenAI 兼容层 reasoning 参数仅部分思考模型可用，非思考模型
+    //    行为不可确认（ai.google.dev/gemini-api/docs/openai 当前不可达取证）→ 保守不注入。
+    //  - [ZHIPU] open.bigmodel.cn — GLM-4.5/4.6 文档为 `thinking: {type}` 二值开关，
+    //    无 effort 档位，无法表达「程度」→ 不注入。
+    //  - [SILICONFLOW] / [DASHSCOPE] — enable_thinking + thinking_budget，且默认值随
+    //    模型变化（qwen3 默认开）→ 按「模型相关一律保守」红线不注入。
+    //  - [XIAOMI] / [GROQ] / [IFLYTEK] — 思考参数文档不可确认或仅部分模型支持
+    //    （Groq 仅 gpt-oss 系支持，默认 llama 系会拒绝）→ 不注入。
+    //  - [PARTNER] / [CUSTOM] — 私有网关 / 任意 relay，未知字段风险（与复读惩罚同结论）。
+    //
+    // 这是**唯一**的思考程度注入决策点：禁止在请求构造处散落字段判断。
+
+    /// settings_json 的思考档位 → OpenAI 语义 wire 值；off / 缺省 / 非法值 = None（不注入）
+    fn reasoning_effort_wire(&self) -> Option<&'static str> {
+        match self
+            .cfg
+            .settings()
+            .get("reasoning_effort")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_ascii_lowercase())
+            .as_deref()
+        {
+            Some("low") => Some("low"),
+            Some("medium") => Some("medium"),
+            Some("high") => Some("high"),
+            _ => None,
+        }
+    }
+
+    /// OpenAI 兼容 `/chat/completions` 的 `reasoning_effort` 取值（None = 不注入）。
+    /// provider 门控依据见本模块顶部取证记录。
+    fn reasoning_effort_param(&self, cfg: &ApiConfigRow) -> Option<&'static str> {
+        let effort = self.reasoning_effort_wire()?;
+        match cfg.provider.trim().to_ascii_uppercase().as_str() {
+            // OPENAI：仅推理模型（o 系 / GPT-5）支持，非推理模型传参 400
+            "OPENAI" => {
+                if reasoning_model_gate(&cfg.model) {
+                    Some(effort)
+                } else {
+                    None
+                }
+            }
+            "DEEPSEEK" | "OPENROUTER" => Some(effort),
+            _ => None,
+        }
+    }
+
+    /// Anthropic extended thinking 的 budget_tokens（None = 不注入）。
+    /// 取值分档依据：Anthropic 要求 budget_tokens >= 1024 且 < max_tokens；
+    /// 2048/8192/24576 对应轻/中/重三档，注入点同步保证 max_tokens > budget。
+    fn reasoning_budget_tokens(&self) -> Option<i64> {
+        match self
+            .cfg
+            .settings()
+            .get("reasoning_effort")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_ascii_lowercase())
+            .as_deref()
+        {
+            Some("low") => Some(2048),
+            Some("medium") => Some(8192),
+            Some("high") => Some(24576),
+            _ => None,
+        }
+    }
+
     // ── 请求构建 ──
 
     /// 组装 LLM 请求体（OpenAI 兼容）。messages 首条为 system。
@@ -504,6 +606,10 @@ impl NativeGateway {
                 "max_tokens"
             };
             body[param] = json!(max_tokens);
+        }
+        // 模型思考程度（provider 门控 + 模型名门控；依据见本文件 reasoning effort 取证记录）
+        if let Some(effort) = self.reasoning_effort_param(cfg) {
+            body["reasoning_effort"] = json!(effort);
         }
         // 工具
         if let Some(tools_arr) = tools.as_array() {
@@ -691,13 +797,27 @@ impl NativeGateway {
         } else {
             format!("{}\n\n{}", system_prompt.trim_end(), runtime_system.join("\n\n"))
         };
+        // 模型思考程度（Anthropic extended thinking；硬约束 budget_tokens < max_tokens，
+        // 且启用后 temperature/top_p 不可自定义 → 省略 temperature 交给服务端默认）
+        let thinking_budget = self.reasoning_budget_tokens();
+        let effective_max_tokens = match thinking_budget {
+            Some(budget) => cfg.max_tokens.unwrap_or(800).max(budget + 1024),
+            None => cfg.max_tokens.unwrap_or(800),
+        };
         let mut body = json!({
             "model": cfg.model,
             "system": system_text,
             "messages": anthro_messages,
-            "max_tokens": cfg.max_tokens.unwrap_or(800),
+            "max_tokens": effective_max_tokens,
             "temperature": cfg.temperature.clamp(0.1, 1.5),
         });
+        if let Some(budget) = thinking_budget {
+            body["thinking"] = json!({"type": "enabled", "budget_tokens": budget});
+            // Anthropic 文档：thinking enabled 时 temperature 只能为 1 或不传 → 移除
+            if let Some(obj) = body.as_object_mut() {
+                obj.remove("temperature");
+            }
+        }
         // 工具：OpenAI function 结构 → Anthropic tools（input_schema）。
         // tool_choice="none"（工作流/单轮生成场景）表示本轮不暴露工具，直接省略 tools。
         let choice_norm = tool_choice.trim().trim_matches('"');
@@ -1462,6 +1582,21 @@ fn parse_anthropic_response(body: &str) -> String {
         "usage": v.get("usage").cloned().unwrap_or(Value::Null),
     })
     .to_string()
+}
+
+/// 模型名是否像 OpenAI 推理模型（o1/o3/o4 系 / GPT-5 系）。
+///
+/// 仅 OPENAI 通道需要：OpenAI 对非推理模型传 `reasoning_effort` 返回 400
+/// （unsupported_parameter），而门控只能拿到 provider 与 model 字符串 →
+/// 模型名启发式是「不破坏默认 gpt-4o-mini 可用性」的唯一低成本手段
+/// （与 Kotlin `AiService.requiresFixedTemperature` 的模型名门控同构）。
+fn reasoning_model_gate(model: &str) -> bool {
+    let m = model.trim().to_ascii_lowercase();
+    m.starts_with("o1")
+        || m.starts_with("o3")
+        || m.starts_with("o4")
+        || m.starts_with("gpt-5")
+        || m.starts_with("gpt5")
 }
 
 /// 每轮重建并替换 persona system：移除旧 persona system 消息（保留 [回合状态 状态消息），
@@ -2374,6 +2509,225 @@ mod tests {
         assert!(body.get("tools").is_none(), "{body}");
     }
 
+    // ── 模型思考程度（reasoning effort）──
+
+    fn reasoning_row(provider: &str, model: &str) -> ApiConfigRow {
+        ApiConfigRow {
+            provider: provider.into(),
+            api_key: "sk-1".into(),
+            extra_api_keys: String::new(),
+            base_url: "https://api.example.com/v1".into(),
+            model: model.into(),
+            temperature: 0.7,
+            max_tokens: None,
+            format_hint: String::new(),
+        }
+    }
+
+    fn reasoning_request() -> crate::agent::AgentTurnRequest {
+        crate::agent::AgentTurnRequest {
+            group_id: None,
+            history_json: "[]".to_string(),
+            tools: vec![],
+            max_rounds: 1,
+            tool_choice: "auto".to_string(),
+            sticker_probability: 0,
+            image: None,
+            system_prompt: None,
+            companion_name_map_json: None,
+        }
+    }
+
+    /// 档位存在且 provider 在白名单 → reasoning_effort 注入（DEEPSEEK 三档）
+    #[test]
+    fn openai_body_injects_reasoning_effort_for_whitelisted_provider() {
+        for (effort, expected) in [
+            ("low", "low"),
+            ("medium", "medium"),
+            ("high", "high"),
+        ] {
+            let gw = NativeGateway::new(testutil::global_config_with_settings(
+                "",
+                &format!(r#"{{"reasoning_effort": "{effort}"}}"#),
+            ));
+            let body = gw.build_openai_body(
+                &reasoning_row("DEEPSEEK", "deepseek-v4-pro"),
+                &[],
+                &json!([]),
+                "auto",
+                &reasoning_request(),
+                false,
+            );
+            assert_eq!(
+                body["reasoning_effort"], expected,
+                "effort={effort} 应注入 {expected}"
+            );
+        }
+    }
+
+    /// 档位关闭 / 缺省 / 非法 → 一律不注入（保守红线：宁可少发也不 400）
+    #[test]
+    fn openai_body_skips_reasoning_effort_when_off_or_invalid() {
+        for settings in [
+            r#"{"role": "GIRLFRIEND"}"#.to_string(),
+            r#"{"reasoning_effort": "off"}"#.to_string(),
+            r#"{"reasoning_effort": "ultra"}"#.to_string(),
+            r#"{"reasoning_effort": ""}"#.to_string(),
+        ] {
+            let gw =
+                NativeGateway::new(testutil::global_config_with_settings("", &settings));
+            let body = gw.build_openai_body(
+                &reasoning_row("DEEPSEEK", "deepseek-v4-pro"),
+                &[],
+                &json!([]),
+                "auto",
+                &reasoning_request(),
+                false,
+            );
+            assert!(
+                body.get("reasoning_effort").is_none(),
+                "settings={settings} 不应注入 reasoning_effort: {body}"
+            );
+        }
+    }
+
+    /// OPENAI 模型名门控：非推理模型（默认 gpt-4o-mini）传参会 400 → 不注入；
+    /// 推理模型（o 系 / GPT-5）注入。
+    #[test]
+    fn openai_body_reasoning_effort_gated_by_openai_model_name() {
+        for (model, expect) in [
+            ("gpt-4o-mini", false),
+            ("gpt-4.1", false),
+            ("o3-mini", true),
+            ("o1", true),
+            ("o4-mini", true),
+            ("gpt-5", true),
+            ("GPT-5.1", true),
+        ] {
+            let gw = NativeGateway::new(testutil::global_config_with_settings(
+                "",
+                r#"{"reasoning_effort": "high"}"#,
+            ));
+            let body = gw.build_openai_body(
+                &reasoning_row("OPENAI", model),
+                &[],
+                &json!([]),
+                "auto",
+                &reasoning_request(),
+                false,
+            );
+            assert_eq!(
+                body.get("reasoning_effort").is_some(),
+                expect,
+                "OPENAI model={model} expect_inject={expect}: {body}"
+            );
+        }
+    }
+
+    /// 黑名单 provider（KIMI/GROQ/ZHIPU/GEMINI/PARTNER/CUSTOM/IFLYTEK/XIAOMI/
+    /// SILICONFLOW/DASHSCOPE）一律不注入
+    #[test]
+    fn openai_body_skips_reasoning_effort_for_blacklisted_providers() {
+        for provider in [
+            "KIMI",
+            "GROQ",
+            "ZHIPU",
+            "GEMINI",
+            "PARTNER",
+            "CUSTOM",
+            "IFLYTEK",
+            "XIAOMI",
+            "SILICONFLOW",
+            "DASHSCOPE",
+        ] {
+            let gw = NativeGateway::new(testutil::global_config_with_settings(
+                "",
+                r#"{"reasoning_effort": "medium"}"#,
+            ));
+            let body = gw.build_openai_body(
+                &reasoning_row(provider, "some-model"),
+                &[],
+                &json!([]),
+                "auto",
+                &reasoning_request(),
+                false,
+            );
+            assert!(
+                body.get("reasoning_effort").is_none(),
+                "provider={provider} 不应注入 reasoning_effort: {body}"
+            );
+        }
+    }
+
+    /// Anthropic extended thinking：budget 映射 + max_tokens 抬高 + temperature 移除
+    #[test]
+    fn anthropic_body_enables_thinking_with_budget_and_drops_temperature() {
+        for (effort, budget) in [("low", 2048), ("medium", 8192), ("high", 24576)] {
+            let gw = NativeGateway::new(testutil::global_config_with_settings(
+                "",
+                &format!(r#"{{"reasoning_effort": "{effort}"}}"#),
+            ));
+            let body = gw.build_anthropic_body(
+                &reasoning_row("ANTHROPIC", "claude-sonnet-4-5"),
+                &[],
+                "SYSTEM",
+                &reasoning_request(),
+                &json!([]),
+                "auto",
+            );
+            assert_eq!(body["thinking"]["type"], "enabled", "effort={effort}");
+            assert_eq!(body["thinking"]["budget_tokens"], budget, "effort={effort}");
+            // 硬约束 budget_tokens < max_tokens：默认 800 不足以容纳预算 → 必须抬高
+            assert!(
+                body["max_tokens"].as_i64().unwrap() > budget,
+                "effort={effort} max_tokens 必须 > budget: {body}"
+            );
+            // thinking enabled 时 temperature 不可自定义 → 必须移除
+            assert!(
+                body.get("temperature").is_none(),
+                "effort={effort} 启用 thinking 后不应传 temperature: {body}"
+            );
+        }
+    }
+
+    /// Anthropic 档位关闭 → 不注入 thinking，temperature 保持原行为
+    #[test]
+    fn anthropic_body_skips_thinking_when_off() {
+        let gw = NativeGateway::new(testutil::global_config(""));
+        let body = gw.build_anthropic_body(
+            &reasoning_row("ANTHROPIC", "claude-sonnet-4-5"),
+            &[],
+            "SYSTEM",
+            &reasoning_request(),
+            &json!([]),
+            "auto",
+        );
+        assert!(body.get("thinking").is_none(), "{body}");
+        assert_eq!(body["temperature"], 0.7);
+        assert_eq!(body["max_tokens"], 800);
+    }
+
+    /// 用户已配置大 max_tokens 时不得被思考预算压低（只抬不压）
+    #[test]
+    fn anthropic_body_thinking_keeps_larger_user_max_tokens() {
+        let gw = NativeGateway::new(testutil::global_config_with_settings(
+            "",
+            r#"{"reasoning_effort": "low"}"#,
+        ));
+        let mut row = reasoning_row("ANTHROPIC", "claude-sonnet-4-5");
+        row.max_tokens = Some(100_000);
+        let body = gw.build_anthropic_body(
+            &row,
+            &[],
+            "SYSTEM",
+            &reasoning_request(),
+            &json!([]),
+            "auto",
+        );
+        assert_eq!(body["max_tokens"], 100_000);
+        assert_eq!(body["thinking"]["budget_tokens"], 2048);
+    }
+
     /// 解析：tool_use 块必须产出可执行的 tool_calls（此前被整体丢弃 → 工具永不执行）。
     #[test]
     fn anthropic_parse_extracts_tool_use_blocks() {
@@ -2735,6 +3089,14 @@ pub(crate) mod testutil {
             stickers: vec!["happy.png".to_string(), "shy.png".to_string()],
             credentials_json: "{}".to_string(),
             orchestrator: None,
+        }
+    }
+
+    /// 同 [global_config]，但覆盖 settings_json（思考程度等热更新字段的测试入口）
+    pub fn global_config_with_settings(db: &str, settings_json: &str) -> AgentGlobalConfig {
+        AgentGlobalConfig {
+            settings_json: settings_json.to_string(),
+            ..global_config(db)
         }
     }
 

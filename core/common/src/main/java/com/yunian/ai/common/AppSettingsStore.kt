@@ -35,6 +35,13 @@ class AppSettingsStore(context: Context) {
         private val AUTO_COLLAPSE_REASONING_KEY = booleanPreferencesKey("auto_collapse_reasoning")
         private const val DEFAULT_AUTO_COLLAPSE_REASONING = true
 
+        /**
+         * 模型思考程度（reasoning effort）：off / low / medium / high。
+         * 默认 off = 不注入任何思考参数（对既有用户零行为变化）。
+         */
+        private val REASONING_EFFORT_KEY = stringPreferencesKey("reasoning_effort")
+        private val DEFAULT_REASONING_EFFORT = ReasoningEffort.OFF.wire
+
         private val VISION_ENABLED_KEY = booleanPreferencesKey("vision_enabled")
         private const val DEFAULT_VISION_ENABLED = true
 
@@ -259,6 +266,21 @@ class AppSettingsStore(context: Context) {
 
     suspend fun setAutoCollapseReasoning(enabled: Boolean) {
         dataStore.edit { prefs -> prefs[AUTO_COLLAPSE_REASONING_KEY] = enabled }
+    }
+
+    /**
+     * 模型思考程度（reasoning effort）wire 值（off/low/medium/high）。
+     * 每回合经 settings_json 下发 Rust，由 Rust 按 provider 能力门控注入请求字段。
+     */
+    val reasoningEffortFlow: Flow<String> = dataStore.data.map { prefs ->
+        prefs[REASONING_EFFORT_KEY] ?: DEFAULT_REASONING_EFFORT
+    }
+
+    suspend fun getReasoningEffort(): String = reasoningEffortFlow.first()
+
+    suspend fun setReasoningEffort(wire: String) {
+        val safe = ReasoningEffort.fromWire(wire).wire
+        dataStore.edit { prefs -> prefs[REASONING_EFFORT_KEY] = safe }
     }
 
     suspend fun saveThinkingSettings(

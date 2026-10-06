@@ -796,6 +796,7 @@ class ChatGenerationManager private constructor(
             val settingsJson = com.yunian.ai.agent.AgentFacade.buildSettingsJson(
                 role = role,
                 imageGenRules = imageGenRules,
+                reasoningEffort = appSettingsStore.getReasoningEffort(),
             )
             val stickers = com.yunian.ai.agent.sticker.StickerPreferenceFacade
                 .availableTagsWithFallback(application)

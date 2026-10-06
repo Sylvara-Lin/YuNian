@@ -430,12 +430,14 @@ private fun ThinkingSettingsDialog(
     val autoCollapse by viewModel.autoCollapseReasoning.collectAsStateWithLifecycle()
     val respField by viewModel.responseField.collectAsStateWithLifecycle()
     val reqField by viewModel.requestField.collectAsStateWithLifecycle()
+    val reasoningEffort by viewModel.reasoningEffort.collectAsStateWithLifecycle()
 
     var localShow by remember { mutableStateOf(showReasoning) }
     var localSend by remember { mutableStateOf(sendReasoning) }
     var localCollapse by remember { mutableStateOf(autoCollapse) }
     var localResp by remember { mutableStateOf(respField) }
     var localReq by remember { mutableStateOf(reqField) }
+    var localEffort by remember { mutableStateOf(reasoningEffort) }
     var isSaving by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -445,6 +447,11 @@ private fun ThinkingSettingsDialog(
         title = { Text(stringResource(R.string.thinking_settings)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                ReasoningEffortPicker(
+                    selected = localEffort,
+                    onSelect = { localEffort = it },
+                    enabled = !isSaving,
+                )
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -512,7 +519,8 @@ private fun ThinkingSettingsDialog(
                                 autoCollapseReasoning = localCollapse,
                                 responseField = localResp,
                                 requestField = localReq,
-                                sendReasoning = localSend
+                                sendReasoning = localSend,
+                                reasoningEffort = localEffort
                             ).join()
                             onDismiss()
                         } finally {

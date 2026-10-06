@@ -106,6 +106,7 @@ fun AppSettingsScreen(
     val autoCollapse by thinkingViewModel.autoCollapseReasoning.collectAsStateWithLifecycle()
     val respField by thinkingViewModel.responseField.collectAsStateWithLifecycle()
     val reqField by thinkingViewModel.requestField.collectAsStateWithLifecycle()
+    val effort by thinkingViewModel.reasoningEffort.collectAsStateWithLifecycle()
 
     var showReasoningDialog by remember { mutableStateOf(false) }
     var isVisible by remember { mutableStateOf(false) }
@@ -217,6 +218,7 @@ fun AppSettingsScreen(
         var localCollapse by remember { mutableStateOf(autoCollapse) }
         var localResp by remember { mutableStateOf(respField) }
         var localReq by remember { mutableStateOf(reqField) }
+        var localEffort by remember { mutableStateOf(effort) }
         var isSaving by remember { mutableStateOf(false) }
 
         AlertDialog(
@@ -226,6 +228,11 @@ fun AppSettingsScreen(
             title = { Text("思考设置") },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    ReasoningEffortPicker(
+                        selected = localEffort,
+                        onSelect = { localEffort = it },
+                        enabled = !isSaving,
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -294,7 +301,8 @@ fun AppSettingsScreen(
                                     autoCollapseReasoning = localCollapse,
                                     responseField = localResp,
                                     requestField = localReq,
-                                    sendReasoning = localSend
+                                    sendReasoning = localSend,
+                                    reasoningEffort = localEffort
                                 ).join()
                                 showReasoningDialog = false
                             } finally {

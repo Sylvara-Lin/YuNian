@@ -950,7 +950,10 @@ class GroupChatViewModel(
         val isPartner = activeApi?.provider == ApiProvider.PARTNER
         AgentFacade.syncRuntimeConfig(
             appContext,
-            AgentFacade.buildSettingsJson(role = "GIRLFRIEND"),
+            AgentFacade.buildSettingsJson(
+                role = "GIRLFRIEND",
+                reasoningEffort = com.yunian.ai.common.AppSettingsStore(appContext).getReasoningEffort(),
+            ),
             com.yunian.ai.agent.sticker.StickerPreferenceFacade.availableTagsWithFallback(appContext),
             AgentFacade.buildCredentialsJson(
                 sessionToken = if (isPartner) partnerSession?.token else null,

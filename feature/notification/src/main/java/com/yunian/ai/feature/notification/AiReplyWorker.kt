@@ -160,7 +160,10 @@ class AiReplyWorker(
         val isPartner = activeApi?.provider == com.yunian.ai.database.model.ApiProvider.PARTNER
         com.yunian.ai.agent.AgentFacade.syncRuntimeConfig(
             applicationContext,
-            com.yunian.ai.agent.AgentFacade.buildSettingsJson(role = "GIRLFRIEND"),
+            com.yunian.ai.agent.AgentFacade.buildSettingsJson(
+                role = "GIRLFRIEND",
+                reasoningEffort = com.yunian.ai.common.AppSettingsStore(applicationContext).getReasoningEffort(),
+            ),
             stickers,
             com.yunian.ai.agent.AgentFacade.buildCredentialsJson(
                 sessionToken = if (isPartner) partnerSession?.token else null,

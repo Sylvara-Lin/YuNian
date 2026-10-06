@@ -29,6 +29,7 @@ import com.yunian.ai.agent.uniffi.ToolCategory
 import com.yunian.ai.agent.uniffi.ToolDefinition
 import com.yunian.ai.agent.uniffi.ToolHost
 import com.yunian.ai.common.DeviceIdProvider
+import com.yunian.ai.common.ReasoningEffort
 import com.yunian.ai.domain.CapabilityGrantStore
 import com.yunian.ai.domain.ServiceRegistry
 
@@ -181,15 +182,19 @@ object AgentFacade {
      * - `role`：伴侣角色（L1 身份映射，默认 GIRLFRIEND）
      * - `timezone`：设备时区（L0 动态环境上下文，如 Asia/Shanghai）
      * - `working_memory_limit`：WORKING 短期记忆注入上限（默认 200）
+     * - `reasoning_effort`：模型思考程度（off/low/medium/high，见 ReasoningEffort）；
+     *   Rust 按 provider 能力门控注入请求字段，不支持的 provider 不注入
      * （inner_thought / ntp_time 已废弃移除；reasoning_field / yandere 等暂未被 Rust 消费，不传）
      */
     fun buildSettingsJson(
         role: String = "GIRLFRIEND",
         imageGenRules: String? = null,
+        reasoningEffort: String = ReasoningEffort.OFF.wire,
     ): String = org.json.JSONObject().apply {
         put("role", role)
         put("timezone", java.util.TimeZone.getDefault().id)
         put("working_memory_limit", 200)
+        put("reasoning_effort", ReasoningEffort.fromWire(reasoningEffort).wire)
         // 生图协议文本（Kotlin ImageGenTriggerLogic.systemRules 产物）。
         // 提示词组装已下沉 Rust：旧做法是把协议拼进 aiCompanion.systemPrompt 交给 Kotlin
         // 请求链路，Agent 路径不经过那里，于是「模型说不会画画、但关键词仍触发生图」。

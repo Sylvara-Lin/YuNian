@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.yunian.ai.common.AppSettingsStore
+import com.yunian.ai.common.ReasoningEffort
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,12 +30,17 @@ class ThinkingSettingsViewModel(application: Application) : AndroidViewModel(app
     val requestField: StateFlow<String> = store.reasoningRequestFieldFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "reasoning_content")
 
+    /** 模型思考程度 wire 值（off/low/medium/high，见 ReasoningEffort） */
+    val reasoningEffort: StateFlow<String> = store.reasoningEffortFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReasoningEffort.OFF.wire)
+
     fun saveThinkingSettings(
         showReasoning: Boolean,
         autoCollapseReasoning: Boolean,
         responseField: String,
         requestField: String,
-        sendReasoning: Boolean
+        sendReasoning: Boolean,
+        reasoningEffort: String,
     ): Job = viewModelScope.launch {
         store.saveThinkingSettings(
             showReasoning = showReasoning,
@@ -43,5 +49,6 @@ class ThinkingSettingsViewModel(application: Application) : AndroidViewModel(app
             requestField = requestField,
             sendReasoning = sendReasoning
         )
+        store.setReasoningEffort(reasoningEffort)
     }
 }

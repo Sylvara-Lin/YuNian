@@ -339,6 +339,7 @@ class AgentDialogueCoordinator(
             context,
             AgentFacade.buildSettingsJson(
                 role = "GIRLFRIEND",
+                reasoningEffort = com.yunian.ai.common.AppSettingsStore(context).getReasoningEffort(),
             ),
             stickers,
             AgentFacade.buildCredentialsJson(

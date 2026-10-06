@@ -102,6 +102,9 @@ const FORGET_STALE_DAYS_MS: i64 = 30 * 86_400_000;
 const WORKING_MERGE_MAX: usize = 5;
 /// 去重阈值：bigram Jaccard > 0.75 视为重复
 const DEDUP_JACCARD: f32 = 0.75;
+/// embed_text query 截断上限（字符数）：与 Kotlin MemoryStoreImpl.embedText 的
+/// 512 字符截断一致，双保险防 UniFFI RustBuffer.ByValue 超长 String 的 SIGBUS 风险
+const EMBED_QUERY_MAX_CHARS: usize = 512;
 
 #[uniffi::export]
 impl MemorySelector {
@@ -121,11 +124,21 @@ impl MemorySelector {
         let now = now_ms();
 
         // query embedding（仅 query 非空时尝试；失败/不支持时跳过语义分）
+        //
+        // 截断防御（荣耀 HONOR ANN-AN00 SIGBUS/BUS_ADRERR 根治）：UniFFI 回调以
+        // RustBuffer.ByValue 传 String，超长文本存在内存对齐风险。Kotlin 侧
+        // MemoryStoreImpl.embedText 已把 query 截到 512 字符（运行时缓解）；
+        // 这里在 Rust 决策侧同样截断再回调——双保险根治，且语义检索只需要前几百字。
         let q_emb: Option<Vec<f32>> = if q.is_empty() {
             None
         } else {
+            let embed_query: String = if query.chars().count() > EMBED_QUERY_MAX_CHARS {
+                query.chars().take(EMBED_QUERY_MAX_CHARS).collect()
+            } else {
+                query.clone()
+            };
             self.store
-                .embed_text(query.clone())
+                .embed_text(embed_query)
                 .and_then(|s| serde_json::from_str::<Vec<f32>>(&s).ok())
         };
 
@@ -563,6 +576,8 @@ mod tests {
         memories: std::sync::Mutex<Vec<MemoryMeta>>,
         last_activity_at: i64,
         last_consolidated_at: i64,
+        /// 记录 embed_text 收到的文本（截断防御取证用）
+        embed_calls: std::sync::Mutex<Vec<String>>,
     }
 
     impl MockStore {
@@ -571,6 +586,7 @@ mod tests {
                 memories: std::sync::Mutex::new(memories),
                 last_activity_at: 0,
                 last_consolidated_at: 0,
+                embed_calls: std::sync::Mutex::new(Vec::new()),
             }
         }
         fn with_activity(memories: Vec<MemoryMeta>, last_activity_at: i64, last_consolidated_at: i64) -> Self {
@@ -578,6 +594,7 @@ mod tests {
                 memories: std::sync::Mutex::new(memories),
                 last_activity_at,
                 last_consolidated_at,
+                embed_calls: std::sync::Mutex::new(Vec::new()),
             }
         }
     }
@@ -613,7 +630,8 @@ mod tests {
             // 通过内部可变不可直接改字段，这里用记忆锁写哨兵，测试仅验证返回值
             true
         }
-        fn embed_text(&self, _text: String) -> Option<String> {
+        fn embed_text(&self, text: String) -> Option<String> {
+            self.embed_calls.lock().unwrap().push(text);
             None
         }
     }
@@ -677,6 +695,41 @@ mod tests {
         // 用 mock 不提供 query embedding，语义分跳过；验证 build 不 panic
         let ctxs = selector.select("猫".to_string(), r#"{"scope":"COMPANION","source_id":1}"#.to_string(), 5);
         assert!(!ctxs.is_empty());
+    }
+
+    /// SIGBUS 根治回归（荣耀 HONOR ANN-AN00）：超长 query 必须在回调 Kotlin 前截断到
+    /// EMBED_QUERY_MAX_CHARS 字符（UniFFI RustBuffer.ByValue 传超长 String 有对齐风险）。
+    #[test]
+    fn select_truncates_query_before_embed_callback() {
+        let store = std::sync::Arc::new(MockStore::new(vec![meta(
+            "m1",
+            "用户喜欢喝奶茶",
+            "PREFERENCE",
+            0.8,
+            now(),
+        )]));
+        let selector = MemorySelector::new(store.clone());
+        let long_query = "奶茶".repeat(1000); // 4000 字符
+        assert!(long_query.chars().count() > EMBED_QUERY_MAX_CHARS);
+        let _ = selector.select(
+            long_query,
+            r#"{"scope":"COMPANION","source_id":1}"#.to_string(),
+            5,
+        );
+        // 短 query 原样不截断
+        let _ = selector.select(
+            "奶茶".to_string(),
+            r#"{"scope":"COMPANION","source_id":1}"#.to_string(),
+            5,
+        );
+        let calls = store.embed_calls.lock().unwrap();
+        assert_eq!(calls.len(), 2, "两次非空 query 各应回调一次 embed_text");
+        assert_eq!(
+            calls[0].chars().count(),
+            EMBED_QUERY_MAX_CHARS,
+            "超长 query 必须截断到 {EMBED_QUERY_MAX_CHARS} 字符"
+        );
+        assert_eq!(calls[1], "奶茶", "短 query 不应被截断");
     }
 
     #[test]
