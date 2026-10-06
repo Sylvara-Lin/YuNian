@@ -64,4 +64,15 @@ interface HomeSessionListOperator {
      * 顶置状态表的响应式流（顶置/取消顶置时自动刷新）。
      */
     fun observePinned(type: HomeSessionType): Flow<Map<Long, Boolean>>
+
+    /**
+     * 当前顶置时刻表（sessionId -> pinnedAtMs），供多顶置时按置顶时间升序排序用。
+     * 最早置顶的在最上（值小），后顶的排在已顶的下面（值大）。
+     */
+    suspend fun pinnedAtMsMap(type: HomeSessionType): Map<Long, Long>
+
+    /**
+     * 顶置时刻表的响应式流（顶置/取消顶置时自动刷新）。
+     */
+    fun observePinnedAtMs(type: HomeSessionType): Flow<Map<Long, Long>>
 }

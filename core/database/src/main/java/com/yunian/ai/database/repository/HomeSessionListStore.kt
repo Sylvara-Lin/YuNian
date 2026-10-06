@@ -39,9 +39,6 @@ class HomeSessionListStore(
     private fun longMapSerializer(): KSerializer<Map<Long, Long>> =
         MapSerializer(Long.serializer(), Long.serializer())
 
-    private fun boolMapSerializer(): KSerializer<Map<Long, Boolean>> =
-        MapSerializer(Long.serializer(), Boolean.serializer())
-
     private fun hiddenKey(type: HomeSessionType): String = when (type) {
         HomeSessionType.CHAT -> KEY_HIDDEN_CHAT
         HomeSessionType.GROUP -> KEY_HIDDEN_GROUP
@@ -68,9 +65,14 @@ class HomeSessionListStore(
 
     override suspend fun togglePinned(sessionId: Long, type: HomeSessionType) {
         val key = pinnedKey(type)
-        val map = appMetaStore.get(key, boolMapSerializer()) ?: emptyMap()
-        val current = map[sessionId] == true
-        appMetaStore.put(key, map + (sessionId to !current), boolMapSerializer())
+        val map = appMetaStore.get(key, longMapSerializer()) ?: emptyMap()
+        val current = map[sessionId] != null
+        if (current) {
+            appMetaStore.put(key, map - sessionId, longMapSerializer())
+        } else {
+            // 记录顶置时间戳：多顶置时按置顶时间升序排列（最早置顶在最上）
+            appMetaStore.put(key, map + (sessionId to System.currentTimeMillis()), longMapSerializer())
+        }
     }
 
     override suspend fun hideConversation(sessionId: Long, type: HomeSessionType) {
@@ -94,13 +96,31 @@ class HomeSessionListStore(
             }
 
     override suspend fun pinnedMap(type: HomeSessionType): Map<Long, Boolean> =
-        appMetaStore.get(pinnedKey(type), boolMapSerializer()) ?: emptyMap()
+        appMetaStore.get(pinnedKey(type), longMapSerializer())?.mapValues { true } ?: emptyMap()
 
     override fun observePinned(type: HomeSessionType): Flow<Map<Long, Boolean>> =
         appMetaDao.getFlow(pinnedKey(type))
             .map { raw ->
                 raw?.let {
-                    runCatching { json.decodeFromString(boolMapSerializer(), it) }
+                    runCatching { json.decodeFromString(longMapSerializer(), it) }
+                        .onFailure { e -> SecureLog.e(TAG, "decode failed, treating as absent. key=${pinnedKey(type)}", e) }
+                        .getOrNull()
+                        ?.mapValues { true }
+                } ?: emptyMap()
+            }
+
+    /**
+     * 当前顶置时刻表（sessionId -> pinnedAtMs），供多顶置时按置顶时间升序排序用。
+     * 最早置顶的在最上（值小），后顶的排在已顶的下面（值大）。
+     */
+    override suspend fun pinnedAtMsMap(type: HomeSessionType): Map<Long, Long> =
+        appMetaStore.get(pinnedKey(type), longMapSerializer()) ?: emptyMap()
+
+    override fun observePinnedAtMs(type: HomeSessionType): Flow<Map<Long, Long>> =
+        appMetaDao.getFlow(pinnedKey(type))
+            .map { raw ->
+                raw?.let {
+                    runCatching { json.decodeFromString(longMapSerializer(), it) }
                         .onFailure { e -> SecureLog.e(TAG, "decode failed, treating as absent. key=${pinnedKey(type)}", e) }
                         .getOrNull()
                 } ?: emptyMap()

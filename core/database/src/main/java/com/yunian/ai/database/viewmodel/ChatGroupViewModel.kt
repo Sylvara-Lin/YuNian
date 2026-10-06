@@ -45,8 +45,9 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
             repository.getAllGroups(),
             summaryDao.getSummariesByType("group"),
             sessionOperator.observeHiddenAt(HomeSessionType.GROUP),
-            sessionOperator.observePinned(HomeSessionType.GROUP)
-        ) { groupList, summaries, hiddenAt, pinnedAt ->
+            sessionOperator.observePinned(HomeSessionType.GROUP),
+            sessionOperator.observePinnedAtMs(HomeSessionType.GROUP)
+        ) { groupList, summaries, hiddenAt, pinnedAt, pinnedAtMsMap ->
             val summariesById = summaries.associateBy { it.sessionId }
             val items = groupList.map { group ->
                 val summary = summariesById[group.id]
@@ -55,9 +56,11 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
                 // 无摘要（记录已清）则视为隐藏中，新消息落库时摘要重建自然重显。
                 val isHidden = if (hiddenAtMs == null) false
                 else summary == null || summary.lastMessageTimestamp <= hiddenAtMs
+                val isPinned = pinnedAt[group.id] == true
                 HomeGroupItem(
                     group = group,
-                    isPinned = pinnedAt[group.id] == true,
+                    isPinned = isPinned,
+                    pinnedAtMs = if (isPinned) pinnedAtMsMap[group.id] ?: 0L else 0L,
                     isHidden = isHidden
                 )
             }
@@ -116,5 +119,6 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
 data class HomeGroupItem(
     val group: ChatGroup,
     val isPinned: Boolean = false,
+    val pinnedAtMs: Long = 0L,
     val isHidden: Boolean = false
 )

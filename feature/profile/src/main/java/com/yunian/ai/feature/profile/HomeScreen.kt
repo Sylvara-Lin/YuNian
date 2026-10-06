@@ -220,31 +220,38 @@ fun HomeScreen(
                 )
             }
 
-            // 群聊排序：置顶优先 + 群更新时间倒序（对齐单聊排序规则）。
+            // 统一排序：群聊 + 单聊合并为统一列表，置顶优先 + 置顶时间升序
+            // （最早置顶的在最上，后顶的排在已顶的下面）。
+            // HomeTab.ALL 显示全部，HomeTab.GROUP 只显示群聊，HomeTab.FRIEND 只显示单聊。
+            val allItems = mutableListOf<HomeListEntry>().apply {
+                groupItems.filterNot { it.isHidden }.forEach { groupItem ->
+                    add(HomeListEntry.GroupEntry(groupItem))
+                }
+                when (val state = chatListState) {
+                    is HomeViewModel.UiState.Ready -> {
+                        state.items.filterNot { it.isHidden }.forEach { chatItem ->
+                            add(HomeListEntry.ChatEntry(chatItem))
+                        }
+                    }
+                    else -> {}
+                }
+            }
+
+            val displayAll = allItems.sortedWith(
+                compareByDescending<HomeListEntry> { it.isPinned }
+                    .thenBy { it.pinnedAtMs }
+                    .thenByDescending { it.lastMessageTimestamp }
+            )
+
             val displayGroups = when (selectedTab) {
-                HomeTab.ALL, HomeTab.GROUP -> groupItems
-                    .filterNot { it.isHidden }
-                    .sortedWith(
-                        compareByDescending<HomeGroupItem> { it.isPinned }
-                            .thenByDescending { it.group.updatedAt }
-                    )
+                HomeTab.ALL, HomeTab.GROUP -> displayAll.filterIsInstance<HomeListEntry.GroupEntry>()
+                    .map { it.item }
                 HomeTab.FRIEND -> emptyList()
             }
-            // 单聊排序：置顶优先（summary 查询已按 isPinned DESC, lastMessageTimestamp DESC），
-            // 再按会话最后消息时间倒序（summary 已有序，此处仅取末条消息时间兜底），
-            // 隐藏的会话不渲染（AI 主动消息到达时摘要重建/更新时间自然重显）。
-            val displayChats = when (val state = chatListState) {
-                is HomeViewModel.UiState.Ready -> {
-                    val visible = when (selectedTab) {
-                        HomeTab.ALL, HomeTab.FRIEND -> state.items.filterNot { it.isHidden }
-                        HomeTab.GROUP -> emptyList()
-                    }
-                    visible.sortedWith(
-                        compareByDescending<ChatListItem> { it.isPinned }
-                            .thenByDescending { it.lastMessage?.timestamp ?: it.companion.createdAt }
-                    )
-                }
-                else -> emptyList()
+            val displayChats = when (selectedTab) {
+                HomeTab.ALL, HomeTab.FRIEND -> displayAll.filterIsInstance<HomeListEntry.ChatEntry>()
+                    .map { it.item }
+                HomeTab.GROUP -> emptyList()
             }
 
             when {
@@ -953,5 +960,29 @@ private fun HomeMenuItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+/**
+ * 统一列表项（群聊或单聊）：统一排序用——置顶优先 + 置顶时间升序 + 最新消息时间倒序。
+ *
+ * pinnedAtMs 字段暂为 0（HomeGroupItem/ChatListItem 当前无此字段），
+ * 后续 AppMetaStore 记录 pinnedAtMs 后可扩展使用（见 HomeSessionListStore.togglePinned）。
+ */
+private sealed class HomeListEntry {
+    abstract val isPinned: Boolean
+    abstract val pinnedAtMs: Long
+    abstract val lastMessageTimestamp: Long
+
+    data class GroupEntry(val item: HomeGroupItem) : HomeListEntry() {
+        override val isPinned: Boolean get() = item.isPinned
+        override val pinnedAtMs: Long get() = item.pinnedAtMs
+        override val lastMessageTimestamp: Long get() = item.group.updatedAt
+    }
+
+    data class ChatEntry(val item: ChatListItem) : HomeListEntry() {
+        override val isPinned: Boolean get() = item.isPinned
+        override val pinnedAtMs: Long get() = item.pinnedAtMs
+        override val lastMessageTimestamp: Long get() = item.lastMessage?.timestamp ?: item.companion.createdAt
     }
 }

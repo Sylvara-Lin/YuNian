@@ -51,11 +51,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             companionRepository.getAllCompanions(),
             summaryDao.getSummariesByType("chat"),
             sessionOperator.observeHiddenAt(HomeSessionType.CHAT),
-            sessionOperator.observePinned(HomeSessionType.CHAT)
-        ) { companions, summaries, hiddenAt, pinnedAt ->
+            sessionOperator.observePinned(HomeSessionType.CHAT),
+            sessionOperator.observePinnedAtMs(HomeSessionType.CHAT)
+        ) { companions, summaries, hiddenAt, pinnedAt, pinnedAtMsMap ->
             HomeListCache.putCompanions(companions)
             HomeListCache.putChatSummaries(summaries)
-            buildReady(companions, summaries, hiddenAt, pinnedAt) as UiState
+            buildReady(companions, summaries, hiddenAt, pinnedAt, pinnedAtMsMap) as UiState
         }
             .catch { e ->
 
@@ -100,7 +101,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         companions: List<CompanionEntity>,
         summaries: List<ConversationSummary>,
         hiddenAt: Map<Long, Long> = emptyMap(),
-        pinnedAt: Map<Long, Boolean> = emptyMap()
+        pinnedAt: Map<Long, Boolean> = emptyMap(),
+        pinnedAtMsMap: Map<Long, Long> = emptyMap()
     ): UiState.Ready {
         val summariesById = summaries.associateBy { it.sessionId }
         val items = companions.map { companion ->
@@ -113,11 +115,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     timestamp = it.lastMessageTimestamp
                 )
             }
+            val isPinned = pinnedAt[companion.id] == true
             ChatListItem(
                 companion = companion,
                 lastMessage = lastMessage,
                 hasUnread = (summary?.unreadCount ?: 0) > 0,
-                isPinned = pinnedAt[companion.id] == true,
+                isPinned = isPinned,
+                pinnedAtMs = if (isPinned) pinnedAtMsMap[companion.id] ?: 0L else 0L,
                 isHidden = isHiddenNow(companion.id, summary, hiddenAt)
             )
         }
@@ -146,5 +150,6 @@ data class ChatListItem(
     val lastMessage: ChatMessage?,
     val hasUnread: Boolean = false,
     val isPinned: Boolean = false,
+    val pinnedAtMs: Long = 0L,
     val isHidden: Boolean = false
 )
