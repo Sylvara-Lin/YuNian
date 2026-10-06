@@ -46,6 +46,10 @@ interface ConversationSummaryDao {
     @Query("UPDATE conversation_summary SET isPinned = :pinned WHERE sessionId = :sessionId AND sessionType = :sessionType")
     suspend fun setPinned(sessionId: Long, sessionType: String, pinned: Boolean)
 
+    /** 原子翻转 isPinned（首页长按「顶置/取消顶置」切换；消除读-改-写双击竞态）。 */
+    @Query("UPDATE conversation_summary SET isPinned = 1 - isPinned WHERE sessionId = :sessionId AND sessionType = :sessionType")
+    suspend fun togglePinned(sessionId: Long, sessionType: String)
+
     @Query("UPDATE conversation_summary SET isMuted = :muted WHERE sessionId = :sessionId AND sessionType = :sessionType")
     suspend fun setMuted(sessionId: Long, sessionType: String, muted: Boolean)
 

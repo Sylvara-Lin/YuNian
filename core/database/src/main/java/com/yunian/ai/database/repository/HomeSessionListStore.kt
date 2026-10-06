@@ -2,6 +2,7 @@ package com.yunian.ai.database.repository
 
 import com.yunian.ai.database.AppDatabase
 import com.yunian.ai.database.dao.AppMetaDao
+import com.yunian.ai.common.SecureLog
 import com.yunian.ai.domain.HomeSessionListOperator
 import com.yunian.ai.domain.HomeSessionType
 import kotlinx.coroutines.flow.Flow
@@ -55,14 +56,18 @@ class HomeSessionListStore(
         }
     }
 
+    /**
+     * 顶置 / 取消顶置（切换）。
+     *
+     * 用 SQL 原子翻转（`isPinned = 1 - isPinned`）而非读-改-写，
+     * 消除双击竞态：两次连续调用各自翻转一次，结果确定（回到原值）。
+     */
     override suspend fun togglePinned(sessionId: Long, type: HomeSessionType) {
         val sessionType = when (type) {
             HomeSessionType.CHAT -> "chat"
             HomeSessionType.GROUP -> "group"
         }
-        val current = database.conversationSummaryDao()
-            .getSummarySync(sessionId, sessionType)?.isPinned ?: false
-        database.conversationSummaryDao().setPinned(sessionId, sessionType, !current)
+        database.conversationSummaryDao().togglePinned(sessionId, sessionType)
     }
 
     override suspend fun hideConversation(sessionId: Long, type: HomeSessionType) {
@@ -77,10 +82,16 @@ class HomeSessionListStore(
     override fun observeHiddenAt(type: HomeSessionType): Flow<Map<Long, Long>> =
         appMetaDao.getFlow(metaKey(type))
             .map { raw ->
-                raw?.let { runCatching { json.decodeFromString(serializer(), it) }.getOrNull() } ?: emptyMap()
+                raw?.let {
+                    runCatching { json.decodeFromString(serializer(), it) }
+                        // 与 AppMetaStore.get 同一模式：损坏记 error（不静默），按无值处理
+                        .onFailure { e -> SecureLog.e(TAG, "decode failed, treating as absent. key=${metaKey(type)}", e) }
+                        .getOrNull()
+                } ?: emptyMap()
             }
 
     companion object {
+        private const val TAG = "HomeSessionListStore"
         private const val KEY_HIDDEN_CHAT = "home.hidden.chat"
         private const val KEY_HIDDEN_GROUP = "home.hidden.group"
     }

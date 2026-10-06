@@ -108,7 +108,10 @@ fun HomeScreen(
     val colorScheme = AppTheme.colors
     val backdrop = LocalPageBackdrop.current
 
-    // 首页会话长按菜单状态（同时只有一个展开项）
+    // 首页会话长按菜单状态（布尔模式对齐 AppMessageScaffold.showMenu：
+    // false→true 触发打开动画，true→false 触发关闭动画后移除组件）
+    var showChatMenu by remember { mutableStateOf(false) }
+    var showGroupMenu by remember { mutableStateOf(false) }
     var chatMenuItem by remember { mutableStateOf<ChatListItem?>(null) }
     var groupMenuItem by remember { mutableStateOf<HomeGroupItem?>(null) }
 
@@ -272,7 +275,10 @@ fun HomeScreen(
                             group = item.group,
                             isPinned = item.isPinned,
                             onClick = { onGroupClick(item.group.id) },
-                            onLongClick = { groupMenuItem = item },
+                            onLongClick = {
+                                groupMenuItem = item
+                                showGroupMenu = true
+                            },
                             adaptiveSizing = adaptiveSizing
                         )
                     }
@@ -283,7 +289,10 @@ fun HomeScreen(
                             hasUnread = item.hasUnread,
                             isPinned = item.isPinned,
                             onClick = { onCompanionClick(item.companion.id) },
-                            onLongClick = { chatMenuItem = item },
+                            onLongClick = {
+                                chatMenuItem = item
+                                showChatMenu = true
+                            },
                             adaptiveSizing = adaptiveSizing
                         )
                     }
@@ -292,22 +301,48 @@ fun HomeScreen(
             }
 
             // ── 单聊长按菜单（液态玻璃 DropdownMenu，样式复用 ChatMessageMenu 模式）──
-            HomeChatMenu(
-                item = chatMenuItem,
-                onDismiss = { chatMenuItem = null },
-                onDelete = { viewModel.deleteChat(it.companion.id) },
-                onTogglePin = { viewModel.togglePinChat(it.companion.id) },
-                onHide = { viewModel.hideChat(it.companion.id) }
-            )
+            // 布尔模式：item 非空才挂载组件，showChatMenu 控制展开/收起动画，
+            // 关闭动画结束后由 Compose 自动移除（对齐 AppMessageScaffold.showMenu）。
+            chatMenuItem?.let { chatItem ->
+                HomeChatMenu(
+                    expanded = showChatMenu,
+                    item = chatItem,
+                    onDismiss = { showChatMenu = false },
+                    onDelete = {
+                        showChatMenu = false
+                        viewModel.deleteChat(it.companion.id)
+                    },
+                    onTogglePin = {
+                        showChatMenu = false
+                        viewModel.togglePinChat(it.companion.id)
+                    },
+                    onHide = {
+                        showChatMenu = false
+                        viewModel.hideChat(it.companion.id)
+                    }
+                )
+            }
 
             // ── 群聊长按菜单 ──
-            HomeGroupMenu(
-                item = groupMenuItem,
-                onDismiss = { groupMenuItem = null },
-                onDelete = { groupViewModel.deleteGroupChat(it.group.id) },
-                onTogglePin = { groupViewModel.togglePinGroupChat(it.group.id) },
-                onHide = { groupViewModel.hideGroupChat(it.group.id) }
-            )
+            groupMenuItem?.let { groupItem ->
+                HomeGroupMenu(
+                    expanded = showGroupMenu,
+                    item = groupItem,
+                    onDismiss = { showGroupMenu = false },
+                    onDelete = {
+                        showGroupMenu = false
+                        groupViewModel.deleteGroupChat(it.group.id)
+                    },
+                    onTogglePin = {
+                        showGroupMenu = false
+                        groupViewModel.togglePinGroupChat(it.group.id)
+                    },
+                    onHide = {
+                        showGroupMenu = false
+                        groupViewModel.hideGroupChat(it.group.id)
+                    }
+                )
+            }
         }
     }
 }
@@ -744,15 +779,15 @@ fun EmptyHomeState() {
 /** 单聊长按菜单。 */
 @Composable
 private fun HomeChatMenu(
-    item: ChatListItem?,
+    expanded: Boolean,
+    item: ChatListItem,
     onDismiss: () -> Unit,
     onDelete: (ChatListItem) -> Unit,
     onTogglePin: (ChatListItem) -> Unit,
     onHide: (ChatListItem) -> Unit
 ) {
-    if (item == null) return
     HomeSessionMenu(
-        expanded = true,
+        expanded = expanded,
         isPinned = item.isPinned,
         onDismiss = onDismiss,
         onDelete = { onDelete(item) },
@@ -764,15 +799,15 @@ private fun HomeChatMenu(
 /** 群聊长按菜单。 */
 @Composable
 private fun HomeGroupMenu(
-    item: HomeGroupItem?,
+    expanded: Boolean,
+    item: HomeGroupItem,
     onDismiss: () -> Unit,
     onDelete: (HomeGroupItem) -> Unit,
     onTogglePin: (HomeGroupItem) -> Unit,
     onHide: (HomeGroupItem) -> Unit
 ) {
-    if (item == null) return
     HomeSessionMenu(
-        expanded = true,
+        expanded = expanded,
         isPinned = item.isPinned,
         onDismiss = onDismiss,
         onDelete = { onDelete(item) },
