@@ -108,12 +108,10 @@ fun HomeScreen(
     val colorScheme = AppTheme.colors
     val backdrop = LocalPageBackdrop.current
 
-    // 首页会话长按菜单状态（布尔模式对齐 AppMessageScaffold.showMenu：
-    // false→true 触发打开动画，true→false 触发关闭动画后移除组件）
-    var showChatMenu by remember { mutableStateOf(false) }
-    var showGroupMenu by remember { mutableStateOf(false) }
-    var chatMenuItem by remember { mutableStateOf<ChatListItem?>(null) }
-    var groupMenuItem by remember { mutableStateOf<HomeGroupItem?>(null) }
+    // 首页会话长按菜单：状态下沉到各 list item 内部（每个 item 自己管自己的菜单），
+    // 对齐 ChatMessageScaffold 模式——DropdownMenu 在 item 内部调用时自动锚定到该项，
+    // 不会漂到屏幕左下角。这里只保留当前展开菜单的会话 id（防止多菜单同时展开）。
+    var openMenuSessionId by remember { mutableStateOf<Long?>(null) }
 
     Box(
         modifier = Modifier
@@ -275,79 +273,64 @@ fun HomeScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-
-                    itemsIndexed(displayGroups) { _, item ->
+                    // key = 会话 id（稳定标识）：列表数据变化时 Compose 按 key 复用 item，
+                    // 避免无 key 时整个列表强制重组（性能优化，不影响视觉）。
+                    itemsIndexed(displayGroups, key = { _, item -> "group_${item.group.id}" }) { _, item ->
                         GroupListItem(
                             group = item.group,
                             isPinned = item.isPinned,
-                            onClick = { onGroupClick(item.group.id) },
-                            onLongClick = {
-                                groupMenuItem = item
-                                showGroupMenu = true
+                            isMenuOpen = openMenuSessionId == item.group.id,
+                            onClick = {
+                                openMenuSessionId = null
+                                onGroupClick(item.group.id)
+                            },
+                            onLongClick = { openMenuSessionId = item.group.id },
+                            onMenuDismiss = { openMenuSessionId = null },
+                            onMenuDelete = {
+                                openMenuSessionId = null
+                                groupViewModel.deleteGroupChat(item.group.id)
+                            },
+                            onMenuTogglePin = {
+                                openMenuSessionId = null
+                                groupViewModel.togglePinGroupChat(item.group.id)
+                            },
+                            onMenuHide = {
+                                openMenuSessionId = null
+                                groupViewModel.hideGroupChat(item.group.id)
                             },
                             adaptiveSizing = adaptiveSizing
                         )
                     }
-                    itemsIndexed(displayChats) { _, item ->
+                    itemsIndexed(displayChats, key = { _, item -> "chat_${item.companion.id}" }) { _, item ->
                         ChatListItem(
                             companion = item.companion,
                             lastMessage = item.lastMessage,
                             hasUnread = item.hasUnread,
                             isPinned = item.isPinned,
-                            onClick = { onCompanionClick(item.companion.id) },
-                            onLongClick = {
-                                chatMenuItem = item
-                                showChatMenu = true
+                            isMenuOpen = openMenuSessionId == item.companion.id,
+                            onClick = {
+                                openMenuSessionId = null
+                                onCompanionClick(item.companion.id)
+                            },
+                            onLongClick = { openMenuSessionId = item.companion.id },
+                            onMenuDismiss = { openMenuSessionId = null },
+                            onMenuDelete = {
+                                openMenuSessionId = null
+                                viewModel.deleteChat(item.companion.id)
+                            },
+                            onMenuTogglePin = {
+                                openMenuSessionId = null
+                                viewModel.togglePinChat(item.companion.id)
+                            },
+                            onMenuHide = {
+                                openMenuSessionId = null
+                                viewModel.hideChat(item.companion.id)
                             },
                             adaptiveSizing = adaptiveSizing
                         )
                     }
                 }
                 }
-            }
-
-            // ── 单聊长按菜单（液态玻璃 DropdownMenu，样式复用 ChatMessageMenu 模式）──
-            // 布尔模式：item 非空才挂载组件，showChatMenu 控制展开/收起动画，
-            // 关闭动画结束后由 Compose 自动移除（对齐 AppMessageScaffold.showMenu）。
-            chatMenuItem?.let { chatItem ->
-                HomeChatMenu(
-                    expanded = showChatMenu,
-                    item = chatItem,
-                    onDismiss = { showChatMenu = false },
-                    onDelete = {
-                        showChatMenu = false
-                        viewModel.deleteChat(it.companion.id)
-                    },
-                    onTogglePin = {
-                        showChatMenu = false
-                        viewModel.togglePinChat(it.companion.id)
-                    },
-                    onHide = {
-                        showChatMenu = false
-                        viewModel.hideChat(it.companion.id)
-                    }
-                )
-            }
-
-            // ── 群聊长按菜单 ──
-            groupMenuItem?.let { groupItem ->
-                HomeGroupMenu(
-                    expanded = showGroupMenu,
-                    item = groupItem,
-                    onDismiss = { showGroupMenu = false },
-                    onDelete = {
-                        showGroupMenu = false
-                        groupViewModel.deleteGroupChat(it.group.id)
-                    },
-                    onTogglePin = {
-                        showGroupMenu = false
-                        groupViewModel.togglePinGroupChat(it.group.id)
-                    },
-                    onHide = {
-                        showGroupMenu = false
-                        groupViewModel.hideGroupChat(it.group.id)
-                    }
-                )
             }
         }
     }
@@ -441,115 +424,134 @@ fun HomeTabBar(
 fun GroupListItem(
     group: ChatGroup,
     isPinned: Boolean,
+    isMenuOpen: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onMenuDismiss: () -> Unit = {},
+    onMenuDelete: () -> Unit = {},
+    onMenuTogglePin: () -> Unit = {},
+    onMenuHide: () -> Unit = {},
     adaptiveSizing: AdaptiveSizing
 ) {
     val colorScheme = AppTheme.colors
     val haptic = LocalHapticFeedback.current
 
-    AppListItemLayout(
-        isStartAligned = true,
-        startSlot = {
-            Box(
-                modifier = Modifier.size(adaptiveSizing.avatarSize),
-                contentAlignment = Alignment.TopEnd
-            ) {
-                if (group.avatarUrl != null) {
-                    AsyncImage(
-                        model = group.avatarUrl,
-                        contentDescription = group.name,
-                        modifier = Modifier
-                            .size(adaptiveSizing.avatarSize)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(adaptiveSizing.avatarSize)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        PinkPrimary.copy(alpha = 0.6f),
-                                        PinkPrimary.copy(alpha = 0.3f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = AppIcons.Users,
+    // 菜单锚定在 item 内部（对齐 ChatMessageScaffold 模式）：
+    // DropdownMenu 在 Box 内部调用时自动定位到该项，不会漂到屏幕左下角。
+    Box {
+        AppListItemLayout(
+            isStartAligned = true,
+            startSlot = {
+                Box(
+                    modifier = Modifier.size(adaptiveSizing.avatarSize),
+                    contentAlignment = Alignment.TopEnd
+                ) {
+                    if (group.avatarUrl != null) {
+                        AsyncImage(
+                            model = group.avatarUrl,
                             contentDescription = group.name,
-                            tint = colorScheme.onPrimary,
-                            modifier = Modifier.size(adaptiveSizing.iconSize)
+                            modifier = Modifier
+                                .size(adaptiveSizing.avatarSize)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(adaptiveSizing.avatarSize)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            PinkPrimary.copy(alpha = 0.6f),
+                                            PinkPrimary.copy(alpha = 0.3f)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Users,
+                                contentDescription = group.name,
+                                tint = colorScheme.onPrimary,
+                                modifier = Modifier.size(adaptiveSizing.iconSize)
+                            )
+                        }
+                    }
+                }
+            },
+            endSlot = {},
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawGlass(
+                    backdrop = LocalPageBackdrop.current,
+                    shape = ContinuousCapsule,
+                    surfaceColor = colorScheme.surfaceVariant
+                )
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                )
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            slotGap = AppTheme.dimens.avatarGap
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = group.name,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.Normal,
+                            fontSize = adaptiveSizing.fontSizeBody.sp
+                        ),
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (isPinned) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = AppIcons.Star,
+                            contentDescription = "已顶置",
+                            tint = PinkPrimary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
-            }
-        },
-        endSlot = {},
-        modifier = Modifier
-            .fillMaxWidth()
-            .drawGlass(
-                backdrop = LocalPageBackdrop.current,
-                shape = ContinuousCapsule,
-                surfaceColor = colorScheme.surfaceVariant
-            )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        slotGap = AppTheme.dimens.avatarGap
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
                 Text(
-                    text = group.name,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Normal,
-                        fontSize = adaptiveSizing.fontSizeBody.sp
+                    text = "${group.getCompanionIdList().size} 人",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = (adaptiveSizing.fontSizeBody - 1).sp,
+                        lineHeight = 20.sp
                     ),
-                    color = colorScheme.onSurface,
+                    color = colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    overflow = TextOverflow.Ellipsis
                 )
-                if (isPinned) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = AppIcons.Star,
-                        contentDescription = "已顶置",
-                        tint = PinkPrimary.copy(alpha = 0.7f),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
             }
-            Text(
-                text = "${group.getCompanionIdList().size} 人",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = (adaptiveSizing.fontSizeBody - 1).sp,
-                    lineHeight = 20.sp
-                ),
-                color = colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
+
+        // 菜单在 item 内部锚定展开
+        HomeSessionMenu(
+            expanded = isMenuOpen,
+            isPinned = isPinned,
+            onDismiss = onMenuDismiss,
+            onDelete = onMenuDelete,
+            onTogglePin = onMenuTogglePin,
+            onHide = onMenuHide
+        )
     }
 }
 
@@ -560,8 +562,13 @@ fun ChatListItem(
     lastMessage: ChatMessage?,
     hasUnread: Boolean = false,
     isPinned: Boolean = false,
+    isMenuOpen: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onMenuDismiss: () -> Unit = {},
+    onMenuDelete: () -> Unit = {},
+    onMenuTogglePin: () -> Unit = {},
+    onMenuHide: () -> Unit = {},
     adaptiveSizing: AdaptiveSizing
 ) {
     val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -570,109 +577,111 @@ fun ChatListItem(
     val colorScheme = AppTheme.colors
     val haptic = LocalHapticFeedback.current
 
-    AppListItemLayout(
-        isStartAligned = true,
-        startSlot = {
-            Box(
-                modifier = Modifier.size(adaptiveSizing.avatarSize),
-                contentAlignment = Alignment.TopEnd
-            ) {
+    // 菜单锚定在 item 内部（对齐 ChatMessageScaffold 模式）
+    Box {
+        AppListItemLayout(
+            isStartAligned = true,
+            startSlot = {
                 Box(
-                    modifier = Modifier
-                        .size(adaptiveSizing.avatarSize)
-                        .clip(CircleShape)
-                        .background(colorScheme.surface),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.size(adaptiveSizing.avatarSize),
+                    contentAlignment = Alignment.TopEnd
                 ) {
-                    if (companion.avatarUrl != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(companion.avatarUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = companion.name,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = AppIcons.User,
-                            contentDescription = null,
-                            tint = AppTheme.colors.captionContent,
-                            modifier = Modifier.size((adaptiveSizing.avatarSize * 0.58f))
+                    Box(
+                        modifier = Modifier
+                            .size(adaptiveSizing.avatarSize)
+                            .clip(CircleShape)
+                            .background(colorScheme.surface),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (companion.avatarUrl != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(companion.avatarUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = companion.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = AppIcons.User,
+                                contentDescription = null,
+                                tint = AppTheme.colors.captionContent,
+                                modifier = Modifier.size((adaptiveSizing.avatarSize * 0.58f))
+                            )
+                        }
+                    }
+                    if (hasUnread) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(PinkPrimary)
                         )
                     }
                 }
-                if (hasUnread) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(PinkPrimary)
-                    )
-                }
-            }
-        },
-        endSlot = {},
-        modifier = Modifier
-            .fillMaxWidth()
-            .drawGlass(
-                backdrop = LocalPageBackdrop.current,
-                shape = ContinuousCapsule,
-                surfaceColor = colorScheme.surfaceVariant
-            )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        slotGap = AppTheme.dimens.avatarGap
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = companion.name,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Normal,
-                        fontSize = adaptiveSizing.fontSizeBody.sp
-                    ),
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+            },
+            endSlot = {},
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawGlass(
+                    backdrop = LocalPageBackdrop.current,
+                    shape = ContinuousCapsule,
+                    surfaceColor = colorScheme.surfaceVariant
                 )
-                if (isPinned) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = AppIcons.Star,
-                        contentDescription = "已顶置",
-                        tint = PinkPrimary.copy(alpha = 0.7f),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-                if (time.isNotBlank()) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                )
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            slotGap = AppTheme.dimens.avatarGap
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = time,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = adaptiveSizing.fontSizeSmall.sp
+                        text = companion.name,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.Normal,
+                            fontSize = adaptiveSizing.fontSizeBody.sp
                         ),
-                        color = colorScheme.onSurfaceVariant
+                        color = colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+                    if (isPinned) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = AppIcons.Star,
+                            contentDescription = "已顶置",
+                            tint = PinkPrimary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    if (time.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = time,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = adaptiveSizing.fontSizeSmall.sp
+                            ),
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            }
                 Text(
                     text = lastMessage?.content ?: "还没有聊天记录，开始聊天吧",
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -683,7 +692,18 @@ fun ChatListItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
         }
+
+        // 菜单在 item 内部锚定展开
+        HomeSessionMenu(
+            expanded = isMenuOpen,
+            isPinned = isPinned,
+            onDismiss = onMenuDismiss,
+            onDelete = onMenuDelete,
+            onTogglePin = onMenuTogglePin,
+            onHide = onMenuHide
+        )
     }
 }
 
