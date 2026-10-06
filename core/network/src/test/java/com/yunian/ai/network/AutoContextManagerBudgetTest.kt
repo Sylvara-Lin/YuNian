@@ -8,6 +8,8 @@ import com.yunian.ai.domain.ConversationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,15 +38,20 @@ class AutoContextManagerBudgetTest {
 
     private class FakeAppMetaDao : AppMetaDao {
         val map = ConcurrentHashMap<String, String>()
+        private val flowStates = ConcurrentHashMap<String, MutableStateFlow<String?>>()
         override suspend fun get(key: String): String? = map[key]
         override suspend fun put(entity: AppMetaEntity) {
             map[entity.key] = entity.value
+            flowStates[entity.key]?.value = entity.value
         }
         override suspend fun remove(key: String) {
             map.remove(key)
+            flowStates[key]?.value = null
         }
         override suspend fun getAll(): List<AppMetaEntity> =
             map.map { (k, v) -> AppMetaEntity(key = k, value = v) }
+        override fun getFlow(key: String): Flow<String?> =
+            flowStates.getOrPut(key) { MutableStateFlow(map[key]) }
     }
 
     /** 记录滚动合并 LLM 调用（fake，绝不真调 LLM）。 */

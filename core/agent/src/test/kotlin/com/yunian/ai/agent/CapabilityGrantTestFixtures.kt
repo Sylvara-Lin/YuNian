@@ -6,6 +6,8 @@ import com.yunian.ai.database.repository.AppMetaStore
 import com.yunian.ai.domain.AiTool
 import com.yunian.ai.domain.CapabilityGrant
 import com.yunian.ai.domain.CapabilityGrantStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * 工具授权单测的共享替身。
@@ -22,6 +24,8 @@ internal class FakeAppMetaDao(
     private val failPut: Throwable? = null,
 ) : AppMetaDao {
 
+    private val flowStates = mutableMapOf<String, MutableStateFlow<String?>>()
+
     override suspend fun get(key: String): String? {
         failGet?.let { throw it }
         return map[key]
@@ -30,14 +34,19 @@ internal class FakeAppMetaDao(
     override suspend fun put(entity: AppMetaEntity) {
         failPut?.let { throw it }
         map[entity.key] = entity.value
+        flowStates[entity.key]?.value = entity.value
     }
 
     override suspend fun remove(key: String) {
         map.remove(key)
+        flowStates[key]?.value = null
     }
 
     override suspend fun getAll(): List<AppMetaEntity> =
         map.map { (key, value) -> AppMetaEntity(key = key, value = value) }
+
+    override fun getFlow(key: String): Flow<String?> =
+        flowStates.getOrPut(key) { MutableStateFlow(map[key]) }
 
     /** 绕过 store 直接塞原始内容（模拟历史脏数据 / KV 损坏）。 */
     fun putRaw(key: String, value: String) {

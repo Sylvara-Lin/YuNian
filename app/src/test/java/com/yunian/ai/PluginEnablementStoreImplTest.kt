@@ -3,6 +3,8 @@ package com.yunian.ai
 import com.yunian.ai.database.dao.AppMetaDao
 import com.yunian.ai.database.model.AppMetaEntity
 import com.yunian.ai.database.repository.AppMetaStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,6 +29,8 @@ class PluginEnablementStoreImplTest {
         private val failPut: Throwable? = null,
     ) : AppMetaDao {
 
+        private val flowStates = mutableMapOf<String, MutableStateFlow<String?>>()
+
         var putCount: Int = 0
             private set
 
@@ -39,14 +43,19 @@ class PluginEnablementStoreImplTest {
             failPut?.let { throw it }
             putCount++
             map[entity.key] = entity.value
+            flowStates[entity.key]?.value = entity.value
         }
 
         override suspend fun remove(key: String) {
             map.remove(key)
+            flowStates[key]?.value = null
         }
 
         override suspend fun getAll(): List<AppMetaEntity> =
             map.map { (key, value) -> AppMetaEntity(key = key, value = value) }
+
+        override fun getFlow(key: String): Flow<String?> =
+            flowStates.getOrPut(key) { MutableStateFlow(map[key]) }
 
         /** 绕过 store 直接塞原始内容（模拟历史脏数据 / KV 损坏）。 */
         fun putRaw(key: String, value: String) {

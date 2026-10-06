@@ -6,6 +6,8 @@ import com.yunian.ai.database.model.ChatMessage
 import com.yunian.ai.database.repository.AppMetaStore
 import com.yunian.ai.domain.ConversationScope
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,15 +39,20 @@ class RollingSummaryManagerTest {
 
     private class FakeAppMetaDao : AppMetaDao {
         val map = ConcurrentHashMap<String, String>()
+        private val flowStates = ConcurrentHashMap<String, MutableStateFlow<String?>>()
         override suspend fun get(key: String): String? = map[key]
         override suspend fun put(entity: AppMetaEntity) {
             map[entity.key] = entity.value
+            flowStates[entity.key]?.value = entity.value
         }
         override suspend fun remove(key: String) {
             map.remove(key)
+            flowStates[key]?.value = null
         }
         override suspend fun getAll(): List<AppMetaEntity> =
             map.map { (k, v) -> AppMetaEntity(key = k, value = v) }
+        override fun getFlow(key: String): Flow<String?> =
+            flowStates.getOrPut(key) { MutableStateFlow(map[key]) }
     }
 
     /** 记录每次合并调用的 (oldSummary, deltaText) 并可挂起等待放行。 */
