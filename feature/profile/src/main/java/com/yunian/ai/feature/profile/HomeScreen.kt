@@ -221,16 +221,22 @@ fun HomeScreen(
             }
 
             // 统一排序：群聊 + 单聊合并为统一列表，置顶优先 + 置顶时间升序
-            // （最早置顶的在最上，后顶的排在已顶的下面）。
+            // （最早置顶的在最上，后顶的排在已顶的下面）+ 最新消息时间倒序（微信规则）。
             // HomeTab.ALL 显示全部，HomeTab.GROUP 只显示群聊，HomeTab.FRIEND 只显示单聊。
             val allItems = mutableListOf<HomeListEntry>().apply {
-                groupItems.filterNot { it.isHidden }.forEach { groupItem ->
-                    add(HomeListEntry.GroupEntry(groupItem))
+                when (selectedTab) {
+                    HomeTab.ALL, HomeTab.GROUP -> groupItems.filterNot { it.isHidden }.forEach { groupItem ->
+                        add(HomeListEntry.GroupEntry(groupItem))
+                    }
+                    HomeTab.FRIEND -> {}
                 }
                 when (val state = chatListState) {
                     is HomeViewModel.UiState.Ready -> {
-                        state.items.filterNot { it.isHidden }.forEach { chatItem ->
-                            add(HomeListEntry.ChatEntry(chatItem))
+                        when (selectedTab) {
+                            HomeTab.ALL, HomeTab.FRIEND -> state.items.filterNot { it.isHidden }.forEach { chatItem ->
+                                add(HomeListEntry.ChatEntry(chatItem))
+                            }
+                            HomeTab.GROUP -> {}
                         }
                     }
                     else -> {}
@@ -242,17 +248,6 @@ fun HomeScreen(
                     .thenBy { it.pinnedAtMs }
                     .thenByDescending { it.lastMessageTimestamp }
             )
-
-            val displayGroups = when (selectedTab) {
-                HomeTab.ALL, HomeTab.GROUP -> displayAll.filterIsInstance<HomeListEntry.GroupEntry>()
-                    .map { it.item }
-                HomeTab.FRIEND -> emptyList()
-            }
-            val displayChats = when (selectedTab) {
-                HomeTab.ALL, HomeTab.FRIEND -> displayAll.filterIsInstance<HomeListEntry.ChatEntry>()
-                    .map { it.item }
-                HomeTab.GROUP -> emptyList()
-            }
 
             when {
                 chatListState is HomeViewModel.UiState.Error -> {
@@ -270,7 +265,7 @@ fun HomeScreen(
                         )
                     }
                 }
-                displayGroups.isEmpty() && displayChats.isEmpty() -> {
+                displayAll.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         EmptyHomeState()
                     }
@@ -290,50 +285,61 @@ fun HomeScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // key = 会话 id（稳定标识）：列表数据变化时 Compose 按 key 复用 item。
-                    // onLongClick 里通过 view.rootView 同步捕获 item 窗口坐标，
-                    // 传给页面级单 Popup 精确定位到手指按压处。
-                    itemsIndexed(displayGroups, key = { _, item -> "group_${item.group.id}" }) { _, item ->
-                        GroupListItem(
-                            group = item.group,
-                            isPinned = item.isPinned,
-                            onClick = {
-                                openMenuSessionId = null
-                                onGroupClick(item.group.id)
-                            },
-                            onLongClick = { coords ->
-                                val bounds = coords.boundsInWindow()
-                                menuAnchorPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
-                                menuItemHeightPx = bounds.height.toInt()
-                                menuIsPinned = item.isPinned
-                                menuIsGroup = true
-                                menuSessionName = item.group.name
-                                openMenuSessionId = item.group.id
-                            },
-                            adaptiveSizing = adaptiveSizing
-                        )
-                    }
-                    itemsIndexed(displayChats, key = { _, item -> "chat_${item.companion.id}" }) { _, item ->
-                        ChatListItem(
-                            companion = item.companion,
-                            lastMessage = item.lastMessage,
-                            hasUnread = item.hasUnread,
-                            isPinned = item.isPinned,
-                            onClick = {
-                                openMenuSessionId = null
-                                onCompanionClick(item.companion.id)
-                            },
-                            onLongClick = { coords ->
-                                val bounds = coords.boundsInWindow()
-                                menuAnchorPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
-                                menuItemHeightPx = bounds.height.toInt()
-                                menuIsPinned = item.isPinned
-                                menuIsGroup = false
-                                menuSessionName = item.companion.name
-                                openMenuSessionId = item.companion.id
-                            },
-                            adaptiveSizing = adaptiveSizing
-                        )
+                    // 统一渲染：按 displayAll 排序后的顺序渲染，群聊和单聊混合，
+                    // 置顶优先 + 置顶时间升序 + 最新消息时间倒序（微信规则）。
+                    // HomeTab.ALL 显示全部，GROUP 只显示群聊，FRIEND 只显示单聊。
+                    itemsIndexed(displayAll, key = { _, entry ->
+                        when (entry) {
+                            is HomeListEntry.GroupEntry -> "group_${entry.item.group.id}"
+                            is HomeListEntry.ChatEntry -> "chat_${entry.item.companion.id}"
+                        }
+                    }) { _, entry ->
+                        when (entry) {
+                            is HomeListEntry.GroupEntry -> {
+                                val item = entry.item
+                                GroupListItem(
+                                    group = item.group,
+                                    isPinned = item.isPinned,
+                                    onClick = {
+                                        openMenuSessionId = null
+                                        onGroupClick(item.group.id)
+                                    },
+                                    onLongClick = { coords ->
+                                        val bounds = coords.boundsInWindow()
+                                        menuAnchorPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
+                                        menuItemHeightPx = bounds.height.toInt()
+                                        menuIsPinned = item.isPinned
+                                        menuIsGroup = true
+                                        menuSessionName = item.group.name
+                                        openMenuSessionId = item.group.id
+                                    },
+                                    adaptiveSizing = adaptiveSizing
+                                )
+                            }
+                            is HomeListEntry.ChatEntry -> {
+                                val item = entry.item
+                                ChatListItem(
+                                    companion = item.companion,
+                                    lastMessage = item.lastMessage,
+                                    hasUnread = item.hasUnread,
+                                    isPinned = item.isPinned,
+                                    onClick = {
+                                        openMenuSessionId = null
+                                        onCompanionClick(item.companion.id)
+                                    },
+                                    onLongClick = { coords ->
+                                        val bounds = coords.boundsInWindow()
+                                        menuAnchorPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
+                                        menuItemHeightPx = bounds.height.toInt()
+                                        menuIsPinned = item.isPinned
+                                        menuIsGroup = false
+                                        menuSessionName = item.companion.name
+                                        openMenuSessionId = item.companion.id
+                                    },
+                                    adaptiveSizing = adaptiveSizing
+                                )
+                            }
+                        }
                     }
                 }
                 }
