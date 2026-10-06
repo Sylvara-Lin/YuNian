@@ -42,8 +42,9 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
         groupItems = combine(
             repository.getAllGroups(),
             summaryDao.getSummariesByType("group"),
-            sessionOperator.observeHiddenAt(HomeSessionType.GROUP)
-        ) { groupList, summaries, hiddenAt ->
+            sessionOperator.observeHiddenAt(HomeSessionType.GROUP),
+            sessionOperator.observePinned(HomeSessionType.GROUP)
+        ) { groupList, summaries, hiddenAt, pinnedAt ->
             val summariesById = summaries.associateBy { it.sessionId }
             groupList.map { group ->
                 val summary = summariesById[group.id]
@@ -54,7 +55,7 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
                 else summary == null || summary.lastMessageTimestamp <= hiddenAtMs
                 HomeGroupItem(
                     group = group,
-                    isPinned = summary?.isPinned == true,
+                    isPinned = pinnedAt[group.id] == true,
                     isHidden = isHidden
                 )
             }

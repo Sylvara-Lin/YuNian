@@ -48,11 +48,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         chatListState = combine(
             companionRepository.getAllCompanions(),
             summaryDao.getSummariesByType("chat"),
-            sessionOperator.observeHiddenAt(HomeSessionType.CHAT)
-        ) { companions, summaries, hiddenAt ->
+            sessionOperator.observeHiddenAt(HomeSessionType.CHAT),
+            sessionOperator.observePinned(HomeSessionType.CHAT)
+        ) { companions, summaries, hiddenAt, pinnedAt ->
             HomeListCache.putCompanions(companions)
             HomeListCache.putChatSummaries(summaries)
-            buildReady(companions, summaries, hiddenAt) as UiState
+            buildReady(companions, summaries, hiddenAt, pinnedAt) as UiState
         }
             .catch { e ->
 
@@ -96,7 +97,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun buildReady(
         companions: List<CompanionEntity>,
         summaries: List<ConversationSummary>,
-        hiddenAt: Map<Long, Long> = emptyMap()
+        hiddenAt: Map<Long, Long> = emptyMap(),
+        pinnedAt: Map<Long, Boolean> = emptyMap()
     ): UiState.Ready {
         val summariesById = summaries.associateBy { it.sessionId }
         val items = companions.map { companion ->
@@ -113,7 +115,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 companion = companion,
                 lastMessage = lastMessage,
                 hasUnread = (summary?.unreadCount ?: 0) > 0,
-                isPinned = summary?.isPinned == true,
+                isPinned = pinnedAt[companion.id] == true,
                 isHidden = isHiddenNow(companion.id, summary, hiddenAt)
             )
         }

@@ -31,7 +31,12 @@ interface HomeSessionListOperator {
      */
     suspend fun deleteConversation(sessionId: Long, type: HomeSessionType)
 
-    /** 顶置 / 取消顶置（切换）：置顶的会话排序列表最前。 */
+    /**
+     * 顶置 / 取消顶置（切换）：置顶的会话排序列表最前，再次长按可取消。
+     *
+     * **持久化在 AppMetaStore（不依赖 conversation_summary 是否有摘要行）**——
+     * 新角色/清记录后的会话没有 summary 行，仍应能顶置。
+     */
     suspend fun togglePinned(sessionId: Long, type: HomeSessionType)
 
     /** 隐藏该聊天：记录隐藏时刻；聊天记录不动。 */
@@ -48,4 +53,15 @@ interface HomeSessionListOperator {
      * combine 进列表装配即可让 UI 实时响应，无需手动刷新缓存。
      */
     fun observeHiddenAt(type: HomeSessionType): Flow<Map<Long, Long>>
+
+    /**
+     * 当前顶置状态表（sessionId -> isPinned），供列表装配排序用。
+     * 与隐藏同一持久化层（AppMetaStore），不依赖 summary 表是否有摘要行。
+     */
+    suspend fun pinnedMap(type: HomeSessionType): Map<Long, Boolean>
+
+    /**
+     * 顶置状态表的响应式流（顶置/取消顶置时自动刷新）。
+     */
+    fun observePinned(type: HomeSessionType): Flow<Map<Long, Boolean>>
 }
