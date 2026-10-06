@@ -212,8 +212,14 @@ fun HomeScreen(
                 )
             }
 
+            // 群聊排序：置顶优先 + 群更新时间倒序（对齐单聊排序规则）。
             val displayGroups = when (selectedTab) {
-                HomeTab.ALL, HomeTab.GROUP -> groupItems.filterNot { it.isHidden }
+                HomeTab.ALL, HomeTab.GROUP -> groupItems
+                    .filterNot { it.isHidden }
+                    .sortedWith(
+                        compareByDescending<HomeGroupItem> { it.isPinned }
+                            .thenByDescending { it.group.updatedAt }
+                    )
                 HomeTab.FRIEND -> emptyList()
             }
             // 单聊排序：置顶优先（summary 查询已按 isPinned DESC, lastMessageTimestamp DESC），
