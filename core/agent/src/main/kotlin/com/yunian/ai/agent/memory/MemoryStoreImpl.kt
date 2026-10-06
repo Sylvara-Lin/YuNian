@@ -215,11 +215,17 @@ class MemoryStoreImpl(context: Context) : MemoryStore {
         }
     }
 
-    /** 生成文本嵌入（失败/不支持返回 null，Rust 侧跳过语义分） */
+    /** 生成文本嵌入（失败/不支持返回 null，Rust 侧跳过语义分）
+     *
+     * 截断防御（荣耀 HONOR ANN-AN00 崩溃实证）：UniFFI RustBuffer.ByValue 传超长 String
+     * 有内存对齐风险（SIGBUS/BUS_ADRERR），这里把 query 截到 512 字符再传——
+     * 语义检索只需要前几百字，截断不影响召回质量。
+     */
     override fun embedText(text: String): String? {
         val provider = embeddingProvider ?: return null
+        val safeText = if (text.length > 512) text.take(512) else text
         return try {
-            val floats = runBlockingOnIo { provider.embed(text) } ?: return null
+            val floats = runBlockingOnIo { provider.embed(safeText) } ?: return null
             JSONArray(floats.toList()).toString()
         } catch (e: Exception) {
             Log.w(TAG, "embedText failed", e)
