@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,18 +50,23 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -435,10 +439,22 @@ fun GroupListItem(
 ) {
     val colorScheme = AppTheme.colors
     val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
 
-    // 菜单锚定在 item 内部（对齐 ChatMessageScaffold 模式）：
-    // DropdownMenu 在 Box 内部调用时自动定位到该项，不会漂到屏幕左下角。
-    Box {
+    // 捕获 item 在窗口中的位置：Popup 用此坐标精确弹出到手指按压处
+    // 只在菜单打开时才更新坐标，避免每次 LazyColumn 重组都触发坐标回调（性能优化）
+    var itemWindowPos by remember { mutableStateOf(IntOffset.Zero) }
+    var itemHeightPx by remember { mutableStateOf(0) }
+
+    Box(
+        modifier = Modifier.onGloballyPositioned { coords ->
+            if (isMenuOpen) {
+                val bounds = coords.boundsInWindow()
+                itemWindowPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
+                itemHeightPx = bounds.height.toInt()
+            }
+        }
+    ) {
         AppListItemLayout(
             isStartAligned = true,
             startSlot = {
@@ -543,10 +559,12 @@ fun GroupListItem(
             }
         }
 
-        // 菜单在 item 内部锚定展开
+        // 菜单锚定到 item 位置（手指按压处）弹出
         HomeSessionMenu(
             expanded = isMenuOpen,
             isPinned = isPinned,
+            anchorPosition = itemWindowPos,
+            itemHeightPx = itemHeightPx,
             onDismiss = onMenuDismiss,
             onDelete = onMenuDelete,
             onTogglePin = onMenuTogglePin,
@@ -577,8 +595,20 @@ fun ChatListItem(
     val colorScheme = AppTheme.colors
     val haptic = LocalHapticFeedback.current
 
-    // 菜单锚定在 item 内部（对齐 ChatMessageScaffold 模式）
-    Box {
+    // 捕获 item 在窗口中的位置：Popup 用此坐标精确弹出到手指按压处
+    // 只在菜单打开时才更新坐标，避免每次 LazyColumn 重组都触发坐标回调（性能优化）
+    var itemWindowPos by remember { mutableStateOf(IntOffset.Zero) }
+    var itemHeightPx by remember { mutableStateOf(0) }
+
+    Box(
+        modifier = Modifier.onGloballyPositioned { coords ->
+            if (isMenuOpen) {
+                val bounds = coords.boundsInWindow()
+                itemWindowPos = IntOffset(bounds.left.toInt(), bounds.top.toInt())
+                itemHeightPx = bounds.height.toInt()
+            }
+        }
+    ) {
         AppListItemLayout(
             isStartAligned = true,
             startSlot = {
@@ -695,10 +725,12 @@ fun ChatListItem(
             }
         }
 
-        // 菜单在 item 内部锚定展开
+        // 菜单锚定到 item 位置（手指按压处）弹出
         HomeSessionMenu(
             expanded = isMenuOpen,
             isPinned = isPinned,
+            anchorPosition = itemWindowPos,
+            itemHeightPx = itemHeightPx,
             onDismiss = onMenuDismiss,
             onDelete = onMenuDelete,
             onTogglePin = onMenuTogglePin,
@@ -802,60 +834,30 @@ fun EmptyHomeState() {
 // 会话重显）；隐藏=只藏入口（有新消息即重显）；顶置=列表最前（可取消）。
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 单聊长按菜单。 */
-@Composable
-private fun HomeChatMenu(
-    expanded: Boolean,
-    item: ChatListItem,
-    onDismiss: () -> Unit,
-    onDelete: (ChatListItem) -> Unit,
-    onTogglePin: (ChatListItem) -> Unit,
-    onHide: (ChatListItem) -> Unit
-) {
-    HomeSessionMenu(
-        expanded = expanded,
-        isPinned = item.isPinned,
-        onDismiss = onDismiss,
-        onDelete = { onDelete(item) },
-        onTogglePin = { onTogglePin(item) },
-        onHide = { onHide(item) }
-    )
-}
-
-/** 群聊长按菜单。 */
-@Composable
-private fun HomeGroupMenu(
-    expanded: Boolean,
-    item: HomeGroupItem,
-    onDismiss: () -> Unit,
-    onDelete: (HomeGroupItem) -> Unit,
-    onTogglePin: (HomeGroupItem) -> Unit,
-    onHide: (HomeGroupItem) -> Unit
-) {
-    HomeSessionMenu(
-        expanded = expanded,
-        isPinned = item.isPinned,
-        onDismiss = onDismiss,
-        onDelete = { onDelete(item) },
-        onTogglePin = { onTogglePin(item) },
-        onHide = { onHide(item) }
-    )
-}
-
 /**
  * 统一的会话菜单（单聊/群聊共用；isPinned 控制顶置/取消顶置文案切换）。
+ *
+ * 用 Popup（Alignment.TopStart + offset）替代 DropdownMenu：
+ * DropdownMenu 在 LazyColumn item 内部时锚点机制失效，Popup 漂到屏幕左下角；
+ * Popup 的 offset 直接指定窗口坐标（由 onGloballyPositioned 捕获的 item 位置），
+ * 精确弹出到手指按压的会话项处，且不受 LazyColumn 回收重建影响。
  */
 @Composable
 private fun HomeSessionMenu(
     expanded: Boolean,
     isPinned: Boolean,
+    anchorPosition: IntOffset,
+    itemHeightPx: Int,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
     onTogglePin: () -> Unit,
     onHide: () -> Unit
 ) {
+    if (!expanded) return
+
     val colors = AppTheme.colors
     val dimens = AppTheme.dimens
+    val density = LocalDensity.current
 
     val menuBg = colors.surface
     val contentColor = colors.menuContent
@@ -871,77 +873,75 @@ private fun HomeSessionMenu(
     val menuMaxWidth = 168.dp
     val menuShape = RoundedCornerShape(14.dp)
 
-    MaterialTheme(
-        shapes = MaterialTheme.shapes.copy(extraSmall = menuShape)
+    // 菜单显示在 item 下方，与 item 左对齐（微信风格）
+    // y 偏移 = item 顶部 + item 高度（菜单出现在 item 正下方）
+    val menuYOffset = with(density) { itemHeightPx.toDp().toPx().toInt() }
+
+    Popup(
+        alignment = Alignment.TopStart,
+        offset = IntOffset(anchorPosition.x, anchorPosition.y + menuYOffset),
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(
+            focusable = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
     ) {
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = onDismiss,
+        Column(
             modifier = Modifier
                 .widthIn(min = menuMinWidth, max = menuMaxWidth)
                 .clip(menuShape)
-                // 液态玻璃：DropdownMenu 是独立 Popup window，LocalPageBackdrop 通常为 null，
+                // 液态玻璃：Popup 是独立 window，LocalPageBackdrop 为 null，
                 // drawGlass 退化为纯色 surfaceColor，必须传 menuBg 兜底。
                 .drawGlass(
                     backdrop = LocalPageBackdrop.current,
                     shape = menuShape,
                     surfaceColor = menuBg
                 )
-                .border(1.dp, borderColor, menuShape),
-            offset = DpOffset(x = 0.dp, y = (-4).dp),
-            properties = PopupProperties(
-                focusable = false,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true
-            )
+                .border(1.dp, borderColor, menuShape)
+                .padding(vertical = 2.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp)
+            HomeMenuItem(
+                text = if (isPinned) "取消顶置" else "顶置该聊天",
+                icon = AppIcons.Star,
+                contentColor = contentColor,
+                iconColor = iconColor,
+                iconSize = iconSize,
+                labelSize = labelSize,
+                horizontalPadding = itemHorizontalPadding,
+                verticalPadding = itemVerticalPadding,
+                iconTextGap = iconTextGap
             ) {
-                HomeMenuItem(
-                    text = if (isPinned) "取消顶置" else "顶置该聊天",
-                    icon = AppIcons.Star,
-                    contentColor = contentColor,
-                    iconColor = iconColor,
-                    iconSize = iconSize,
-                    labelSize = labelSize,
-                    horizontalPadding = itemHorizontalPadding,
-                    verticalPadding = itemVerticalPadding,
-                    iconTextGap = iconTextGap
-                ) {
-                    onDismiss()
-                    onTogglePin()
-                }
-                HomeMenuItem(
-                    text = "隐藏该聊天",
-                    icon = AppIcons.EyeOff,
-                    contentColor = contentColor,
-                    iconColor = iconColor,
-                    iconSize = iconSize,
-                    labelSize = labelSize,
-                    horizontalPadding = itemHorizontalPadding,
-                    verticalPadding = itemVerticalPadding,
-                    iconTextGap = iconTextGap
-                ) {
-                    onDismiss()
-                    onHide()
-                }
-                HomeMenuItem(
-                    text = "删除该聊天",
-                    icon = AppIcons.Trash2,
-                    contentColor = colors.danger,
-                    iconColor = colors.danger,
-                    iconSize = iconSize,
-                    labelSize = labelSize,
-                    horizontalPadding = itemHorizontalPadding,
-                    verticalPadding = itemVerticalPadding,
-                    iconTextGap = iconTextGap
-                ) {
-                    onDismiss()
-                    onDelete()
-                }
+                onDismiss()
+                onTogglePin()
+            }
+            HomeMenuItem(
+                text = "隐藏该聊天",
+                icon = AppIcons.EyeOff,
+                contentColor = contentColor,
+                iconColor = iconColor,
+                iconSize = iconSize,
+                labelSize = labelSize,
+                horizontalPadding = itemHorizontalPadding,
+                verticalPadding = itemVerticalPadding,
+                iconTextGap = iconTextGap
+            ) {
+                onDismiss()
+                onHide()
+            }
+            HomeMenuItem(
+                text = "删除该聊天",
+                icon = AppIcons.Trash2,
+                contentColor = colors.danger,
+                iconColor = colors.danger,
+                iconSize = iconSize,
+                labelSize = labelSize,
+                horizontalPadding = itemHorizontalPadding,
+                verticalPadding = itemVerticalPadding,
+                iconTextGap = iconTextGap
+            ) {
+                onDismiss()
+                onDelete()
             }
         }
     }
