@@ -223,31 +223,39 @@ fun HomeScreen(
             // 统一排序：群聊 + 单聊合并为统一列表，置顶优先 + 置顶时间升序
             // （最早置顶的在最上，后顶的排在已顶的下面）+ 最新消息时间倒序（微信规则）。
             // HomeTab.ALL 显示全部，HomeTab.GROUP 只显示群聊，HomeTab.FRIEND 只显示单聊。
-            val allItems = mutableListOf<HomeListEntry>().apply {
-                when (selectedTab) {
-                    HomeTab.ALL, HomeTab.GROUP -> groupItems.filterNot { it.isHidden }.forEach { groupItem ->
-                        add(HomeListEntry.GroupEntry(groupItem))
-                    }
-                    HomeTab.FRIEND -> {}
-                }
-                when (val state = chatListState) {
-                    is HomeViewModel.UiState.Ready -> {
-                        when (selectedTab) {
-                            HomeTab.ALL, HomeTab.FRIEND -> state.items.filterNot { it.isHidden }.forEach { chatItem ->
-                                add(HomeListEntry.ChatEntry(chatItem))
-                            }
-                            HomeTab.GROUP -> {}
+            //
+            // remember(allItems + selectedTab)：只有源数据或 tab 变化时才重建 allItems，
+            // 避免每次重组都新建 HomeListEntry 实例（卡顿根因——sealed class 实例引用不等
+            // 导致 itemsIndexed 全部重组）。
+            val allItems = remember(groupItems, chatListState, selectedTab) {
+                mutableListOf<HomeListEntry>().apply {
+                    when (selectedTab) {
+                        HomeTab.ALL, HomeTab.GROUP -> groupItems.filterNot { it.isHidden }.forEach { groupItem ->
+                            add(HomeListEntry.GroupEntry(groupItem))
                         }
+                        HomeTab.FRIEND -> {}
                     }
-                    else -> {}
+                    when (val state = chatListState) {
+                        is HomeViewModel.UiState.Ready -> {
+                            when (selectedTab) {
+                                HomeTab.ALL, HomeTab.FRIEND -> state.items.filterNot { it.isHidden }.forEach { chatItem ->
+                                    add(HomeListEntry.ChatEntry(chatItem))
+                                }
+                                HomeTab.GROUP -> {}
+                            }
+                        }
+                        else -> {}
+                    }
                 }
             }
 
-            val displayAll = allItems.sortedWith(
-                compareByDescending<HomeListEntry> { it.isPinned }
-                    .thenBy { it.pinnedAtMs }
-                    .thenByDescending { it.lastMessageTimestamp }
-            )
+            val displayAll = remember(allItems) {
+                allItems.sortedWith(
+                    compareByDescending<HomeListEntry> { it.isPinned }
+                        .thenBy { it.pinnedAtMs }
+                        .thenByDescending { it.lastMessageTimestamp }
+                )
+            }
 
             when {
                 chatListState is HomeViewModel.UiState.Error -> {
@@ -983,7 +991,7 @@ private sealed class HomeListEntry {
     data class GroupEntry(val item: HomeGroupItem) : HomeListEntry() {
         override val isPinned: Boolean get() = item.isPinned
         override val pinnedAtMs: Long get() = item.pinnedAtMs
-        override val lastMessageTimestamp: Long get() = item.group.updatedAt
+        override val lastMessageTimestamp: Long get() = item.lastMessageTimestamp
     }
 
     data class ChatEntry(val item: ChatListItem) : HomeListEntry() {

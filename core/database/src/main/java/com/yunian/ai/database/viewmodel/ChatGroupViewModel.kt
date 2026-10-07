@@ -61,6 +61,10 @@ class ChatGroupViewModel(application: Application) : AndroidViewModel(applicatio
                     group = group,
                     isPinned = isPinned,
                     pinnedAtMs = if (isPinned) pinnedAtMsMap[group.id] ?: 0L else 0L,
+                    // 群聊排序用 conversation_summary.lastMessageTimestamp（群聊最后消息时间），
+                    // 不是 group.updatedAt（群信息更新时间）——群聊收到消息后 summary 更新，
+                    // group.updatedAt 不更新，用 group.updatedAt 会导致群聊收到消息后不按微信规则排序。
+                    lastMessageTimestamp = summary?.lastMessageTimestamp ?: group.updatedAt,
                     isHidden = isHidden
                 )
             }
@@ -120,5 +124,6 @@ data class HomeGroupItem(
     val group: ChatGroup,
     val isPinned: Boolean = false,
     val pinnedAtMs: Long = 0L,
+    val lastMessageTimestamp: Long = 0L,
     val isHidden: Boolean = false
 )
