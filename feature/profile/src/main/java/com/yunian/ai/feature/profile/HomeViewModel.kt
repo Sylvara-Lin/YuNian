@@ -37,6 +37,25 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var cachedItems: List<ChatListItem> = emptyList()
 
+    /**
+     * 当前选中的首页 tab（全部/群聊/好友）。
+     *
+     * **提升到 ViewModel 的原因**：此前用 `remember { mutableStateOf(HomeTab.ALL) }` 存在
+     * 组合作用域内——导航到聊天页时 HomeScreen 被移出组合树，remember 状态销毁，
+     * 返回首页时重置为 ALL（显示群聊+好友混合），导致：
+     * - 群聊页点击群聊进聊天页 → 退出 → 首页显示「其他好友」
+     * - 好友页点击好友进聊天页 → 退出 → 首页显示「其他群聊」
+     * - 需要点击两次 tab 才切换（第一次点击从 ALL 切到目标）
+     *
+     * ViewModel 作用域是 Navigation graph/Activity，跨页面保留，返回首页时 tab 正确恢复。
+     */
+    private val _selectedTab = kotlinx.coroutines.flow.MutableStateFlow(HomeTab.ALL)
+    val selectedTab: StateFlow<HomeTab> = _selectedTab
+
+    fun setSelectedTab(tab: HomeTab) {
+        _selectedTab.value = tab
+    }
+
     init {
         val initialState = if (HomeListCache.isWarmed()) {
             buildReady(

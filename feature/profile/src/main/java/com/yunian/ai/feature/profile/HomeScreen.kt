@@ -108,7 +108,8 @@ fun HomeScreen(
 ) {
     val chatListState by viewModel.chatListState.collectAsStateWithLifecycle()
     val groupItems by groupViewModel.groupItems.collectAsStateWithLifecycle()
-    var selectedTab by remember { mutableStateOf(HomeTab.ALL) }
+    // selectedTab 提升到 ViewModel（跨页面保留，避免退出聊天页后重置为 ALL）
+    val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val adaptiveSizing = rememberAdaptiveSizing()
     val colorScheme = AppTheme.colors
     val backdrop = LocalPageBackdrop.current
@@ -203,7 +204,7 @@ fun HomeScreen(
 
                 HomeTabBar(
                     selectedTab = selectedTab,
-                    onTabSelected = { selectedTab = it },
+                    onTabSelected = { viewModel.setSelectedTab(it) },
                     backdrop = backdrop
                 )
 
@@ -296,12 +297,15 @@ fun HomeScreen(
                     // 统一渲染：按 displayAll 排序后的顺序渲染，群聊和单聊混合，
                     // 置顶优先 + 置顶时间升序 + 最新消息时间倒序（微信规则）。
                     // HomeTab.ALL 显示全部，GROUP 只显示群聊，FRIEND 只显示单聊。
-                    itemsIndexed(displayAll, key = { _, entry ->
-                        when (entry) {
-                            is HomeListEntry.GroupEntry -> "group_${entry.item.group.id}"
-                            is HomeListEntry.ChatEntry -> "chat_${entry.item.companion.id}"
+                    itemsIndexed(
+                        items = displayAll,
+                        key = { _: Int, entry: HomeListEntry ->
+                            when (entry) {
+                                is HomeListEntry.GroupEntry -> "group_${entry.item.group.id}"
+                                is HomeListEntry.ChatEntry -> "chat_${entry.item.companion.id}"
+                            }
                         }
-                    }) { _, entry ->
+                    ) { _: Int, entry: HomeListEntry ->
                         when (entry) {
                             is HomeListEntry.GroupEntry -> {
                                 val item = entry.item
