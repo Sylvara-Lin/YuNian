@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -199,12 +201,20 @@ fun ContactsScreen(
             }
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            LazyColumn(
+                LazyColumn(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .testTag("contacts_friend_list_ready"),
-                    contentPadding = PaddingValues(vertical = 8.dp, horizontal = 12.dp),
+                    // 底部必须让出「悬浮导航栏高度 + 手势条」，否则联系人/群聊多时
+                    // 最后一条会被导航栏盖住、点不到（与 HomeScreen 同一处理）。
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 8.dp,
+                        bottom = 88.dp +
+                            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (groups.isNotEmpty()) {
